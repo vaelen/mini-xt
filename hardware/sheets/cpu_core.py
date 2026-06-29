@@ -180,10 +180,11 @@ def build(sch, lib):
     L(rst, "V_{DD}", "+5V", dx=0, dy=-2.54); L(rst, "GND", "GND", dx=0, dy=2.54)
     L(rst, "~{RESET}", "PWRGOOD")
     # Bus MCU sequences the actual V20 reset; combine cold-start with ~CPURESET
-    P(sch.place("mini-xt:74HC08", "U15", at=(76.2, 152.4)), "VCC", "+5V", dx=0, dy=-2.54)
+    rcomb = sch.place("mini-xt:74HC08", "U15", at=(76.2, 152.4))
+    L(rcomb, "VCC", "+5V", dx=0, dy=-2.54); L(rcomb, "GND", "GND", dx=0, dy=2.54)
     # (reset combine logic intent; detailed in open-questions)
-    sch.global_label("RESET_DRV", (40.64, 190.5), 0, "output")  # bus reset out
-    P(U1, "RESET", "V_RESET", shape="input")  # V20 reset from combine
+    sch.hier_label("RESET_DRV", (60.96, 190.5), 0, "output")   # bus reset out (interface)
+    # V20 RESET driven by the combine (internal net V_RESET); already labelled above
 
     # IOCHRDY folds into READY (handled in bus_mcu); expose both
     sch.hier_label("IOCHRDY", (304.8, 250), 0, "input")

@@ -389,7 +389,13 @@ class Schematic:
         self.items.append(["junction", ["at", p[0], p[1]], ["diameter", 0],
                            ["color", 0, 0, 0, 0], ["uuid", uid()]])
 
+    #: net names that must be GLOBAL (power rails) -- promoted automatically so
+    #: every sheet's "+5V"/"GND"/"+3V3" join one project-wide net.
+    POWER_GLOBAL = {"+5V", "+3V3", "+3.3V", "GND", "-5V", "+12V", "-12V", "VBUS"}
+
     def label(self, name, at, rotation=0, justify=None):
+        if name in self.POWER_GLOBAL:
+            return self.global_label(name, at, rotation, "input", justify)
         at = snapxy(at)
         node = ["label", name, ["at", at[0], at[1], rotation],
                 self._eff(justify), ["uuid", uid()]]

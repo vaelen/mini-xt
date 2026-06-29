@@ -162,7 +162,7 @@ ds12c887 = make_ic(
 from mxsch import SymbolLib  # noqa: E402
 
 _glue_lib = SymbolLib()
-for _l in ["74xx", "4xxx"]:
+for _l in ["74xx", "4xxx", "Amplifier_Operational"]:
     _glue_lib.load(SYMDIR + "/%s.kicad_sym" % _l, _l)
 
 
@@ -215,6 +215,7 @@ GLUE = [
     ("74xx:74LS08", "74HC08", "Quad 2-input AND"),
     ("74xx:74HC02", "74HC02", "Quad 2-input NOR"),
     ("74xx:74LS125", "74HC125", "Quad bus buffer, 3-state"),
+    ("Amplifier_Operational:TL072", "TL072", "Dual JFET op-amp (audio summer)"),
 ]
 glue_syms = []
 for src, new, desc in GLUE:

@@ -1,0 +1,50 @@
+# Open questions -- storage sheet (XT-IDE Chuck-mod + CompactFlash @ 0x300)
+
+## Q1. No CompactFlash symbol in the available libraries
+**Question:** The authoring guide / `pins.py -s CompactFlash` / `-s CF` finds no
+CompactFlash socket symbol. What footprint/symbol should the CF True-IDE socket use?
+**Why:** Section 10 calls for a 40-pin IDE header + a CompactFlash socket in True-IDE
+mode, wired in parallel with the IDE header.
+**Options:**
+  a. Use `Connector_Generic:Conn_02x25_Odd_Even` (50-pin) and map pins to the CF
+     True-IDE pinout by hand.
+  b. Omit the CF socket, IDE header only.
+  c. Add a custom `mini-xt:CompactFlash_TrueIDE` symbol.
+**Pick (proceeding):** (a) -- 50-pin `Conn_02x25_Odd_Even`, wired per the CF True-IDE
+mode pinout (pin 9 -ATASEL, pin 36 -WE, pin 44 -REG tied to their True-IDE levels;
+pins 18/19/20 = A2/A1/A0; CE1/CE2 = the two IDE chip selects). Replace with a proper
+CF symbol later if one is added to the library.
+
+## Q2. Exact XT-IDE register map / high-byte latch offsets
+**Question:** Which I/O offsets within the 0x300-0x31F window carry CS0, CS1 and the
+high-byte latch register?
+**Why:** The Chuck-mod needs (a) the 8 task-file registers (CS0), (b) the control block
+(CS1), and (c) a separate "high byte" register so 16-bit data transfers become two
+8-bit transfers. The design doc says "I/O base 0x300 (jumperable)" but not the offsets.
+**Options:** Various XT-IDE revisions differ.
+**Pick (proceeding):** Decode A4,A3 with a '138 (DEC1):
+  - 0x300-0x307 (A4=0,A3=0) -> IDE /CS0 (task file, A0-A2 = register)
+  - 0x308-0x30F (A4=0,A3=1) -> IDE /CS1 (control block)
+  - 0x310-0x317 (A4=1,A3=0) -> high-byte latch register (HB_SEL)
+A second '138 (DEC2) decodes A0-A2 inside CS0; its ~Y0 = the 16-bit data register
+(offset 0), which gates the read/write high-byte latches. Block qualifier =
+A9&A8&~A7&~A6&~A5 & ~AEN.
+
+## Q3. High-byte data path topology
+**Question:** One bidirectional latch ('652) vs. two unidirectional '573s + a '245?
+**Why:** The guide offers `74HC573` and/or `74HC245`.
+**Pick (proceeding):** Two '573s + one '245 (period-correct, all in `mini-xt:`):
+  - 74HC245 buffers bus D0-D7 <-> IDE/CF D0-D7 (low byte; DIR follows ~{IOR},
+    enabled for any IDE register access).
+  - 74HC573 "write latch": bus D0-D7 -> IDE D8-D15, captured on a write to the
+    HB register, output-enabled only during an IDE data-register write.
+  - 74HC573 "read latch": IDE D8-D15 -> bus D0-D7, captured during an IDE
+    data-register read, output-enabled when reading the HB register.
+
+## Q4. IRQ5 buffering and unused IDE control lines
+**Pick (proceeding):** IDE/CF INTRQ -> 74HC125 buffer -> IRQ5 (OE tied low). IORDY
+pulled up to +5V (8-bit PIO mostly ignores it). DMARQ/-DACK/-IOCS16/-PDIAG/-DASP/
+card-detect/voltage-sense left unconnected (8-bit PIO, no DMA). IDE -RESET = inverted
+RESET_DRV. CSEL grounded (master).
+</content>
+</invoke>
