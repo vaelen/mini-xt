@@ -151,3 +151,21 @@ data transceiver were 74HC instead of the doc's 74HCT.
 - Net result: 11× 74LVC245A, and HCT for everything else; pinouts unchanged so
   this was purely a part-number/value change. Verified: cpu_core U2-U4 = 74HCT573,
   U5 = 74HCT245; zero structural ERC errors; netlist intact.
+
+---
+
+## Post-review change: speed-select moved Supervisor -> Bus MCU (your call)
+
+`SPEED_SEL` (the 74HCT157 clock-mux select) now originates on the **Bus MCU**
+instead of the Supervisor, so the Supervisor's cross-sheet interface drops to the
+**2-wire UART link + power** (LINK_B2S, LINK_S2B). The Supervisor sends the chosen
+CPU divisor over the link; the Bus MCU drives SPEED_SEL before it releases the V20
+reset (it already owns reset sequencing, so speed + reset are now one owner).
+
+Pin budget (§5.2): this costs 1 Bus-MCU GPIO. To stay within 48, the address/
+control level-shifter direction is now **HLDA-derived externally** (the §5.2
+"transceiver DIR can be HLDA-derived, 0-1 pins" option) instead of a dedicated
+BUSDIR GPIO — verified `/HLDA` drives U203-206 DIR pins. Net effect: ~45-47/48,
+still within budget. First GPIO to reclaim if sidecar DMA/IRQ later expand.
+Verified: SPEED_SEL ties bus_mcu(U201)<->cpu_core mux(U112); supervisor interface
+= LINK only; zero structural ERC errors.

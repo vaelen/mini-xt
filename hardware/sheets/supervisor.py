@@ -12,7 +12,6 @@ point of the two-MCU split, so only the link + speed-select are hierarchical pin
 Cross-sheet interface (PINS):
   * LINK_B2S  (in)  -- Bus MCU -> Supervisor UART (POST codes, CMOS-write acks)
   * LINK_S2B  (out) -- Supervisor -> Bus MCU UART (HID events, menu draw, image push)
-  * SPEED_SEL (out) -- static GPIO -> clock mux in cpu_core, set while V20 in reset
   * +5V is a GLOBAL power net (USB VBUS source); it arrives via the power symbol, not
     a hier pin.
 """
@@ -22,12 +21,11 @@ from mxbus import pin
 NAME = "supervisor"
 TITLE = "Supervisor MCU (RP2040) -- USB host, setup UI, config/flash, POST, console"
 
-# Small, deliberate interface: only the private link + speed-select cross the sheet
+# Small, deliberate interface: only the 2-wire UART link crosses the sheet
 # boundary. USB / POST / console are local (terminate at connectors here).
 PINS = [
     pin("LINK_B2S", "input"),
     pin("LINK_S2B", "output"),
-    pin("SPEED_SEL", "output"),
 ]
 
 
@@ -130,7 +128,8 @@ def build(sch, lib):
     L(U1, "GPIO3", "LINK_B2S", dx=-2.54)     # UART1 RX <- Bus MCU (in)
 
     # ---------------- speed-select latch (static, set before reset release) ----------
-    L(U1, "GPIO4", "SPEED_SEL", dx=-2.54)
+    # speed-select moved to the Bus MCU: the Supervisor now sends the chosen
+    # CPU divisor to the Bus MCU over the UART link (no SPEED_SEL pin here).
 
     # ---------------- SWD debug header (bring-up aid, local) ----------------
     L(U1, "SWCLK", "SWCLK", dx=2.54)

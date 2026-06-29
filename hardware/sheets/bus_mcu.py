@@ -7,8 +7,8 @@ XT/ISA backplane as **slave and master**.  It carries:
         8237 DMA, NMI mask, POST snoop -- all in firmware on core0+PIO / core1.
   * Local 3.3V<->5V level shifters (74LVC245A, value set on mini-xt:74LVC245A):
         - U2  data group   D0-D7   (DIR = DATADIR, read/write of the cycle)
-        - U6  control grp  IOR/IOW/MEMR/MEMW/AEN/RESET_DRV/TC/BALE (DIR = BUSDIR)
-        - U3/U4/U5 address group A0-A19  (DIR = BUSDIR, bus master/slave role)
+        - U6  control grp  IOR/IOW/MEMR/MEMW/AEN/RESET_DRV/TC/BALE (DIR = HLDA, §5.2)
+        - U3/U4/U5 address group A0-A19  (DIR = HLDA, bus master/slave role)
         Per §4.2 the Bus MCU needs BIDIRECTIONAL transceivers (it is also a bus
         master), unlike a pure-slave soft card -- hence the role-driven DIR.
   * External 20-bit loadable address counter (§5.1): U7..U11, 5x 74HCT163
@@ -18,8 +18,11 @@ XT/ISA backplane as **slave and master**.  It carries:
   * IRQ collector (§5.2): U12, 74HCT165 PISO -- collects IRQ lines onto 3 pins
         (IRQ_LOAD / IRQ_CLK / IRQ_SER).
   * UART cross-MCU link to the Supervisor (§5.3): LINK_B2S (TX), LINK_S2B (RX).
+  * SPEED_SEL (out) -> clock mux in cpu_core: set before releasing V20 reset
+    (moved here from the Supervisor; Supervisor sends the choice over the link).
+    Address/control transceiver DIR is HLDA-derived externally to free the GPIO.
 
-BUSDIR is the master/slave role net (HLDA-derived, §5.2); DATADIR is the data
+Addr/ctrl xcvr DIR = HLDA (master/slave role, §5.2); DATADIR is the data
 read/write direction.  See hardware/notes/questions-bus_mcu.md for design picks.
 """
 import mxbus
@@ -56,7 +59,8 @@ PINS = (
     [pin(s, _DIR[s]) for s in _CTRL] +
     [pin(s, _DIR[s]) for s in mxbus.PRIV_CPU] +
     [pin(s, _DIR[s]) for s in mxbus.PRIV_COUNTER] +
-    [pin("LINK_B2S", "output"), pin("LINK_S2B", "input")]
+    [pin("LINK_B2S", "output"), pin("LINK_S2B", "input"),
+     pin("SPEED_SEL", "output")]
 )
 
 # RP2350B GPIO -> internal/interface net (MCU-side names).  ~48 GPIO budget (§5.2).
@@ -75,7 +79,7 @@ GPIO_NET.update({
     33: "DRQ1", 34: "~{DACK1}", 35: "M_TC",         # on-board DMA channel
     36: "CNT_CLK", 37: "CNT_LD0", 38: "CNT_LD1", 39: "CNT_LD2",
     40: "LINK_B2S", 41: "LINK_S2B",                 # UART link to Supervisor
-    42: "BUSDIR", 43: "DATADIR",                    # transceiver direction
+    42: "SPEED_SEL", 43: "DATADIR",                 # SPEED_SEL out; data DIR
     44: "READY", 45: "~{CPURESET}",                 # V20 handshake (private)
     46: "~{RD}", 47: "~{WR}",                       # raw V20 strobe sense
 })
@@ -86,7 +90,8 @@ _NET_SHAPE = {"IOCHRDY": "bidirectional", "~{IOCHCK}": "input",
               "~{CPURESET}": "output", "~{RD}": "input", "~{WR}": "input",
               "DRQ1": "input", "~{DACK1}": "output",
               "CNT_CLK": "output", "CNT_LD0": "output", "CNT_LD1": "output",
-              "CNT_LD2": "output", "LINK_B2S": "output", "LINK_S2B": "input"}
+              "CNT_LD2": "output", "LINK_B2S": "output", "LINK_S2B": "input",
+              "SPEED_SEL": "output"}
 _HIER = set(_NET_SHAPE) | {"IRQ_LOAD", "IRQ_CLK", "IRQ_SER"}  # IRQ_* are internal labels
 
 
@@ -167,8 +172,8 @@ def build(sch, lib):
         N(U2, "A%d" % i, "MD%d" % i)
         N(U2, "B%d" % i, "D%d" % i)
 
-    # control group: dir = BUSDIR (bus role)
-    U6 = xcvr("U6", (200.66, 152.4), "BUSDIR")
+    # control group: dir = HLDA (bus role, HLDA-derived per §5.2)
+    U6 = xcvr("U6", (200.66, 152.4), "HLDA")
     ctrl_pairs = [("M_IOR", "~{IOR}"), ("M_IOW", "~{IOW}"),
                   ("M_MEMR", "~{MEMR}"), ("M_MEMW", "~{MEMW}"),
                   ("M_AEN", "AEN"), ("M_RESETDRV", "RESET_DRV"),
@@ -177,10 +182,10 @@ def build(sch, lib):
         N(U6, "A%d" % i, a)
         N(U6, "B%d" % i, b)
 
-    # address group: 3x '245, MCU/counter side MAx <-> bus Ax, dir = BUSDIR
-    U3 = xcvr("U3", (281.94, 76.2), "BUSDIR")
-    U4 = xcvr("U4", (358.14, 76.2), "BUSDIR")
-    U5 = xcvr("U5", (281.94, 152.4), "BUSDIR")
+    # address group: 3x '245, MCU/counter side MAx <-> bus Ax, dir = HLDA
+    U3 = xcvr("U3", (281.94, 76.2), "HLDA")
+    U4 = xcvr("U4", (358.14, 76.2), "HLDA")
+    U5 = xcvr("U5", (281.94, 152.4), "HLDA")
     for i in range(8):
         N(U3, "A%d" % i, "MA%d" % i);        N(U3, "B%d" % i, "A%d" % i)
         N(U4, "A%d" % i, "MA%d" % (8 + i));  N(U4, "B%d" % i, "A%d" % (8 + i))
@@ -239,9 +244,9 @@ def build(sch, lib):
     sch.text("§5.2 74HCT165 IRQ collector -> 3 MCU pins (IRQ2..IRQ9; DS chains rest)",
              (180.34, 210.82))
 
-    # BUSDIR is the master/slave role net (HLDA-derived per §5.2); driven by the
+    # Addr/ctrl xcvr DIR uses HLDA (master/slave role, §5.2); derived from the
     # MCU here (GPIO42).  DATADIR (GPIO43) flips with the cycle read/write.
-    sch.text("BUSDIR = bus role (HLDA-derived, §5.2);  DATADIR = data read/write dir",
+    sch.text("Addr/ctrl DIR = HLDA (bus role, §5.2);  DATADIR = data read/write dir",
              (200.66, 116.84))
 
     # =================================================================
