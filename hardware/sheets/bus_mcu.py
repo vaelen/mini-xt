@@ -5,17 +5,17 @@ XT/ISA backplane as **slave and master**.  It carries:
 
   * U1  RP2350B -- the Bus MCU.  Soft dual-8259 PIC, 8254 PIT, 8255/8042 KBC,
         8237 DMA, NMI mask, POST snoop -- all in firmware on core0+PIO / core1.
-  * Local 3.3V<->5V level shifters (74LVC245A, value set on mini-xt:74HC245):
+  * Local 3.3V<->5V level shifters (74LVC245A, value set on mini-xt:74LVC245A):
         - U2  data group   D0-D7   (DIR = DATADIR, read/write of the cycle)
         - U6  control grp  IOR/IOW/MEMR/MEMW/AEN/RESET_DRV/TC/BALE (DIR = BUSDIR)
         - U3/U4/U5 address group A0-A19  (DIR = BUSDIR, bus master/slave role)
         Per §4.2 the Bus MCU needs BIDIRECTIONAL transceivers (it is also a bus
         master), unlike a pure-slave soft card -- hence the role-driven DIR.
-  * External 20-bit loadable address counter (§5.1): U7..U11, 5x 74HC163
+  * External 20-bit loadable address counter (§5.1): U7..U11, 5x 74HCT163
         cascaded.  Outputs drive A0-A19; loaded from D0-D7 (3 byte-lanes steered
         by CNT_LD0/1/2); advanced one byte per CNT_CLK pulse.  Cuts master-cycle
         address cost from ~20 GPIO to ~4.
-  * IRQ collector (§5.2): U12, 74HC165 PISO -- collects IRQ lines onto 3 pins
+  * IRQ collector (§5.2): U12, 74HCT165 PISO -- collects IRQ lines onto 3 pins
         (IRQ_LOAD / IRQ_CLK / IRQ_SER).
   * UART cross-MCU link to the Supervisor (§5.3): LINK_B2S (TX), LINK_S2B (RX).
 
@@ -151,10 +151,10 @@ def build(sch, lib):
     sch.text("DVDD = 1.1V core (on-chip VREG: VREG_VIN->VREG_LX->L->DVDD)", (124.46, 88.9))
 
     # =================================================================
-    #  Level shifters (74LVC245A) -- value override on mini-xt:74HC245
+    #  Level shifters (74LVC245A) -- value override on mini-xt:74LVC245A
     # =================================================================
     def xcvr(ref, at, dir_net):
-        u = sch.place("mini-xt:74HC245", ref, "74LVC245A", at=at)
+        u = sch.place("mini-xt:74LVC245A", ref, "74LVC245A", at=at)
         N(u, "VCC", "+3V3", length=2.54)
         N(u, "GND", "GND", length=2.54)
         N(u, "A->B", dir_net)              # DIR
@@ -191,7 +191,7 @@ def build(sch, lib):
         sch.no_connect(U5.pin_xy("B%d" % i))
 
     # =================================================================
-    #  External 20-bit loadable address counter (5x 74HC163), §5.1
+    #  External 20-bit loadable address counter (5x 74HCT163), §5.1
     # =================================================================
     # Each '163 = 4 bits.  Load steered in 3 byte-lanes from D0-D7:
     #   CNT_LD0 -> bits 0-7, CNT_LD1 -> bits 8-15, CNT_LD2 -> bits 16-19.
@@ -204,7 +204,7 @@ def build(sch, lib):
         ("U11", 325.12, [0, 1, 2, 3], [16, 17, 18, 19], "CNT_LD2", "CNT_TC3", None),
     ]
     for ref, x, dsrc, adst, pe, cetin, tcout in cnt_cfg:
-        u = sch.place("mini-xt:74HC163", ref, at=(x, 271.78))
+        u = sch.place("mini-xt:74HCT163", ref, at=(x, 271.78))
         N(u, "VCC", "+5V", length=2.54)
         N(u, "GND", "GND", length=2.54)
         for q in range(4):
@@ -223,9 +223,9 @@ def build(sch, lib):
              (60.96, 248.92))
 
     # =================================================================
-    #  IRQ collector -- 74HC165 PISO, §5.2 (IRQ2..IRQ9; cascade DS for the rest)
+    #  IRQ collector -- 74HCT165 PISO, §5.2 (IRQ2..IRQ9; cascade DS for the rest)
     # =================================================================
-    U12 = sch.place("mini-xt:74HC165", "U12", at=(200.66, 233.68))
+    U12 = sch.place("mini-xt:74HCT165", "U12", at=(200.66, 233.68))
     N(U12, "VCC", "+5V", length=2.54)
     N(U12, "GND", "GND", length=2.54)
     for i in range(8):
@@ -236,7 +236,7 @@ def build(sch, lib):
     N(U12, "DS", "GND")                             # serial-in: cascade 2nd '165 here
     N(U12, "Q7", "IRQ_SER")                         # serial out to MCU
     sch.no_connect(U12.pin_xy("~{Q7}"))
-    sch.text("§5.2 74HC165 IRQ collector -> 3 MCU pins (IRQ2..IRQ9; DS chains rest)",
+    sch.text("§5.2 74HCT165 IRQ collector -> 3 MCU pins (IRQ2..IRQ9; DS chains rest)",
              (180.34, 210.82))
 
     # BUSDIR is the master/slave role net (HLDA-derived per §5.2); driven by the

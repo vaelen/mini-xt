@@ -198,23 +198,27 @@ def flatten(srclibid, newname, description=""):
                    description=description)
 
 
+# Standardized on 74HCT (TTL input thresholds) for all 5 V glue -- the board has
+# many 3.3 V<->5 V crossings, and HCT reliably reads a 3.3 V high (Vih=2.0 V)
+# where 74HC (Vih~3.5 V) would be marginal. The 4017 (no HCT variant) is replaced
+# by a 74HCT163 preset-to-divide-by-3. Level shifters stay 74LVC245A.
 GLUE = [
-    ("74xx:74LS573", "74HC573", "Octal transparent latch (address latch)"),
-    ("74xx:74HC245", "74HC245", "Octal bus transceiver"),
+    ("74xx:74LS573", "74HCT573", "Octal transparent latch (address latch)"),
+    ("74xx:74HC245", "74HCT245", "Octal bus transceiver"),
+    ("74xx:74HC245", "74LVC245A", "Octal level-shift transceiver (3.3V<->5V)"),
     ("74xx:74HCT138", "74HCT138", "3-to-8 line decoder"),
-    ("74xx:74HC00", "74HC00", "Quad 2-input NAND"),
-    ("74xx:74HC74", "74HC74", "Dual D flip-flop"),
-    ("4xxx:4017", "74HC4017", "Johnson decade counter (div-by-3)"),
-    ("74xx:74LS157", "74HC157", "Quad 2-to-1 mux (clock select)"),
-    ("74xx:74HC04", "74HC04", "Hex inverter (clock buffer)"),
-    ("74xx:74HC374", "74HC374", "Octal D flip-flop (LPT data latch)"),
-    ("74xx:74HC244", "74HC244", "Octal buffer (LPT status/control)"),
-    ("74xx:74HC165", "74HC165", "8-bit PISO shift register (IRQ collector)"),
-    ("74xx:74LS163", "74HC163", "4-bit binary counter (bus-master address)"),
-    ("74xx:74LS32", "74HC32", "Quad 2-input OR"),
-    ("74xx:74LS08", "74HC08", "Quad 2-input AND"),
-    ("74xx:74HC02", "74HC02", "Quad 2-input NOR"),
-    ("74xx:74LS125", "74HC125", "Quad bus buffer, 3-state"),
+    ("74xx:74HC00", "74HCT00", "Quad 2-input NAND"),
+    ("74xx:74HC74", "74HCT74", "Dual D flip-flop"),
+    ("74xx:74LS157", "74HCT157", "Quad 2-to-1 mux (clock select)"),
+    ("74xx:74HC04", "74HCT04", "Hex inverter (clock buffer)"),
+    ("74xx:74HC374", "74HCT374", "Octal D flip-flop (LPT data latch)"),
+    ("74xx:74HC244", "74HCT244", "Octal buffer (LPT status/control)"),
+    ("74xx:74HC165", "74HCT165", "8-bit PISO shift register (IRQ collector)"),
+    ("74xx:74LS163", "74HCT163", "4-bit binary counter (bus-master addr / div-by-3)"),
+    ("74xx:74LS32", "74HCT32", "Quad 2-input OR"),
+    ("74xx:74LS08", "74HCT08", "Quad 2-input AND"),
+    ("74xx:74HC02", "74HCT02", "Quad 2-input NOR"),
+    ("74xx:74LS125", "74HCT125", "Quad bus buffer, 3-state"),
     ("Amplifier_Operational:TL072", "TL072", "Dual JFET op-amp (audio summer)"),
 ]
 glue_syms = []

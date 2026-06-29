@@ -11,7 +11,7 @@ sheet adds the small glue to bridge the two:
   * MOT strapped to GND -> Intel bus mode (DS = ~{RD}, R/~{W} = ~{WR}, AS = ALE).
   * AD0-7 wired straight to the data bus D0-7 (the chip is the only driver on
     its AD pins).
-  * 74HCT138 + 74HC02/74HC08 decode ~{CS} for exactly 0x70/0x71 from A1-A9 + AEN.
+  * 74HCT138 + 74HCT02/74HCT08 decode ~{CS} for exactly 0x70/0x71 from A1-A9 + AEN.
   * Strobes synthesised from the I/O cycle using A0 to pick index vs data:
       AS     = (~{IOW} low) AND (A0=0) AND selected   -- latches index on 0x70 write
       DS     = ~{IOR} OR ~A0                           -- read enable, 0x71 only
@@ -83,7 +83,7 @@ def build(sch, lib):
 
     # ---------------- "upper address all zero" detector ----------------
     # need A1=A2=A3=A7=A8=A9=0.  NOR pairs -> high when both 0; AND them.
-    U3 = sch.place("mini-xt:74HC02", "U3", at=(88.9, 215.9))   # NOR x4
+    U3 = sch.place("mini-xt:74HCT02", "U3", at=(88.9, 215.9))   # NOR x4
     L(U3, "VCC", "+5V", dx=0, dy=-2.54)
     L(U3, "GND", "GND", dx=0, dy=2.54)
     L(U3, "P2", "A1", dx=-2.54); L(U3, "P3", "A2", dx=-2.54)
@@ -93,10 +93,10 @@ def build(sch, lib):
     L(U3, "P8", "A8", dx=-2.54); L(U3, "P9", "A9", dx=-2.54)
     L(U3, "P10", "ZN3", dx=2.54)                               # NOR(A8,A9)
 
-    # ---------------- AND glue: 74HC08 ----------------
+    # ---------------- AND glue: 74HCT08 ----------------
     # gate A,B: AND the three NOR outputs -> ADDR_ZERO
     # gate C,D: AS = nIOW AND nA0 AND selected
-    U4 = sch.place("mini-xt:74HC08", "U4", at=(152.4, 215.9))  # AND x4
+    U4 = sch.place("mini-xt:74HCT08", "U4", at=(152.4, 215.9))  # AND x4
     L(U4, "VCC", "+5V", dx=0, dy=-2.54)
     L(U4, "GND", "GND", dx=0, dy=2.54)
     L(U4, "P1", "ZN1", dx=-2.54); L(U4, "P2", "ZN2", dx=-2.54)
@@ -108,8 +108,8 @@ def build(sch, lib):
     L(U4, "P12", "AS0", dx=-2.54); L(U4, "P13", "NRTCSEL", dx=-2.54)
     L(U4, "P11", "RTC_AS", dx=2.54)                            # & selected -> AS
 
-    # ---------------- OR glue: 74HC32 (port-0x71 data strobes) ----------------
-    U5 = sch.place("mini-xt:74HC32", "U5", at=(152.4, 160.02))  # OR x4
+    # ---------------- OR glue: 74HCT32 (port-0x71 data strobes) ----------------
+    U5 = sch.place("mini-xt:74HCT32", "U5", at=(152.4, 160.02))  # OR x4
     L(U5, "VCC", "+5V", dx=0, dy=-2.54)
     L(U5, "GND", "GND", dx=0, dy=2.54)
     L(U5, "P1", "~{IOR}", dx=-2.54); L(U5, "P2", "NA0", dx=-2.54)
@@ -117,10 +117,10 @@ def build(sch, lib):
     L(U5, "P4", "~{IOW}", dx=-2.54); L(U5, "P5", "NA0", dx=-2.54)
     L(U5, "P6", "RTC_RW", dx=2.54)                             # ~{IOW} | nA0 (A0=1)
 
-    # ---------------- inverters: 74HC04 ----------------
+    # ---------------- inverters: 74HCT04 ----------------
     # NA0 = ~A0 ; NIOW = ~(~{IOW}) ; NRTCSEL = ~(~{RTC_SEL}) ;
     # RTC_RST_L = ~RESET_DRV ; IRQ8 = ~(~{IRQ})
-    U6 = sch.place("mini-xt:74HC04", "U6", at=(88.9, 160.02))  # inverter x6
+    U6 = sch.place("mini-xt:74HCT04", "U6", at=(88.9, 160.02))  # inverter x6
     L(U6, "VCC", "+5V", dx=0, dy=-2.54)
     L(U6, "GND", "GND", dx=0, dy=2.54)
     L(U6, "P1", "A0", dx=-2.54);          L(U6, "P2", "NA0", dx=2.54)

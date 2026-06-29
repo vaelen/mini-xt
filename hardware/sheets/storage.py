@@ -5,19 +5,19 @@ Design doc S10. A discrete, period-correct mass-storage soft card:
   * 16-bit IDE data register made accessible as two 8-bit transfers
     ("Chuck-mod" high-byte latch):
       - 74HC245 buffers bus D0-D7  <-> IDE/CF D0-D7  (low byte, direct).
-      - 74HC573 WRITE latch: bus D0-D7 -> IDE D8-D15, loaded on a write to the
+      - 74HCT573 WRITE latch: bus D0-D7 -> IDE D8-D15, loaded on a write to the
         high-byte register, output-enabled only on the IDE data-register write.
-      - 74HC573 READ  latch: IDE D8-D15 -> bus D0-D7, loaded on the IDE
+      - 74HCT573 READ  latch: IDE D8-D15 -> bus D0-D7, loaded on the IDE
         data-register read, output-enabled when reading the high-byte register.
   * Address decode for the 0x300-0x31F window from A4..A9 + AEN + ~{IOR}/~{IOW}:
       - 74HCT138 (DEC1) splits the window into /CS0, /CS1 and the high-byte reg.
       - 74HCT138 (DEC2) decodes A0-A2 inside CS0; ~Y0 = the data register (off 0).
-      - glue: 74HC08 (block qualifier + low-byte buffer enable), 74HC32
-        (strobe combiners), 74HC04 (inverters + IDE -RESET).
+      - glue: 74HCT08 (block qualifier + low-byte buffer enable), 74HCT32
+        (strobe combiners), 74HCT04 (inverters + IDE -RESET).
   * 40-pin IDE header (Conn_02x20) and a CompactFlash True-IDE socket
     (Conn_02x25, 50-pin -- no CF symbol in lib, see questions-storage.md) wired
     in parallel.
-  * Drive INTRQ -> 74HC125 buffer -> IRQ5.
+  * Drive INTRQ -> 74HCT125 buffer -> IRQ5.
 
 Soft card: exposes ONLY ISA signals + power. The IDE/CF connectors are local.
 See hardware/notes/questions-storage.md for the register-map / topology picks.
@@ -57,8 +57,8 @@ def build(sch, lib):
         sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
 
     # ============================================================ glue logic ===
-    # ---- 74HC04 hex inverter: latch strobes, address inverts, IDE -RESET ----
-    INV = sch.place("mini-xt:74HC04", "U1", at=(38.1, 76.2))
+    # ---- 74HCT04 hex inverter: latch strobes, address inverts, IDE -RESET ----
+    INV = sch.place("mini-xt:74HCT04", "U1", at=(38.1, 76.2))
     pwr(INV, "VCC", "GND")
     L(INV, "P1", "HBW_N", dx=-2.54);  L(INV, "P2", "LE_W")     # write-latch Load
     L(INV, "P3", "DR_N",  dx=-2.54);  L(INV, "P4", "LE_RD")    # read-latch  Load
@@ -67,32 +67,32 @@ def build(sch, lib):
     L(INV, "P11", "A7",   dx=-2.54);  L(INV, "P10", "nA7")
     L(INV, "P13", "RESET_DRV", dx=-2.54); L(INV, "P12", "~{IDE_RST}")
 
-    # ---- 74HC08 #1: block-address qualifier (A9&A8&~A5&~A6&~A7) -> HI_MATCH ----
-    AND1 = sch.place("mini-xt:74HC08", "U2", at=(38.1, 142.24))
+    # ---- 74HCT08 #1: block-address qualifier (A9&A8&~A5&~A6&~A7) -> HI_MATCH ----
+    AND1 = sch.place("mini-xt:74HCT08", "U2", at=(38.1, 142.24))
     pwr(AND1, "VCC", "GND")
     L(AND1, "P1", "A9", dx=-2.54); L(AND1, "P2", "A8", dx=-2.54); L(AND1, "P3", "M1")
     L(AND1, "P4", "nA5", dx=-2.54); L(AND1, "P5", "nA6", dx=-2.54); L(AND1, "P6", "M2")
     L(AND1, "P9", "M1", dx=-2.54); L(AND1, "P10", "M2", dx=-2.54); L(AND1, "P8", "M3")
     L(AND1, "P12", "M3", dx=-2.54); L(AND1, "P13", "nA7", dx=-2.54); L(AND1, "P11", "HI_MATCH")
 
-    # ---- 74HC08 #2: low-byte buffer enable = AND(~{IDE_CS0}, ~{IDE_CS1}) ----
-    AND2 = sch.place("mini-xt:74HC08", "U3", at=(38.1, 205.74))
+    # ---- 74HCT08 #2: low-byte buffer enable = AND(~{IDE_CS0}, ~{IDE_CS1}) ----
+    AND2 = sch.place("mini-xt:74HCT08", "U3", at=(38.1, 205.74))
     pwr(AND2, "VCC", "GND")
     L(AND2, "P1", "~{IDE_CS0}", dx=-2.54); L(AND2, "P2", "~{IDE_CS1}", dx=-2.54)
     L(AND2, "P3", "~{DBUF_OE}")
     for u in ("P4", "P5", "P9", "P10", "P12", "P13"):
         sch.no_connect(AND2.pin_xy(u))
 
-    # ---- 74HC32: strobe combiners (active-low pins -> active-low strobe) ----
-    OR = sch.place("mini-xt:74HC32", "U4", at=(114.3, 210.82))
+    # ---- 74HCT32: strobe combiners (active-low pins -> active-low strobe) ----
+    OR = sch.place("mini-xt:74HCT32", "U4", at=(114.3, 210.82))
     pwr(OR, "VCC", "GND")
     L(OR, "P1", "~{DATA_SEL}", dx=-2.54); L(OR, "P2", "~{IOW}", dx=-2.54); L(OR, "P3", "~{DWR_N}")   # data write
     L(OR, "P4", "~{DATA_SEL}", dx=-2.54); L(OR, "P5", "~{IOR}", dx=-2.54); L(OR, "P6", "DR_N")        # data read
     L(OR, "P9", "~{HB_SEL}", dx=-2.54);  L(OR, "P10", "~{IOR}", dx=-2.54); L(OR, "P8", "~{HBRD_N}")  # HB read
     L(OR, "P12", "~{HB_SEL}", dx=-2.54); L(OR, "P13", "~{IOW}", dx=-2.54); L(OR, "P11", "HBW_N")      # HB write
 
-    # ---- 74HC125: INTRQ -> IRQ5 (OE tied low, always enabled) ----
-    IRQ = sch.place("mini-xt:74HC125", "U5", at=(38.1, 256.54))
+    # ---- 74HCT125: INTRQ -> IRQ5 (OE tied low, always enabled) ----
+    IRQ = sch.place("mini-xt:74HCT125", "U5", at=(38.1, 256.54))
     pwr(IRQ, "VCC", "GND")
     L(IRQ, "P1", "GND", dx=-2.54); L(IRQ, "P2", "IDE_IRQ", dx=-2.54); L(IRQ, "P3", "IRQ5")
     for u in ("P4", "P5", "P9", "P10", "P12", "P13", "P6", "P8", "P11"):
@@ -121,7 +121,7 @@ def build(sch, lib):
 
     # =========================================================== data path ====
     # ---- 74HC245 low-byte buffer: bus D0-D7 <-> IDE/CF D0-D7 ----
-    LB = sch.place("mini-xt:74HC245", "U8", at=(190.5, 63.5))
+    LB = sch.place("mini-xt:74HCT245", "U8", at=(190.5, 63.5))
     pwr(LB, "VCC", "GND")
     L(LB, "A->B", "~{IOR}", dx=-2.54)    # write (IOR high) drives bus->IDE
     L(LB, "CE", "~{DBUF_OE}", dx=-2.54)  # enabled for any IDE register access
@@ -129,8 +129,8 @@ def build(sch, lib):
         L(LB, "A%d" % i, "D%d" % i, dx=-2.54)     # bus side
         L(LB, "B%d" % i, "ID%d" % i)              # IDE side (low byte)
 
-    # ---- 74HC573 high-byte WRITE latch: bus D0-D7 -> IDE D8-D15 ----
-    HW = sch.place("mini-xt:74HC573", "U9", at=(190.5, 142.24))
+    # ---- 74HCT573 high-byte WRITE latch: bus D0-D7 -> IDE D8-D15 ----
+    HW = sch.place("mini-xt:74HCT573", "U9", at=(190.5, 142.24))
     pwr(HW, "VCC", "GND")
     L(HW, "Load", "LE_W", dx=-2.54)      # capture on write to HB register
     L(HW, "OE", "~{DWR_N}", dx=-2.54)    # drive IDE high byte only on data write
@@ -138,8 +138,8 @@ def build(sch, lib):
         L(HW, "D%d" % i, "D%d" % i, dx=-2.54)     # bus side
         L(HW, "Q%d" % i, "ID%d" % (8 + i))        # IDE high byte D8..D15
 
-    # ---- 74HC573 high-byte READ latch: IDE D8-D15 -> bus D0-D7 ----
-    HR = sch.place("mini-xt:74HC573", "U10", at=(190.5, 215.9))
+    # ---- 74HCT573 high-byte READ latch: IDE D8-D15 -> bus D0-D7 ----
+    HR = sch.place("mini-xt:74HCT573", "U10", at=(190.5, 215.9))
     pwr(HR, "VCC", "GND")
     L(HR, "Load", "LE_RD", dx=-2.54)     # capture IDE high byte on data read
     L(HR, "OE", "~{HBRD_N}", dx=-2.54)   # present to bus when reading HB register

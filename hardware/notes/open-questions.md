@@ -133,3 +133,21 @@ bus tri-state enables — out of scope for an interface/isolation study.
 - Whether you want drawn bus graphics vs the name-based bus connectivity (Q3).
 - Whether storage / audio / sidecar should stay in scope (Q8).
 - The per-sheet `questions-*.md` files for component/decode choices.
+
+---
+
+## Post-review change: standardize 5 V glue on 74HCT (your call)
+
+Replaced the mixed HC/HCT glue with **74HCT across all 5 V logic** (TTL input
+thresholds reliably read the 3.3 V level-shifter outputs; HC's CMOS Vih ~3.5 V
+was marginal). This also fixed the earlier bug where the bus address latches and
+data transceiver were 74HC instead of the doc's 74HCT.
+
+- Bus-facing latch/transceiver/decoder/gates/counters/FF/mux/inverter → **74HCT**.
+- The ÷3 changed from **74HC4017 → 74HCT163 preset-to-3** (no HCT 4017 exists;
+  S3.2 already lists the '163 preset as the equivalent substitute). A spare
+  74HCT04 gate inverts the counter's TC into ~PE for the reload.
+- Per-card 3.3 V↔5 V level shifters stay **74LVC245A** (dedicated symbol).
+- Net result: 11× 74LVC245A, and HCT for everything else; pinouts unchanged so
+  this was purely a part-number/value change. Verified: cpu_core U2-U4 = 74HCT573,
+  U5 = 74HCT245; zero structural ERC errors; netlist intact.

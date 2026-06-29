@@ -125,7 +125,7 @@ def build(sch, lib):
 
     # ================= level shifters (74LVC245A) =================
     def shifter(ref, at):
-        u = sch.place("mini-xt:74HC245", ref, "74LVC245A", at=at)
+        u = sch.place("mini-xt:74LVC245A", ref, "74LVC245A", at=at)
         L(u, "VCC", "+3V3", dx=0, dy=-2.54)
         L(u, "GND", "GND", dx=0, dy=2.54)
         return u

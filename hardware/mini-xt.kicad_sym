@@ -1753,7 +1753,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC573"
+	(symbol "74HCT573"
 		(pin_names
 			(offset 1.016)
 		)
@@ -1768,7 +1768,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC573"
+		(property "Value" "74HCT573"
 			(at -10.16 19.05 0)
 			(effects
 				(font
@@ -1803,7 +1803,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC573_0_1"
+		(symbol "74HCT573_0_1"
 			(rectangle
 				(start -10.16 13.97)
 				(end 10.16 -13.97)
@@ -1816,7 +1816,7 @@
 				)
 			)
 		)
-		(symbol "74HC573_1_1"
+		(symbol "74HCT573_1_1"
 			(pin input line
 				(at -13.97 11.43 0)
 				(length 3.81)
@@ -2180,7 +2180,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC245"
+	(symbol "74HCT245"
 		(pin_names
 			(offset 1.016)
 		)
@@ -2195,7 +2195,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC245"
+		(property "Value" "74HCT245"
 			(at -10.16 17.78 0)
 			(effects
 				(font
@@ -2230,7 +2230,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC245_0_1"
+		(symbol "74HCT245_0_1"
 			(rectangle
 				(start -10.16 12.7)
 				(end 10.16 -12.7)
@@ -2243,7 +2243,434 @@
 				)
 			)
 		)
-		(symbol "74HC245_1_1"
+		(symbol "74HCT245_1_1"
+			(pin input line
+				(at -13.97 10.16 0)
+				(length 3.81)
+				(name "A->B"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 7.62 0)
+				(length 3.81)
+				(name "CE"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "19"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at -13.97 5.08 0)
+				(length 3.81)
+				(name "A2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at -13.97 2.54 0)
+				(length 3.81)
+				(name "A4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at -13.97 0 0)
+				(length 3.81)
+				(name "A6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "8"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at -13.97 -2.54 0)
+				(length 3.81)
+				(name "B0"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "18"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at -13.97 -5.08 0)
+				(length 3.81)
+				(name "B2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "16"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at -13.97 -7.62 0)
+				(length 3.81)
+				(name "B4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "14"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at -13.97 -10.16 0)
+				(length 3.81)
+				(name "B6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "12"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 10.16 180)
+				(length 3.81)
+				(name "A0"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 7.62 180)
+				(length 3.81)
+				(name "A1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 5.08 180)
+				(length 3.81)
+				(name "A3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 2.54 180)
+				(length 3.81)
+				(name "A5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 0 180)
+				(length 3.81)
+				(name "A7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "9"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -2.54 180)
+				(length 3.81)
+				(name "B1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "17"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -5.08 180)
+				(length 3.81)
+				(name "B3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "15"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -7.62 180)
+				(length 3.81)
+				(name "B5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "13"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -10.16 180)
+				(length 3.81)
+				(name "B7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "11"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin power_in line
+				(at 0 16.51 270)
+				(length 3.81)
+				(name "VCC"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "20"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin power_in line
+				(at 0 -16.51 90)
+				(length 3.81)
+				(name "GND"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "10"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+	(symbol "74LVC245A"
+		(pin_names
+			(offset 1.016)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "U"
+			(at -10.16 15.24 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "74LVC245A"
+			(at -10.16 17.78 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Octal level-shift transceiver (3.3V<->5V)"
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(symbol "74LVC245A_0_1"
+			(rectangle
+				(start -10.16 12.7)
+				(end 10.16 -12.7)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type background)
+				)
+			)
+		)
+		(symbol "74LVC245A_1_1"
 			(pin input line
 				(at -13.97 10.16 0)
 				(length 3.81)
@@ -2962,7 +3389,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC00"
+	(symbol "74HCT00"
 		(pin_names
 			(offset 1.016)
 		)
@@ -2977,7 +3404,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC00"
+		(property "Value" "74HCT00"
 			(at -10.16 16.51 0)
 			(effects
 				(font
@@ -3012,7 +3439,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC00_0_1"
+		(symbol "74HCT00_0_1"
 			(rectangle
 				(start -10.16 11.43)
 				(end 10.16 -11.43)
@@ -3025,7 +3452,7 @@
 				)
 			)
 		)
-		(symbol "74HC00_1_1"
+		(symbol "74HCT00_1_1"
 			(pin input line
 				(at -13.97 8.89 0)
 				(length 3.81)
@@ -3281,7 +3708,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC74"
+	(symbol "74HCT74"
 		(pin_names
 			(offset 1.016)
 		)
@@ -3296,7 +3723,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC74"
+		(property "Value" "74HCT74"
 			(at -10.16 16.51 0)
 			(effects
 				(font
@@ -3331,7 +3758,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC74_0_1"
+		(symbol "74HCT74_0_1"
 			(rectangle
 				(start -10.16 11.43)
 				(end 10.16 -11.43)
@@ -3344,7 +3771,7 @@
 				)
 			)
 		)
-		(symbol "74HC74_1_1"
+		(symbol "74HCT74_1_1"
 			(pin input line
 				(at -13.97 8.89 0)
 				(length 3.81)
@@ -3600,362 +4027,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC4017"
-		(pin_names
-			(offset 1.016)
-		)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(property "Reference" "U"
-			(at -10.16 17.78 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "74HC4017"
-			(at -10.16 20.32 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 0 0 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 0 0 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Johnson decade counter (div-by-3)"
-			(at 0 0 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(symbol "74HC4017_0_1"
-			(rectangle
-				(start -10.16 15.24)
-				(end 10.16 -15.24)
-				(stroke
-					(width 0.254)
-					(type default)
-				)
-				(fill
-					(type background)
-				)
-			)
-		)
-		(symbol "74HC4017_1_1"
-			(pin input line
-				(at -13.97 12.7 0)
-				(length 3.81)
-				(name "CLK"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "14"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 10.16 0)
-				(length 3.81)
-				(name "CKEN"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "13"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 7.62 0)
-				(length 3.81)
-				(name "Reset"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "15"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 12.7 180)
-				(length 3.81)
-				(name "Q0"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 10.16 180)
-				(length 3.81)
-				(name "Q1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 7.62 180)
-				(length 3.81)
-				(name "Q2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "4"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 5.08 180)
-				(length 3.81)
-				(name "Q3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "7"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 2.54 180)
-				(length 3.81)
-				(name "Q4"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "10"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 0 180)
-				(length 3.81)
-				(name "Q5"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 -2.54 180)
-				(length 3.81)
-				(name "Q6"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "5"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 -5.08 180)
-				(length 3.81)
-				(name "Q7"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "6"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 -7.62 180)
-				(length 3.81)
-				(name "Q8"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "9"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 -10.16 180)
-				(length 3.81)
-				(name "Q9"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "11"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 -12.7 180)
-				(length 3.81)
-				(name "Cout"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "12"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin power_in line
-				(at 0 19.05 270)
-				(length 3.81)
-				(name "VDD"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "16"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin power_in line
-				(at 0 -19.05 90)
-				(length 3.81)
-				(name "VSS"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "8"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-		)
-		(embedded_fonts no)
-	)
-	(symbol "74HC157"
+	(symbol "74HCT157"
 		(pin_names
 			(offset 1.016)
 		)
@@ -3970,7 +4042,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC157"
+		(property "Value" "74HCT157"
 			(at -10.16 19.05 0)
 			(effects
 				(font
@@ -4005,7 +4077,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC157_0_1"
+		(symbol "74HCT157_0_1"
 			(rectangle
 				(start -10.16 13.97)
 				(end 10.16 -13.97)
@@ -4018,7 +4090,7 @@
 				)
 			)
 		)
-		(symbol "74HC157_1_1"
+		(symbol "74HCT157_1_1"
 			(pin input line
 				(at -13.97 11.43 0)
 				(length 3.81)
@@ -4310,7 +4382,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC04"
+	(symbol "74HCT04"
 		(pin_names
 			(offset 1.016)
 		)
@@ -4325,7 +4397,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC04"
+		(property "Value" "74HCT04"
 			(at -10.16 13.97 0)
 			(effects
 				(font
@@ -4360,7 +4432,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC04_0_1"
+		(symbol "74HCT04_0_1"
 			(rectangle
 				(start -10.16 8.89)
 				(end 10.16 -8.89)
@@ -4373,7 +4445,7 @@
 				)
 			)
 		)
-		(symbol "74HC04_1_1"
+		(symbol "74HCT04_1_1"
 			(pin input line
 				(at -13.97 6.35 0)
 				(length 3.81)
@@ -4629,7 +4701,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC374"
+	(symbol "74HCT374"
 		(pin_names
 			(offset 1.016)
 		)
@@ -4644,7 +4716,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC374"
+		(property "Value" "74HCT374"
 			(at -10.16 19.05 0)
 			(effects
 				(font
@@ -4679,7 +4751,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC374_0_1"
+		(symbol "74HCT374_0_1"
 			(rectangle
 				(start -10.16 13.97)
 				(end 10.16 -13.97)
@@ -4692,7 +4764,7 @@
 				)
 			)
 		)
-		(symbol "74HC374_1_1"
+		(symbol "74HCT374_1_1"
 			(pin input line
 				(at -13.97 11.43 0)
 				(length 3.81)
@@ -5056,7 +5128,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC244"
+	(symbol "74HCT244"
 		(pin_names
 			(offset 1.016)
 		)
@@ -5071,7 +5143,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC244"
+		(property "Value" "74HCT244"
 			(at -10.16 19.05 0)
 			(effects
 				(font
@@ -5106,7 +5178,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC244_0_1"
+		(symbol "74HCT244_0_1"
 			(rectangle
 				(start -10.16 13.97)
 				(end 10.16 -13.97)
@@ -5119,7 +5191,7 @@
 				)
 			)
 		)
-		(symbol "74HC244_1_1"
+		(symbol "74HCT244_1_1"
 			(pin input line
 				(at -13.97 11.43 0)
 				(length 3.81)
@@ -5483,7 +5555,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC165"
+	(symbol "74HCT165"
 		(pin_names
 			(offset 1.016)
 		)
@@ -5498,7 +5570,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC165"
+		(property "Value" "74HCT165"
 			(at -10.16 21.59 0)
 			(effects
 				(font
@@ -5533,7 +5605,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC165_0_1"
+		(symbol "74HCT165_0_1"
 			(rectangle
 				(start -10.16 16.51)
 				(end 10.16 -16.51)
@@ -5546,7 +5618,7 @@
 				)
 			)
 		)
-		(symbol "74HC165_1_1"
+		(symbol "74HCT165_1_1"
 			(pin input line
 				(at -13.97 13.97 0)
 				(length 3.81)
@@ -5838,7 +5910,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC163"
+	(symbol "74HCT163"
 		(pin_names
 			(offset 1.016)
 		)
@@ -5853,7 +5925,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC163"
+		(property "Value" "74HCT163"
 			(at -10.16 17.78 0)
 			(effects
 				(font
@@ -5879,7 +5951,7 @@
 				(hide yes)
 			)
 		)
-		(property "Description" "4-bit binary counter (bus-master address)"
+		(property "Description" "4-bit binary counter (bus-master addr / div-by-3)"
 			(at 0 0 0)
 			(effects
 				(font
@@ -5888,7 +5960,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC163_0_1"
+		(symbol "74HCT163_0_1"
 			(rectangle
 				(start -10.16 12.7)
 				(end 10.16 -12.7)
@@ -5901,7 +5973,7 @@
 				)
 			)
 		)
-		(symbol "74HC163_1_1"
+		(symbol "74HCT163_1_1"
 			(pin input line
 				(at -13.97 10.16 0)
 				(length 3.81)
@@ -6193,7 +6265,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC32"
+	(symbol "74HCT32"
 		(pin_names
 			(offset 1.016)
 		)
@@ -6208,7 +6280,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC32"
+		(property "Value" "74HCT32"
 			(at -10.16 16.51 0)
 			(effects
 				(font
@@ -6243,7 +6315,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC32_0_1"
+		(symbol "74HCT32_0_1"
 			(rectangle
 				(start -10.16 11.43)
 				(end 10.16 -11.43)
@@ -6256,7 +6328,7 @@
 				)
 			)
 		)
-		(symbol "74HC32_1_1"
+		(symbol "74HCT32_1_1"
 			(pin input line
 				(at -13.97 8.89 0)
 				(length 3.81)
@@ -6512,7 +6584,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC08"
+	(symbol "74HCT08"
 		(pin_names
 			(offset 1.016)
 		)
@@ -6527,7 +6599,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC08"
+		(property "Value" "74HCT08"
 			(at -10.16 16.51 0)
 			(effects
 				(font
@@ -6562,7 +6634,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC08_0_1"
+		(symbol "74HCT08_0_1"
 			(rectangle
 				(start -10.16 11.43)
 				(end 10.16 -11.43)
@@ -6575,7 +6647,7 @@
 				)
 			)
 		)
-		(symbol "74HC08_1_1"
+		(symbol "74HCT08_1_1"
 			(pin input line
 				(at -13.97 8.89 0)
 				(length 3.81)
@@ -6831,7 +6903,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC02"
+	(symbol "74HCT02"
 		(pin_names
 			(offset 1.016)
 		)
@@ -6846,7 +6918,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC02"
+		(property "Value" "74HCT02"
 			(at -10.16 16.51 0)
 			(effects
 				(font
@@ -6881,7 +6953,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC02_0_1"
+		(symbol "74HCT02_0_1"
 			(rectangle
 				(start -10.16 11.43)
 				(end 10.16 -11.43)
@@ -6894,7 +6966,7 @@
 				)
 			)
 		)
-		(symbol "74HC02_1_1"
+		(symbol "74HCT02_1_1"
 			(pin input line
 				(at -13.97 8.89 0)
 				(length 3.81)
@@ -7150,7 +7222,7 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74HC125"
+	(symbol "74HCT125"
 		(pin_names
 			(offset 1.016)
 		)
@@ -7165,7 +7237,7 @@
 				)
 			)
 		)
-		(property "Value" "74HC125"
+		(property "Value" "74HCT125"
 			(at -10.16 16.51 0)
 			(effects
 				(font
@@ -7200,7 +7272,7 @@
 				(hide yes)
 			)
 		)
-		(symbol "74HC125_0_1"
+		(symbol "74HCT125_0_1"
 			(rectangle
 				(start -10.16 11.43)
 				(end 10.16 -11.43)
@@ -7213,7 +7285,7 @@
 				)
 			)
 		)
-		(symbol "74HC125_1_1"
+		(symbol "74HCT125_1_1"
 			(pin input line
 				(at -13.97 8.89 0)
 				(length 3.81)

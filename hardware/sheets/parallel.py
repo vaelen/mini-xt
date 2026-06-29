@@ -5,14 +5,14 @@ Design doc S11.2. A *soft* card: it speaks ONLY the standard 8-bit XT/ISA bus
 private motherboard nets cross this sheet.
 
 Three classic registers in the 0x378 block (Centronics/SPP):
-  * 0x378  Data    (R/W)  -- 74HC374 output latch -> DB25 pins 2-9
+  * 0x378  Data    (R/W)  -- 74HCT374 output latch -> DB25 pins 2-9
                              read-back via 74HC245 onto the bus
-  * 0x379  Status  (RO )  -- 74HC244 buffers Busy/Ack/PaperEnd/Select/Error
-  * 0x37A  Control (R/W)  -- 74HC374 output latch (Strobe/AutoFd/Init/SlctIn
-                             + IRQ-enable); read-back via 74HC244
+  * 0x379  Status  (RO )  -- 74HCT244 buffers Busy/Ack/PaperEnd/Select/Error
+  * 0x37A  Control (R/W)  -- 74HCT374 output latch (Strobe/AutoFd/Init/SlctIn
+                             + IRQ-enable); read-back via 74HCT244
 
-Address decode: 74HCT138 selects the three registers (A0-A2) once a 74HC08
-chain matches A3-A9 == 0x378>>3 (0b1111011) and AEN is low. 74HC32 ORs the
+Address decode: 74HCT138 selects the three registers (A0-A2) once a 74HCT08
+chain matches A3-A9 == 0x378>>3 (0b1111011) and AEN is low. 74HCT32 ORs the
 register selects with ~{IOR}/~{IOW} to make the read enables and the rising-edge
 write clocks for the '374s. IRQ7 is the (gated) ~Ack edge -- normally polled.
 """
@@ -20,7 +20,7 @@ import mxbus
 from mxbus import pin
 
 NAME = "parallel"
-TITLE = "Parallel port (LPT1) -- 74HC374/244/245 @ 0x378 + DB25"
+TITLE = "Parallel port (LPT1) -- 74HCT374/244/245 @ 0x378 + DB25"
 
 # Soft card: ISA signals + power only.  DB25 is a LOCAL connector (not a hier pin).
 PINS = (
@@ -52,14 +52,14 @@ def build(sch, lib):
     # Address decode -- match A3..A9 == 0b1111011 (0x378 block), AEN low
     #   A3=1 A4=1 A5=1 A6=1 A7=0 A8=1 A9=1   (A0..A2 -> register offset)
     # ============================================================
-    U7 = sch.place("mini-xt:74HC08", "U7", at=(76.2, 76.2))    # AND tree (1/2)
+    U7 = sch.place("mini-xt:74HCT08", "U7", at=(76.2, 76.2))    # AND tree (1/2)
     pwr(U7)
     L(U7, "P1", "A3", dx=-2.54); L(U7, "P2", "A4", dx=-2.54); L(U7, "P3", "AM_A")
     L(U7, "P4", "A5", dx=-2.54); L(U7, "P5", "A6", dx=-2.54); L(U7, "P6", "AM_B")
     L(U7, "P9", "A8", dx=-2.54); L(U7, "P10", "A9", dx=-2.54); L(U7, "P8", "AM_C")
     L(U7, "P12", "AM_A", dx=-2.54); L(U7, "P13", "AM_B", dx=-2.54); L(U7, "P11", "AM1")
 
-    U8 = sch.place("mini-xt:74HC08", "U8", at=(76.2, 127.0))   # AND tree (2/2) + IRQ
+    U8 = sch.place("mini-xt:74HCT08", "U8", at=(76.2, 127.0))   # AND tree (2/2) + IRQ
     pwr(U8)
     L(U8, "P1", "AM1", dx=-2.54); L(U8, "P2", "AM_C", dx=-2.54); L(U8, "P3", "AM2")
     L(U8, "P4", "AM2", dx=-2.54); L(U8, "P5", "NA7", dx=-2.54); L(U8, "P6", "ADDR_MATCH")
@@ -68,7 +68,7 @@ def build(sch, lib):
     L(U8, "P12", "GND", dx=-2.54); L(U8, "P13", "GND", dx=-2.54)  # spare gate inputs
     sch.no_connect(U8.pin_xy("P11"))
 
-    U9 = sch.place("mini-xt:74HC04", "U9", at=(76.2, 177.8))   # inverters
+    U9 = sch.place("mini-xt:74HCT04", "U9", at=(76.2, 177.8))   # inverters
     pwr(U9)
     L(U9, "P1", "A7", dx=-2.54); L(U9, "P2", "NA7")               # ~A7 for decode
     L(U9, "P3", "P_ACK", dx=-2.54); L(U9, "P4", "ACK_POS")        # ~Ack -> +pulse
@@ -92,14 +92,14 @@ def build(sch, lib):
     # OR register-select with the command strobes:
     #   write clocks rise at the end of the cycle (~IOW going high) -> latch
     #   read enables are active-low for the '244/'245 output buffers
-    U10 = sch.place("mini-xt:74HC32", "U10", at=(203.2, 177.8))
+    U10 = sch.place("mini-xt:74HCT32", "U10", at=(203.2, 177.8))
     pwr(U10)
     L(U10, "P1", "~{SEL_DATA}", dx=-2.54); L(U10, "P2", "~{IOW}", dx=-2.54); L(U10, "P3", "WR_DATA")
     L(U10, "P4", "~{SEL_CTRL}", dx=-2.54); L(U10, "P5", "~{IOW}", dx=-2.54); L(U10, "P6", "WR_CTRL")
     L(U10, "P9", "~{SEL_DATA}", dx=-2.54); L(U10, "P10", "~{IOR}", dx=-2.54); L(U10, "P8", "~{RD_DATA}")
     L(U10, "P12", "~{SEL_STAT}", dx=-2.54); L(U10, "P13", "~{IOR}", dx=-2.54); L(U10, "P11", "~{RD_STAT}")
 
-    U11 = sch.place("mini-xt:74HC32", "U11", at=(266.7, 177.8))
+    U11 = sch.place("mini-xt:74HCT32", "U11", at=(266.7, 177.8))
     pwr(U11)
     L(U11, "P1", "~{SEL_CTRL}", dx=-2.54); L(U11, "P2", "~{IOR}", dx=-2.54); L(U11, "P3", "~{RD_CTRL}")
     for a, b in (("P4", "P5"), ("P9", "P10"), ("P12", "P13")):       # spare gates
@@ -108,9 +108,9 @@ def build(sch, lib):
         sch.no_connect(U11.pin_xy(o))
 
     # ============================================================
-    # Data register  (0x378) -- 74HC374 latch, always-enabled outputs
+    # Data register  (0x378) -- 74HCT374 latch, always-enabled outputs
     # ============================================================
-    U1 = sch.place("mini-xt:74HC374", "U1", at=(139.7, 76.2))
+    U1 = sch.place("mini-xt:74HCT374", "U1", at=(139.7, 76.2))
     pwr(U1)
     L(U1, "Cp", "WR_DATA", dx=-2.54)
     L(U1, "OE", "GND", dx=-2.54)
@@ -119,7 +119,7 @@ def build(sch, lib):
         L(U1, "O%d" % i, "PD%d" % i)                  # latch -> DB25 data pin
 
     # data read-back: latched value driven onto the bus during a read of 0x378
-    U4 = sch.place("mini-xt:74HC245", "U4", at=(203.2, 76.2))
+    U4 = sch.place("mini-xt:74HCT245", "U4", at=(203.2, 76.2))
     pwr(U4)
     L(U4, "A->B", "+5V", dx=-2.54)        # always A(latch)->B(bus) direction
     L(U4, "CE", "~{RD_DATA}", dx=-2.54)
@@ -128,10 +128,10 @@ def build(sch, lib):
         L(U4, "B%d" % i, "D%d" % i)
 
     # ============================================================
-    # Control register (0x37A) -- 74HC374 latch + 74HC244 read-back
+    # Control register (0x37A) -- 74HCT374 latch + 74HCT244 read-back
     #   O0 Strobe  O1 AutoFeed  O2 Init(direct)  O3 SelectIn  O4 IRQ-enable
     # ============================================================
-    U2 = sch.place("mini-xt:74HC374", "U2", at=(139.7, 127.0))
+    U2 = sch.place("mini-xt:74HCT374", "U2", at=(139.7, 127.0))
     pwr(U2)
     L(U2, "Cp", "WR_CTRL", dx=-2.54)
     L(U2, "OE", "GND", dx=-2.54)
@@ -145,7 +145,7 @@ def build(sch, lib):
     for o in ("O5", "O6", "O7"):
         sch.no_connect(U2.pin_xy(o))
 
-    U5 = sch.place("mini-xt:74HC244", "U5", at=(203.2, 127.0))  # control read-back
+    U5 = sch.place("mini-xt:74HCT244", "U5", at=(203.2, 127.0))  # control read-back
     pwr(U5)
     L(U5, "1OE", "~{RD_CTRL}", dx=-2.54); L(U5, "2OE", "~{RD_CTRL}", dx=-2.54)
     cb = [("1A0", "1Y0", "CTRL0", "D0"), ("1A1", "1Y1", "CTRL1", "D1"),
@@ -159,10 +159,10 @@ def build(sch, lib):
         sch.no_connect(U5.pin_xy(y))
 
     # ============================================================
-    # Status register (0x379) -- 74HC244 buffers printer status onto the bus
+    # Status register (0x379) -- 74HCT244 buffers printer status onto the bus
     #   D7 Busy  D6 ~Ack  D5 PaperEnd  D4 Select  D3 ~Error  (D2..D0 = 0)
     # ============================================================
-    U3 = sch.place("mini-xt:74HC244", "U3", at=(203.2, 228.6))
+    U3 = sch.place("mini-xt:74HCT244", "U3", at=(203.2, 228.6))
     pwr(U3)
     L(U3, "1OE", "~{RD_STAT}", dx=-2.54); L(U3, "2OE", "~{RD_STAT}", dx=-2.54)
     sb = [("1A0", "1Y0", "P_BUSY", "D7"), ("1A1", "1Y1", "P_ACK", "D6"),

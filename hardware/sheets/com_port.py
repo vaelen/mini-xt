@@ -12,7 +12,7 @@ Structure:
   * J2  base-address strap (0x3F8 vs 0x2F8, selects A8 polarity in the decode)
   * J3  TTL console header tapped ahead of the MAX3241 (populated on COM1 only)
   * U3/U4/U5  address-decode glue -> active-low chip-select on ~{CS2}
-  * U6  74HC125 buffer gating INTR onto COM_IRQ under ~{OUT2}
+  * U6  74HCT125 buffer gating INTR onto COM_IRQ under ~{OUT2}
   * OSC1 1.8432 MHz baud reference -> XIN; ~{BAUDOUT} -> RCLK
 
 Soft card: uses ONLY ISA bus signals + power (no private nets).
@@ -88,7 +88,7 @@ def build(sch, lib):
     # ---------------- address decode -> ~{UART_CS} ----------------
     # Match when A3..A7,A9 = 1, A8 = strap-selected, AEN = 0 (not a DMA cycle).
     # 0x3F8 and 0x2F8 differ only in A8; J2 jumpers A8 (3F8) or ~A8 (2F8) into A8_SEL.
-    U3 = sch.place("mini-xt:74HC04", "U3", at=(60.96, 198.12))     # inverters
+    U3 = sch.place("mini-xt:74HCT04", "U3", at=(60.96, 198.12))     # inverters
     L(U3, "VCC", "+5V", dx=0, dy=-2.54); L(U3, "GND", "GND", dx=0, dy=2.54)
     L(U3, "P1", "A8", dx=-2.54); L(U3, "P2", "A8_N")               # ~A8
     L(U3, "P3", "AEN", dx=-2.54); L(U3, "P4", "AEN_N")             # ~AEN
@@ -104,14 +104,14 @@ def build(sch, lib):
     L(J2, "Pin_2", "A8_SEL", dx=2.54)
     L(J2, "Pin_3", "A8_N", dx=2.54)
 
-    U4 = sch.place("mini-xt:74HC08", "U4", at=(116.84, 198.12))    # AND, level 1
+    U4 = sch.place("mini-xt:74HCT08", "U4", at=(116.84, 198.12))    # AND, level 1
     L(U4, "VCC", "+5V", dx=0, dy=-2.54); L(U4, "GND", "GND", dx=0, dy=2.54)
     L(U4, "P1", "A3", dx=-2.54); L(U4, "P2", "A4", dx=-2.54); L(U4, "P3", "AND1")
     L(U4, "P4", "A5", dx=-2.54); L(U4, "P5", "A6", dx=-2.54); L(U4, "P6", "AND2")
     L(U4, "P9", "A7", dx=-2.54); L(U4, "P10", "A9", dx=-2.54); L(U4, "P8", "AND3")
     L(U4, "P12", "A8_SEL", dx=-2.54); L(U4, "P13", "AEN_N", dx=-2.54); L(U4, "P11", "AND4")
 
-    U5 = sch.place("mini-xt:74HC08", "U5", at=(167.64, 198.12))    # AND, level 2/3
+    U5 = sch.place("mini-xt:74HCT08", "U5", at=(167.64, 198.12))    # AND, level 2/3
     L(U5, "VCC", "+5V", dx=0, dy=-2.54); L(U5, "GND", "GND", dx=0, dy=2.54)
     L(U5, "P1", "AND1", dx=-2.54); L(U5, "P2", "AND2", dx=-2.54); L(U5, "P3", "AND5")
     L(U5, "P4", "AND3", dx=-2.54); L(U5, "P5", "AND4", dx=-2.54); L(U5, "P6", "AND6")
@@ -119,8 +119,8 @@ def build(sch, lib):
     L(U5, "P12", "GND", dx=-2.54); L(U5, "P13", "GND", dx=-2.54)   # spare gate
     sch.no_connect(U5.pin_xy("P11"))
 
-    # ---------------- IRQ buffer (74HC125): INTR -> COM_IRQ, enabled by ~{OUT2} ----------------
-    U6 = sch.place("mini-xt:74HC125", "U6", at=(132.08, 162.56))
+    # ---------------- IRQ buffer (74HCT125): INTR -> COM_IRQ, enabled by ~{OUT2} ----------------
+    U6 = sch.place("mini-xt:74HCT125", "U6", at=(132.08, 162.56))
     L(U6, "VCC", "+5V", dx=0, dy=-2.54); L(U6, "GND", "GND", dx=0, dy=2.54)
     L(U6, "P1", "OUT2_N", dx=-2.54)        # ~OE = ~{OUT2}: tri-states IRQ when masked
     L(U6, "P2", "IRQ_RAW", dx=-2.54)
