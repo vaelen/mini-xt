@@ -169,3 +169,28 @@ BUSDIR GPIO — verified `/HLDA` drives U203-206 DIR pins. Net effect: ~45-47/48
 still within budget. First GPIO to reclaim if sidecar DMA/IRQ later expand.
 Verified: SPEED_SEL ties bus_mcu(U201)<->cpu_core mux(U112); supervisor interface
 = LINK only; zero structural ERC errors.
+
+---
+
+## Post-review change: use Waveshare Core2350B modules for both RP2350B nodes (your call)
+
+Both RP2350B sites (Bus MCU, video) now drop in the **Waveshare Core2350B**
+module (`mini-xt:Core2350B`, 64-pin PGA) instead of a bare QFN-80 chip. The chip +
+core SMPS (VREG/inductor) + 16 MB flash + crystal collapse into the module; the
+level shifters, address counter, and IRQ collector stay on the carrier.
+
+- **Self-powered:** each module takes **+5 V on VBUS** and its onboard **ME6217C33
+  LDO** makes a local 3V3 that also feeds *that card's* level shifters
+  (`3V3_BUS` / `3V3_VID`, sheet-local, never paralleled). The LDO is small, but the
+  ~35 mA shifter load per module is well inside its headroom (it's an LDO at 5->3.3V,
+  so keep loads module-local and modest -- which this is).
+- **PSRAM variant per node:** Bus MCU = **0 MB** (keeps GPIO47 free for ~{WR}, the
+  pin-bound node); video = **8 MB** (onboard PSRAM is the VGA aperture, CS=GPIO47,
+  internal -- the discrete APS6404 was removed).
+- **HSTX/HDMI** stays on GPIO12-19; **LED on GPIO39** rides along free (= CNT_LD2 on
+  the Bus MCU, = RST_M on video -- both still functional, now with a status LED).
+- The central 3.3 V buck **stays** (the bare RP2040 Supervisor still needs +3V3);
+  the modules just no longer load it. Verified: +3V3 still has the Supervisor.
+
+Module symbol pin NAMES are authoritative; the PGA pin NUMBERS in the symbol are a
+functional placeholder -- match them to the Waveshare pinout before layout.

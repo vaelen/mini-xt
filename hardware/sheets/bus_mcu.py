@@ -3,9 +3,9 @@
 This is the heaviest sheet: the RP2350B "fast hands" node sits on the buffered
 XT/ISA backplane as **slave and master**.  It carries:
 
-  * U1  RP2350B -- the Bus MCU.  Soft dual-8259 PIC, 8254 PIT, 8255/8042 KBC,
+  * M1  Core2350B module (RP2350B) -- the Bus MCU; self-powers 3V3 from +5V.  Soft dual-8259 PIC, 8254 PIT, 8255/8042 KBC,
         8237 DMA, NMI mask, POST snoop -- all in firmware on core0+PIO / core1.
-  * Local 3.3V<->5V level shifters (74LVC245A, value set on mini-xt:74LVC245A):
+  * Local 74LVC245A level shifters, powered from the module's own 3V3 (3V3_BUS):
         - U2  data group   D0-D7   (DIR = DATADIR, read/write of the cycle)
         - U6  control grp  IOR/IOW/MEMR/MEMW/AEN/RESET_DRV/TC/BALE (DIR = HLDA, §5.2)
         - U3/U4/U5 address group A0-A19  (DIR = HLDA, bus master/slave role)
@@ -117,50 +117,37 @@ def build(sch, lib):
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
 
     # =================================================================
-    #  U1 -- RP2350B Bus MCU
+    #  M1 -- Waveshare Core2350B module (RP2350B).  Order the 0MB-PSRAM
+    #  variant: this is the pin-bound node, so GPIO47 stays free for ~{WR}.
     # =================================================================
-    U1 = sch.place("MCU_RaspberryPi:RP2350B", "U1", at=(101.6, 152.4))
-    # power: 3.3V rails, GND, and the 1.1V core (DVDD via on-chip VREG) -- see Q5
-    PWR3V3 = {"IOVDD", "QSPI_IOVDD", "USB_OTP_VDD", "VREG_VIN",
-              "VREG_AVDD", "ADC_AVDD"}
-    for p in U1.sdef.pins:
-        nm = p.name
-        if nm in PWR3V3:
-            N(U1, p.number, "+3V3", length=2.54)
-        elif nm in ("GND", "VREG_PGND"):
-            N(U1, p.number, "GND", length=2.54)
-        elif nm in ("DVDD", "VREG_FB"):
-            N(U1, p.number, "DVDD", length=2.54)
-        elif nm == "VREG_LX":
-            N(U1, p.number, "VREG_LX", length=2.54)
-    # GPIO -> nets
-    gpio_pin = {}
-    for p in U1.sdef.pins:
-        if p.name.startswith("GPIO"):
-            idx = int(p.name[4:].split("/")[0])
-            gpio_pin[idx] = p.number
+    M1 = sch.place("mini-xt:Core2350B", "M1", "Core2350B (0MB PSRAM)",
+                   at=(101.6, 152.4))
+    # Self-powered: +5V -> module VBUS; the module's onboard ME6217 LDO makes its
+    # own 3V3 (3V3_BUS), which also powers THIS card's level shifters. 3V3_BUS is a
+    # sheet-local rail -- NOT tied to +3V3 or the other module's 3V3 (no paralleling).
+    N(M1, "VBUS", "+5V", length=2.54)
+    N(M1, "3V3", "3V3_BUS", length=2.54)
+    N(M1, "59", "GND", length=2.54)
+    N(M1, "60", "GND", length=2.54)
+    for nm in ("3V3_EN", "RUN", "ADC_VREF", "USB_DP", "USB_DM", "BOOTSEL",
+               "SWCLK", "SWDIO"):
+        sch.no_connect(M1.pin_xy(nm))    # 3V3_EN held high by module's 100k; flash/PSRAM internal
+    # GPIO -> interface/internal nets (same §5.2 map as the bare chip)
     for idx, net in GPIO_NET.items():
-        if idx not in gpio_pin:
-            continue
+        key = "GPIO%d" % idx
         if net in _NET_SHAPE:
-            N(U1, gpio_pin[idx], net, kind="hier", shape=_NET_SHAPE[net])
+            N(M1, key, net, kind="hier", shape=_NET_SHAPE[net])
         else:
-            N(U1, gpio_pin[idx], net)
-    # control / non-GPIO pins
-    N(U1, "RUN", "+3V3", length=2.54)
-    for nm in ("XIN", "XOUT", "SWCLK", "SWDIO", "USB_DM", "USB_DP",
-               "~{QSPI_SS}", "QSPI_SCLK", "QSPI_SD0", "QSPI_SD1",
-               "QSPI_SD2", "QSPI_SD3"):
-        sch.no_connect(U1.pin_xy(nm))
-    sch.text("RP2350B Bus MCU: soft PIC x2 / PIT / KBC / DMA / NMI / POST", (60.96, 88.9))
-    sch.text("DVDD = 1.1V core (on-chip VREG: VREG_VIN->VREG_LX->L->DVDD)", (124.46, 88.9))
+            N(M1, key, net)
+    sch.text("Core2350B module (RP2350B): soft PIC x2 / PIT / KBC / DMA / NMI / POST.", (50.8, 86.36))
+    sch.text("Self-powers 3V3 from +5V (onboard ME6217 LDO); user LED on GPIO39 (=CNT_LD2).", (50.8, 88.9))
 
     # =================================================================
     #  Level shifters (74LVC245A) -- value override on mini-xt:74LVC245A
     # =================================================================
     def xcvr(ref, at, dir_net):
         u = sch.place("mini-xt:74LVC245A", ref, "74LVC245A", at=at)
-        N(u, "VCC", "+3V3", length=2.54)
+        N(u, "VCC", "3V3_BUS", length=2.54)
         N(u, "GND", "GND", length=2.54)
         N(u, "A->B", dir_net)              # DIR
         N(u, "CE", "GND")                  # OE active-low: always on here (Q3)
@@ -252,13 +239,15 @@ def build(sch, lib):
     # =================================================================
     #  Decoupling
     # =================================================================
-    decouple("C1", (40.64, 50.8), "+3V3")
-    decouple("C2", (55.88, 50.8), "+3V3")
-    decouple("C3", (71.12, 50.8), "+3V3")
-    decouple("C4", (86.36, 50.8), "+3V3")
-    decouple("C5", (101.6, 50.8), "DVDD")          # core bulk
-    decouple("C6", (190.5, 40.64), "+3V3")         # data xcvr
-    decouple("C7", (271.78, 40.64), "+3V3")        # addr xcvrs
+    # module is self-decoupled; these are bulk/decoupling for the local 3V3_BUS
+    # rail that powers the level shifters.
+    decouple("C1", (40.64, 50.8), "3V3_BUS")
+    decouple("C2", (55.88, 50.8), "3V3_BUS")
+    bulk = sch.place("Device:C", "C3", "10uF", at=(71.12, 50.8))
+    sch.net(bulk, "1", "3V3_BUS", kind="label", dx=0, dy=-2.54)
+    sch.net(bulk, "2", "GND", kind="label", dx=0, dy=2.54)
+    decouple("C6", (190.5, 40.64), "3V3_BUS")      # data xcvr
+    decouple("C7", (271.78, 40.64), "3V3_BUS")     # addr xcvrs
     decouple("C8", (350.52, 40.64), "+3V3")
     decouple("C9", (50.8, 220.98), "+5V")          # counters
     decouple("C10", (190.5, 198.12), "+5V")        # '165

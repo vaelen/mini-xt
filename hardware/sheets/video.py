@@ -8,7 +8,7 @@ A17-A19 / A0-A9 it snoops -- it uses NO private motherboard signal (no Y5, no
 MCU link, no host memory).
 
 Structure:
-  * RP2350B (U1) at 3.3 V, on-chip buck core rail (VREG_LX -> L1 -> VCORE).
+  * Core2350B module (M1, RP2350B) -- self-powers 3V3 from +5V (onboard LDO).
   * Local 74LVC245A level shifters between the 3.3 V MCU and the 5 V bus:
       U2  data transceiver  D0-D7  (bidirectional, DIR=DDIR, OE=DOE)
       U3  address snoop     A0-A7  (B->A, OE=AOE_LO)
@@ -23,7 +23,7 @@ Structure:
     of GPIO12-19 through 270R series resistors -- no transmitter chip.
   * VGA  (J2): resistor-ladder DAC, 3R-3G-2B, from GPIO to an HD15 connector,
     plus HSYNC/VSYNC.
-  * Optional QSPI PSRAM (U8) for the 256 KB VGA aperture, CS on GPIO47.
+  * VGA-aperture PSRAM is the module's onboard QSPI PSRAM (CS=GPIO47).
 
 HDMI/VGA are LOCAL outputs to connectors -- not hierarchical interface pins.
 """
@@ -53,80 +53,54 @@ def build(sch, lib):
         sch.net(c, "1", net, kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
 
-    # ================= RP2350B =================
-    U1 = sch.place("MCU_RaspberryPi:RP2350B", "U1", at=(165.1, 139.7))
-
-    # ---- power rails ----
-    for n in (5, 15, 24, 29, 41, 50, 60, 76):        # IOVDD
-        L(U1, n, "+3V3", dx=0, dy=-2.54)
-    for n in (61, 59, 64, 68, 69):                    # VREG_AVDD, ADC_AVDD, VREG_VIN, USB_OTP_VDD, QSPI_IOVDD
-        L(U1, n, "+3V3", dx=0, dy=-2.54)
-    for n in (62, 81):                                 # VREG_PGND, GND
-        L(U1, n, "GND", dx=0, dy=2.54)
-    for n in (10, 32, 51):                             # DVDD core rail
-        L(U1, n, "VCORE", dx=0, dy=-2.54)
-    L(U1, 63, "VREG_LX", dx=0, dy=-2.54)               # buck switch node
-    L(U1, 65, "VCORE", dx=0, dy=-2.54)                 # VREG_FB sensed at core
-    L1 = sch.place("Device:L", "L1", "3.3uH", at=(139.7, 96.52))
-    sch.net(L1, "1", "VREG_LX", kind="label", dx=0, dy=-2.54)
-    sch.net(L1, "2", "VCORE", kind="label", dx=0, dy=2.54)
-
-    # ---- housekeeping pins ----
-    L(U1, "RUN", "+3V3", dx=-2.54)                    # run whenever powered
-    L(U1, "XIN", "XIN", dx=-2.54)                     # off-sheet 12 MHz crystal
-    L(U1, "XOUT", "XOUT", dx=-2.54)
-    L(U1, "SWCLK", "SWCLK", dx=-2.54)
-    L(U1, "SWDIO", "SWDIO", dx=-2.54)
-    sch.no_connect(U1.pin_xy("USB_DM"))
-    sch.no_connect(U1.pin_xy("USB_DP"))
+    # ================= Core2350B module (RP2350B) =================
+    # Order the PSRAM variant (2/8MB): the module's onboard QSPI PSRAM IS the VGA
+    # aperture (CS=GPIO47, internal to the module) -- no external PSRAM chip needed.
+    M1 = sch.place("mini-xt:Core2350B", "M1", "Core2350B (8MB PSRAM)", at=(165.1, 139.7))
+    # self-powered: +5V -> VBUS; onboard LDO makes 3V3_VID (local rail) for the
+    # shifters. 3V3_VID is sheet-local -- not tied to +3V3 or the Bus MCU's 3V3.
+    L(M1, "VBUS", "+5V", dx=0, dy=-2.54)
+    L(M1, "3V3", "3V3_VID", dx=0, dy=-2.54)
+    L(M1, "59", "GND", dx=0, dy=2.54); L(M1, "60", "GND", dx=0, dy=2.54)
+    for nm in ("3V3_EN", "RUN", "ADC_VREF", "USB_DP", "USB_DM", "BOOTSEL",
+               "SWCLK", "SWDIO"):
+        sch.no_connect(M1.pin_xy(nm))
 
     # ---- snoop bus + bus interface GPIO ----
     for i in range(8):
-        L(U1, "GPIO%d" % i, "SB%d" % i, dx=-2.54)            # GPIO0-7  snoop bus
-    L(U1, "GPIO8", "MEMR_M", dx=-2.54)                       # command strobes (watched)
-    L(U1, "GPIO9", "MEMW_M", dx=-2.54)
-    L(U1, "GPIO10", "IOR_M", dx=-2.54)
-    L(U1, "GPIO11", "IOW_M", dx=-2.54)
-    # HDMI HSTX TMDS pairs on GPIO12-19
+        L(M1, "GPIO%d" % i, "SB%d" % i, dx=-2.54)            # GPIO0-7 snoop bus
+    L(M1, "GPIO8", "MEMR_M", dx=-2.54); L(M1, "GPIO9", "MEMW_M", dx=-2.54)
+    L(M1, "GPIO10", "IOR_M", dx=-2.54); L(M1, "GPIO11", "IOW_M", dx=-2.54)
+    # HDMI HSTX TMDS pairs on GPIO12-19 (RP2350 HSTX block)
     for g, net in [(12, "TMDS_D0M"), (13, "TMDS_D0P"), (14, "TMDS_CKM"),
                    (15, "TMDS_CKP"), (16, "TMDS_D1M"), (17, "TMDS_D1P"),
                    (18, "TMDS_D2M"), (19, "TMDS_D2P")]:
-        L(U1, "GPIO%d" % g, net, dx=2.54)
-    L(U1, "GPIO20", "BALE_M", dx=-2.54)
-    L(U1, "GPIO21", "AEN_M", dx=-2.54)
-    L(U1, "GPIO22", "AOE_LO", dx=-2.54)                      # '245 output-enables
-    L(U1, "GPIO23", "AOE_MID", dx=-2.54)
-    L(U1, "GPIO24", "AOE_HI", dx=-2.54)
-    L(U1, "GPIO25", "DOE", dx=-2.54)
-    L(U1, "GPIO26", "DDIR", dx=-2.54)
-    L(U1, "GPIO27", "IOCHRDY_DRV", dx=-2.54)
+        L(M1, "GPIO%d" % g, net, dx=2.54)
+    L(M1, "GPIO20", "BALE_M", dx=-2.54); L(M1, "GPIO21", "AEN_M", dx=-2.54)
+    L(M1, "GPIO22", "AOE_LO", dx=-2.54); L(M1, "GPIO23", "AOE_MID", dx=-2.54)
+    L(M1, "GPIO24", "AOE_HI", dx=-2.54); L(M1, "GPIO25", "DOE", dx=-2.54)
+    L(M1, "GPIO26", "DDIR", dx=-2.54); L(M1, "GPIO27", "IOCHRDY_DRV", dx=-2.54)
     # VGA DAC drive on GPIO28-37
     for g, net in [(28, "VR0"), (29, "VR1"), (30, "VR2"),
                    (31, "VG0"), (32, "VG1"), (33, "VG2"),
                    (34, "VB0"), (35, "VB1"), (36, "HSYNC"), (37, "VSYNC")]:
-        L(U1, "GPIO%d" % g, net, dx=2.54)
-    L(U1, "GPIO38", "CLK_M", dx=2.54)
-    L(U1, "GPIO39", "RST_M", dx=2.54)
-    L(U1, "GPIO40/ADC0", "RDY_OE", dx=2.54)
-    L(U1, "GPIO47/ADC7", "PSRAM_CS", dx=2.54)
+        L(M1, "GPIO%d" % g, net, dx=2.54)
+    L(M1, "GPIO38", "CLK_M", dx=2.54)
+    L(M1, "GPIO39", "RST_M", dx=2.54)               # module user LED on GPIO39 (still usable)
+    L(M1, "GPIO40", "RDY_OE", dx=2.54)
+    # GPIO47 = module's onboard PSRAM chip-select (internal) -- left unwired here.
 
-    # ---- QSPI to PSRAM ----
-    L(U1, "QSPI_SCLK", "QSPI_SCLK", dx=2.54)
-    L(U1, "QSPI_SD0", "QSPI_SD0", dx=2.54)
-    L(U1, "QSPI_SD1", "QSPI_SD1", dx=2.54)
-    L(U1, "QSPI_SD2", "QSPI_SD2", dx=2.54)
-    L(U1, "QSPI_SD3", "QSPI_SD3", dx=2.54)
-    sch.no_connect(U1.pin_xy("~{QSPI_SS}"))               # boot flash off-sheet
-
-    # decoupling
-    decouple("C1", (44.45, 274.32)); decouple("C2", (69.85, 274.32))
-    decouple("C3", (95.25, 274.32)); decouple("C4", (120.65, 274.32))
-    decouple("C5", (146.05, 274.32)); decouple("C6", (171.45, 274.32), net="VCORE")
+    # local 3V3_VID decoupling for the shifters (module itself is self-decoupled)
+    decouple("C1", (44.45, 274.32), net="3V3_VID")
+    decouple("C2", (69.85, 274.32), net="3V3_VID")
+    bulk = sch.place("Device:C", "C3", "10uF", at=(95.25, 274.32))
+    sch.net(bulk, "1", "3V3_VID", kind="label", dx=0, dy=-2.54)
+    sch.net(bulk, "2", "GND", kind="label", dx=0, dy=2.54)
 
     # ================= level shifters (74LVC245A) =================
     def shifter(ref, at):
         u = sch.place("mini-xt:74LVC245A", ref, "74LVC245A", at=at)
-        L(u, "VCC", "+3V3", dx=0, dy=-2.54)
+        L(u, "VCC", "3V3_VID", dx=0, dy=-2.54)
         L(u, "GND", "GND", dx=0, dy=2.54)
         return u
 
@@ -176,16 +150,8 @@ def build(sch, lib):
         sch.no_connect(U7.pin_xy("A%d" % i))
         sch.no_connect(U7.pin_xy("B%d" % i))
 
-    # ================= QSPI PSRAM (VGA aperture) =================
-    U8 = sch.place("Memory_RAM:APS6404L-3SQRx-SN", "U8", "APS6404L", at=(241.3, 76.2))
-    L(U8, "VDD", "+3V3", dx=0, dy=-2.54)
-    L(U8, "VSS", "GND", dx=0, dy=2.54)
-    L(U8, "~{CE}", "PSRAM_CS", dx=-2.54)
-    L(U8, "SCLK", "QSPI_SCLK", dx=-2.54)
-    L(U8, "SI/SIO0", "QSPI_SD0", dx=-2.54)
-    L(U8, "SO/SIO1", "QSPI_SD1", dx=-2.54)
-    L(U8, "SIO2", "QSPI_SD2")
-    L(U8, "SIO3", "QSPI_SD3")
+    # ================= VGA aperture PSRAM =================
+    # On the Core2350B module (8MB QSPI PSRAM, CS=GPIO47) -- no external part.
 
     # ================= HDMI out (HSTX direct TMDS) =================
     J1 = sch.place("Connector:HDMI_A", "J1", at=(322.58, 88.9))

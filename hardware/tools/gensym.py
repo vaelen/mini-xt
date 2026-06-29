@@ -228,8 +228,28 @@ for src, new, desc in GLUE:
     except Exception as e:
         print("  (skip glue %s: %s)" % (new, e))
 
+# ---- Waveshare Core2350B RP2350B module (64-pin 2.54mm PGA) ----
+# Exposes all 48 GPIO + VBUS / 3V3 (onboard ME6217C33 LDO out) / 3V3_EN /
+# ADC_VREF / RUN / SWCLK / SWDIO / USB_DP / USB_DM / BOOTSEL / GND.  Onboard:
+# W25Q128 16MB flash, optional 0/2/8MB QSPI PSRAM (CS=GPIO47), user LED on GPIO39
+# (GPIO39 still usable). Pin NAMES are authoritative; the PGA pin NUMBERS here are
+# a functional placeholder -- confirm against the Waveshare pinout before layout.
+core2350b = make_ic(
+    "Core2350B",
+    left=[(str(i + 1), "GPIO%d" % i, "bidirectional") for i in range(24)],
+    right=[(str(i + 25), "GPIO%d" % (i + 24), "bidirectional") for i in range(24)],
+    top=[("49", "VBUS", "power_in"), ("50", "3V3", "power_out"),
+         ("51", "3V3_EN", "input"), ("52", "ADC_VREF", "passive")],
+    bottom=[("59", "GND", "power_in"), ("60", "GND", "power_in"),
+            ("53", "RUN", "input"), ("54", "SWCLK", "input"),
+            ("55", "SWDIO", "bidirectional"), ("56", "USB_DP", "bidirectional"),
+            ("57", "USB_DM", "bidirectional"), ("58", "BOOTSEL", "input")],
+    ref="M",
+    description="Waveshare Core2350B: RP2350B module, 48 GPIO, 16MB flash, opt PSRAM (CS=GPIO47), 3V3 LDO, LED on GPIO39",
+    datasheet="https://www.waveshare.com/wiki/Core2350B0")
+
 lib = ["kicad_symbol_lib", ["version", 20241209], ["generator", "mxsch"],
-       ["generator_version", "9.0"], v20, max3241, ds12c887] + glue_syms
+       ["generator_version", "9.0"], v20, max3241, ds12c887, core2350b] + glue_syms
 
 out = os.path.join(HW, "mini-xt.kicad_sym")
 open(out, "w").write(dump(lib) + "\n")
