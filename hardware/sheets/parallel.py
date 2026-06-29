@@ -32,8 +32,9 @@ PINS = (
 )
 
 
-def build(sch, lib):
-    mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
+def build(sch, lib, expose=True):
+    if expose:        # standalone dev-card PCBs tie to on-card headers, not a parent
+        mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
 
     # connectivity-by-name helper: stub a pin out to a local label
     def L(c, p, net, dx=2.54, dy=0.0):

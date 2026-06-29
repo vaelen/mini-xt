@@ -350,6 +350,7 @@ class Schematic:
         self.used_libs = {}      # lib_id -> SymbolDef (to embed)
         self._refcount = {}
         self.is_root = False
+        self.proj = "mini-xt"    # project name in instance blocks (per-PCB for cards)
         # instance paths this sheet is placed at: list of (path_prefix, {ref overrides})
         # default: standalone/root -> single instance at "/<own uuid>"
         self.inst_paths = None   # set by Project for sub-sheets
@@ -482,7 +483,7 @@ class Schematic:
                          ["effects", ["font", ["size", 1.27, 1.27]],
                           ["justify", Sym("right" if side == "l" else "left")]],
                          ["uuid", uid()]])
-        node.append(["instances", ["project", "mini-xt",
+        node.append(["instances", ["project", self.proj,
                      ["path", "/" + self.uuid, ["page", str(len(self.sheet_uuids) + 2)]]]])
         self.items.append(node)
         self.sheet_uuids.append((suuid, name, filename))
@@ -534,6 +535,7 @@ class Schematic:
              ["unit", 1],
              ["exclude_from_sim", Sym("no")],
              ["in_bom", Sym("yes")], ["on_board", Sym("yes")], ["dnp", Sym("no")],
+             ["fields_autoplaced", Sym("yes")],
              ["uuid", c.uuid]]
         if c.mirror:
             n.insert(3, ["mirror", Sym(c.mirror)])
@@ -547,7 +549,7 @@ class Schematic:
         for p in c.sdef.pins:
             n.append(["pin", p.number, ["uuid", uid()]])
         # instance paths: sub-sheets get one path per placement (with per-inst ref)
-        proj = ["project", "mini-xt"]
+        proj = ["project", self.proj]
         if self.inst_paths:
             for (prefix, refmap) in self.inst_paths:
                 ref = refmap.get(c.ref, c.ref)

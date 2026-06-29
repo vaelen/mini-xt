@@ -31,7 +31,7 @@ PINS = (
 )
 
 
-def build(sch, lib):
+def build(sch, lib, expose=True):
     L = lambda c, p, net, **k: sch.net(c, p, net, kind="label",
                                        dx=k.get("dx", 2.54), dy=k.get("dy", 0))
 
@@ -40,7 +40,8 @@ def build(sch, lib):
         sch.net(c, "1", rail, kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
 
-    mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
+    if expose:        # standalone dev-card PCBs tie to on-card headers, not a parent
+        mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
 
     # ---------------- U1: 16C550 UART ----------------
     U1 = sch.place("Interface_UART:16550", "U1", at=(127.0, 101.6))

@@ -36,8 +36,9 @@ PINS = (
 )
 
 
-def build(sch, lib):
-    mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
+def build(sch, lib, expose=True):
+    if expose:        # standalone dev-card PCBs tie to on-card headers, not a parent
+        mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
 
     def L(c, p, net, dx=2.54, dy=0.0):
         sch.net(c, p, net, kind="label", dx=dx, dy=dy)

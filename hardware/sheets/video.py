@@ -42,13 +42,14 @@ PINS = (
 )
 
 
-def build(sch, lib):
-    mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
+def build(sch, lib, expose=True):
+    if expose:        # standalone dev-card PCBs tie to on-card headers, not a parent
+        mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
 
     L = lambda c, p, net, **k: sch.net(c, p, net, kind="label",
                                        dx=k.get("dx", 2.54), dy=k.get("dy", 0))
 
-    def decouple(ref, at, net="+3V3"):
+    def decouple(ref, at, net="3V3_VID"):
         c = sch.place("Device:C", ref, "100nF", at=at)
         sch.net(c, "1", net, kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
@@ -143,7 +144,7 @@ def build(sch, lib):
 
     # U7: IOCHRDY driver (A->B), tri-stated unless the card is waiting
     U7 = shifter("U7", (109.22, 243.84))
-    L(U7, "A->B", "+3V3"); L(U7, "CE", "RDY_OE")
+    L(U7, "A->B", "3V3_VID"); L(U7, "CE", "RDY_OE")
     L(U7, "A0", "IOCHRDY_DRV", dx=-2.54)
     L(U7, "B0", "IOCHRDY")
     for i in range(1, 8):

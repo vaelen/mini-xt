@@ -50,9 +50,39 @@ def load_lib():
 
 def build_subsheet(modname, lib):
     mod = importlib.import_module(modname)
-    sch = Schematic(lib, title=getattr(mod, "TITLE", modname), rev="1")
+    sch = Schematic(lib, title=getattr(mod, "TITLE", modname), rev="1",
+                    paper=getattr(mod, "PAPER", "A3"))
     mod.build(sch, lib)
     return mod, sch
+
+
+# Standalone soft-card PCBs (each = logic + two chainable ISA headers, isa_conn).
+CARD_SHEETS = ["card_video", "card_com", "card_lpt", "card_rtc", "card_storage"]
+
+
+def build_cards(run_checks=True):
+    """Build each soft-card dev PCB as its own standalone schematic in hardware/cards/."""
+    lib = load_lib()
+    outdir = os.path.join(HW, "cards")
+    os.makedirs(outdir, exist_ok=True)
+    open(os.path.join(outdir, "sym-lib-table"), "w").write(
+        '(sym_lib_table\n  (version 7)\n'
+        '  (lib (name "mini-xt")(type "KiCad")(uri "%s/mini-xt.kicad_sym")(options "")(descr ""))\n)\n'
+        % HW)
+    for name in CARD_SHEETS:
+        mod, sch = build_subsheet(name, lib)
+        sch.is_root = True       # each card is its own top-level PCB schematic
+        sch.proj = name          # instance blocks reference THIS card's project, not mini-xt
+        p = os.path.join(outdir, name + ".kicad_sch")
+        open(p, "w").write(sch.render())
+        open(os.path.join(outdir, name + ".kicad_pro"), "w").write(
+            '{\n  "meta": {"version": 1}\n}\n')
+        msg = "ok"
+        if run_checks:
+            r = subprocess.run([CLI, "sch", "erc", "-o", p + ".rpt", p],
+                               capture_output=True, text=True)
+            msg = (r.stdout.strip().splitlines() or ["?"])[-1]
+        print("card %-14s %2d comps  %s" % (name, len(sch.components), msg))
 
 
 def assemble(write=True, run_checks=True):

@@ -40,6 +40,7 @@ The `.kicad_sch` files are emitted by a small Python generator in `tools/`
 
 ```
 python3 tools/build.py                       # writes all sheets + root, runs ERC + netlist
+python3 -c 'import sys;sys.path.insert(0,"tools");import build;build.build_cards()'   # standalone dev cards -> cards/
 python3 tools/validate_sheet.py <name>       # ERC one sheet in isolation
 python3 tools/pins.py <Lib:Name>             # introspect a symbol's pins
 ```

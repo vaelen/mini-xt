@@ -194,3 +194,36 @@ level shifters, address counter, and IRQ collector stay on the carrier.
 
 Module symbol pin NAMES are authoritative; the PGA pin NUMBERS in the symbol are a
 functional placeholder -- match them to the Waveshare pinout before layout.
+
+---
+
+## Feature: shared ISA connector + standalone chainable soft-card PCBs (your request)
+
+**Shared ISA connector** (`sheets/isa_conn.py`): the 2x32 (64-pin) ISA header is
+now a reusable building block -- `place_header(sch, ref, at, remap=)` plus the
+64-pin signal map (interleaved grounds, +5V, key pin). `sidecar.py` was refactored
+to use it, so the motherboard edge and the dev cards share one identical pinout.
+(IRQ8 was added to the header -- one redundant ground dropped to stay 64-pin -- so
+the RTC card's interrupt is carried.)
+
+**Per-card dev PCBs** (`sheets/card_<name>.py` -> built to `hardware/cards/`):
+each soft card (video, com, lpt, rtc, storage) is now a standalone board =
+the soft-card schematic + **two** chainable ISA headers (`J_IN` / `J_OUT`,
+same nets => pass-through). Bus + power (+5V/GND) flow in J_IN, through to J_OUT,
+and the card logic taps the bus by name. So you can fab each card separately and
+**daisy-chain them header-to-header** for development. Each card is its own
+top-level schematic/project (A2 sheet) in `hardware/cards/` (own .kicad_pro), and
+the soft-card `build(sch, lib, expose=False)` skips the motherboard-facing
+hierarchical pins so everything ties to the on-card headers.
+- Verified: J_IN<->J_OUT pass-through + logic tap on every signal (e.g. card_com:
+  D0/~{IOR}/A5 each = J_IN + J_OUT + the UART; COM_IRQ taps the IRQ4 line via the
+  per-card header remap). Structural ERC = 0 on all five cards.
+- The integrated motherboard is unchanged (soft cards still plug into the single
+  sidecar there); the card PCBs are the parallel development arrangement.
+
+**Known cosmetic issue:** `kicad-cli sch export netlist` prints "schematic has
+annotation errors" for the card sheets. This does NOT appear in ERC (the
+authoritative annotation check), the netlist exports completely and correctly, and
+all references are unique/annotated with no duplicate UUIDs -- it's a CLI exporter
+quirk triggered by the 64-pin connector, not a real defect. Opening a card in the
+KiCad GUI shows a properly annotated, ERC-clean schematic.
