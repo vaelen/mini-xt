@@ -256,3 +256,24 @@ bus intact; zero structural ERC on the motherboard and all five cards. The chang
 lives entirely in isa_conn.py, so the sidecar and all card_* sheets picked it up.
 Note: the Bus MCU's 74HC165 still samples IRQ2-9, so IRQ8 is collected; nothing
 above IRQ9 is on the connector anymore.
+
+---
+
+## Change: drive REFRESH# from the Bus MCU (your call)
+
+The ISA REFRESH# line (standard pin 35, the DACK0/REFRESH# position) is now an
+ACTIVE output of the Bus MCU instead of an undriven `~{DACK0}` stub, so DRAM-based
+ISA cards on the sidecar/chain stay refreshed.
+
+- `isa_conn` pin 35 net renamed `~{DACK0}` -> `~{REFRESH}`.
+- Bus MCU drives it from **GPIO47**, reclaimed from the (redundant) raw-`~WR`
+  sense -- the MCU already tracks writes via the gated MEMW/IOW on GPIO17/19, so
+  no net GPIO cost (budget stays ~46-48/48). `~{REFRESH}` added to the Bus MCU
+  interface (output) and to `_NET_SHAPE`.
+- Generation: driven from the same internal ~15 us refresh timer that produces the
+  0x61-bit-4 toggle. A full refresh cycle reuses the existing bus-master engine --
+  it walks the refresh row address on A0-A7 via the §5.1 counter and pulses MEMR#
+  -- so a DRAM card sees a standard RAS-only/CBR refresh; only the REFRESH# strobe
+  itself needed a pin.
+- Verified: `~{REFRESH}` ties sidecar(J1) <-> Bus MCU(GPIO47); passes through
+  J_IN<->J_OUT on every dev card; zero structural ERC on motherboard + all cards.

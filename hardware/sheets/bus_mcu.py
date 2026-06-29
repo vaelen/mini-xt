@@ -21,6 +21,11 @@ XT/ISA backplane as **slave and master**.  It carries:
   * SPEED_SEL (out) -> clock mux in cpu_core: set before releasing V20 reset
     (moved here from the Supervisor; Supervisor sends the choice over the link).
     Address/control transceiver DIR is HLDA-derived externally to free the GPIO.
+  * ~{REFRESH} (out) -> bus REFRESH# (pin 35): driven from the same internal
+    ~15 us refresh timer as the 0x61-bit-4 toggle, so DRAM-based ISA cards on the
+    bus get refreshed. A refresh cycle reuses the bus-master engine -- it walks the
+    refresh row address on A0-A7 via the §5.1 counter and pulses MEMR# -- so only
+    the REFRESH# strobe itself needs a GPIO (reclaimed from the raw ~WR sense).
 
 Addr/ctrl xcvr DIR = HLDA (master/slave role, §5.2); DATADIR is the data
 read/write direction.  See hardware/notes/questions-bus_mcu.md for design picks.
@@ -60,7 +65,7 @@ PINS = (
     [pin(s, _DIR[s]) for s in mxbus.PRIV_CPU] +
     [pin(s, _DIR[s]) for s in mxbus.PRIV_COUNTER] +
     [pin("LINK_B2S", "output"), pin("LINK_S2B", "input"),
-     pin("SPEED_SEL", "output")]
+     pin("SPEED_SEL", "output"), pin("~{REFRESH}", "output")]
 )
 
 # RP2350B GPIO -> internal/interface net (MCU-side names).  ~48 GPIO budget (§5.2).
@@ -81,8 +86,9 @@ GPIO_NET.update({
     40: "LINK_B2S", 41: "LINK_S2B",                 # UART link to Supervisor
     42: "SPEED_SEL", 43: "DATADIR",                 # SPEED_SEL out; data DIR
     44: "READY", 45: "~{CPURESET}",                 # V20 handshake (private)
-    46: "~{RD}", 47: "~{WR}",                       # raw V20 strobe sense
-})
+    46: "~{RD}",                                    # raw V20 read-strobe sense
+    47: "~{REFRESH}",     # drives bus REFRESH# (was raw ~WR; writes are tracked via
+})                        # the gated MEMW/IOW it already senses on GPIO17/19)
 # net -> hier-label shape, so MCU stubs carry the right cross-sheet direction
 _NET_SHAPE = {"IOCHRDY": "bidirectional", "~{IOCHCK}": "input",
               "HOLD": "output", "HLDA": "input", "INTR": "output",
@@ -91,7 +97,7 @@ _NET_SHAPE = {"IOCHRDY": "bidirectional", "~{IOCHCK}": "input",
               "DRQ1": "input", "~{DACK1}": "output",
               "CNT_CLK": "output", "CNT_LD0": "output", "CNT_LD1": "output",
               "CNT_LD2": "output", "LINK_B2S": "output", "LINK_S2B": "input",
-              "SPEED_SEL": "output"}
+              "SPEED_SEL": "output", "~{REFRESH}": "output"}
 _HIER = set(_NET_SHAPE) | {"IRQ_LOAD", "IRQ_CLK", "IRQ_SER"}  # IRQ_* are internal labels
 
 

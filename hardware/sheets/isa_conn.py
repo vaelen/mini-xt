@@ -13,7 +13,9 @@ pins are reclaimed for signals we DO need:
 Everything else follows the standard ISA edge pinout (our net names in []):
 RESET DRV[RESET_DRV], SD0-7[D0-D7], SA0-19[A0-A19], SMEMR/W[~{MEMR}/~{MEMW}],
 IOR/W[~{IOR}/~{IOW}], IO CH RDY[IOCHRDY], AEN, CLK, OSC, ALE[BALE], T/C[TC],
-IRQ2-7, DRQ1-3, DACK0-3[~{DACK0..3}].  Pin 13 (the reserved/0WS pin) is left
+IRQ2-7, DRQ1-3, DACK1-3[~{DACK1..3}].  Pin 35 (the DACK0/REFRESH# pin) carries
+~{REFRESH}, driven by the Bus MCU so DRAM-based ISA cards get refreshed.  Pin 13
+(the reserved/0WS pin) is left
 unconnected, as on the PicoGUS header.
 
 Connectivity is by net NAME, so two headers with the same nets form a chainable
@@ -48,7 +50,7 @@ PIN_NETS = [
     "DRQ3",       "A15",       # 29 30
     "~{DACK1}",   "A14",       # 31 32
     "DRQ1",       "A13",       # 33 34
-    "~{DACK0}",   "A12",       # 35 36
+    "~{REFRESH}", "A12",       # 35(DACK0/REFRESH# -- driven by Bus MCU)  36
     "CLK",        "A11",       # 37 38
     "IRQ7",       "A10",       # 39 40
     "IRQ6",       "A9",        # 41 42
