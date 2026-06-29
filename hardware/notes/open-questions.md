@@ -227,3 +227,32 @@ authoritative annotation check), the netlist exports completely and correctly, a
 all references are unique/annotated with no duplicate UUIDs -- it's a CLI exporter
 quirk triggered by the 64-pin connector, not a real defect. Opening a card in the
 KiCad GUI shows a properly annotated, ERC-clean schematic.
+
+---
+
+## Change: ISA connector re-based on the standard 8-bit ISA pinout (60-pin, your call)
+
+`isa_conn` now uses the **standard 8-bit ISA pinout on a 60-pin 2.54 mm header
+(Conn_02x30_Odd_Even)** -- laid out exactly like the PicoGUS `Bus_ISA_8bit`
+header, so the sidecar and dev cards are pin-compatible with real 8-bit ISA cards
+(and 60-pin ribbon/headers are far easier to source than 64-pin). Replaces the
+earlier arbitrary 64-pin order.
+
+Since we don't use the ISA analog rails (S13: no +-12V / -5V), those three pins
+are reclaimed:
+  * pin  7 : -5V   -> ~{IOCHCK}  (channel check -> NMI)
+  * pin 11 : -12V  -> GND        (extra ribbon return / signal integrity)
+  * pin 15 : +12V  -> IRQ8       (RTC)
+Pin 13 (reserved / 0WS#) is left unconnected, as on the PicoGUS header.
+
+Dropped: the non-standard IRQ10/11/14 (spare/unused; on a real AT they live on the
+16-bit extension connector, not the 8-bit edge). DACK0/REFRESH# now appears on its
+standard pin (pin 35) but is undriven on our side (we refresh internally; SRAM
+needs none) -- it's there for ISA-card compatibility.
+
+Verified: pin map correct (7=~{IOCHCK}, 11=GND, 15=IRQ8); ~{IOCHCK} ties
+sidecar<->Bus MCU; IRQ8 ties sidecar<->Bus-MCU collector<->RTC; IRQ10/11/14 gone;
+bus intact; zero structural ERC on the motherboard and all five cards. The change
+lives entirely in isa_conn.py, so the sidecar and all card_* sheets picked it up.
+Note: the Bus MCU's 74HC165 still samples IRQ2-9, so IRQ8 is collected; nothing
+above IRQ9 is on the connector anymore.

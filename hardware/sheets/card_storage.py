@@ -1,6 +1,6 @@
 """card_storage -- standalone Storage (XT-IDE) soft-card PCB with chainable ISA headers.
 
-Combines the storage soft-card schematic with two 2x32 ISA headers (J_IN / J_OUT,
+Combines the storage soft-card schematic with two 60-pin (2x30) ISA headers (J_IN / J_OUT,
 the shared isa_conn building block). The bus enters J_IN, passes straight through
 to J_OUT (same nets), and the card logic taps it by name -- so this soft card is
 its own PCB and several can be daisy-chained header-to-header for development
@@ -12,7 +12,7 @@ import storage as card
 
 NAME = "card_storage"
 TITLE = "Storage (XT-IDE) soft-card PCB (chainable ISA)"
-PAPER = "A2"               # extra room for the soft card + two 64-pin headers
+PAPER = "A2"               # extra room for the soft card + two 60-pin ISA headers
 PINS = []                  # standalone PCB -- bus + power come through the headers
 
 
