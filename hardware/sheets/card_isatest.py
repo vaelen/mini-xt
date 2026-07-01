@@ -142,6 +142,37 @@ def build(sch, lib):
     decouple("C3", (190.5, 40.64), "+3V3")   # transceiver bank
     decouple("C4", (355.6, 40.64), "+3V3")
 
+    # ---- OUT shift chain: 4x 74HC595 @3V3, split latches ----------------
+    # U9/U10/U11 = address (RCLK_ADDR); U12 = control byte (RCLK_CTRL).
+    UO0 = s595("U9",  (60.96, 304.8), "RCLK_ADDR")
+    N(UO0, "SER", "SER")
+    for i, q in enumerate(["QA", "QB", "QC", "QD", "QE", "QF", "QG", "QH"]):
+        N(UO0, q, "MA%d" % i)
+    UO1 = s595("U10", (137.16, 304.8), "RCLK_ADDR")
+    N(UO0, "QH'", "SER_A01"); N(UO1, "SER", "SER_A01")
+    for i, q in enumerate(["QA", "QB", "QC", "QD", "QE", "QF", "QG", "QH"]):
+        N(UO1, q, "MA%d" % (8 + i))
+    UO2 = s595("U11", (213.36, 304.8), "RCLK_ADDR")
+    N(UO1, "QH'", "SER_A12"); N(UO2, "SER", "SER_A12")
+    for i, q in enumerate(["QA", "QB", "QC", "QD"]):
+        N(UO2, q, "MA%d" % (16 + i))
+    # address-latch spare outputs carry the STATIC config selects (set once)
+    N(UO2, "QE", "SPEED_SEL")
+    N(UO2, "QF", "CLK_SRC")
+    N(UO2, "QG", "DUT_PWR_EN")
+    sch.no_connect(UO2.pin_xy("QH"))
+    UOC = s595("U12", (289.56, 304.8), "RCLK_CTRL")
+    N(UO2, "QH'", "SER_A2C"); N(UOC, "SER", "SER_A2C")
+    ctl = ["M_AEN", "M_RESETDRV", "M_TC", "M_DACK1", "M_DACK2", "M_DACK3", "M_BALE"]
+    for q, net in zip(["QA", "QB", "QC", "QD", "QE", "QF", "QG"], ctl):
+        N(UOC, q, net)
+    sch.no_connect(UOC.pin_xy("QH"))
+    sch.no_connect(UOC.pin_xy("QH'"))
+    decouple("C5", (60.96, 274.32), "+3V3")
+    sch.text("OUT chain: address (U9-U11, RCLK_ADDR) + control byte (U12, "
+             "RCLK_CTRL). Address-only updates shift 24b; controls stay latched.",
+             (60.96, 335.28))
+
     # ---- decoupling (representative) ------------------------------------
     decouple("C1", (40.64, 50.8), "+3V3")
     decouple("C2", (55.88, 50.8), "+3V3")
