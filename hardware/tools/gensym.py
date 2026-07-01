@@ -248,8 +248,29 @@ core2350b = make_ic(
     description="Waveshare Core2350B: RP2350B module, 48 GPIO, 16MB flash, opt PSRAM (CS=GPIO47), 3V3 LDO, LED on GPIO39",
     datasheet="https://www.waveshare.com/wiki/Core2350B0")
 
+# ---- Raspberry Pi Pico module (RP2040; Pico 2/RP2350A pin-compatible) ----
+# Standard 40-pin castellated module. Exposes 26 usable GPIO (GP0-GP22, GP26-28;
+# GP23/24/25 are module-internal) + power/control. GPIO NAMES are authoritative;
+# pin NUMBERS follow the physical 40-pin Pico pinout (GND pins collapsed to two).
+pico = make_ic(
+    "Pico",
+    left=[(str(n), "GP%d" % g, "bidirectional") for n, g in [
+        (1, 0), (2, 1), (4, 2), (5, 3), (6, 4), (7, 5), (9, 6),
+        (10, 7), (11, 8), (12, 9), (14, 10), (15, 11), (16, 12)]],
+    right=[(str(n), "GP%d" % g, "bidirectional") for n, g in [
+        (17, 13), (19, 14), (20, 15), (21, 16), (22, 17), (24, 18),
+        (25, 19), (26, 20), (27, 21), (29, 22), (31, 26), (32, 27), (34, 28)]],
+    top=[("40", "VBUS", "power_in"), ("39", "VSYS", "power_in"),
+         ("37", "3V3_EN", "input")],
+    bottom=[("3", "GND", "power_in"), ("38", "GND", "power_in"),
+            ("36", "3V3", "power_out"), ("30", "RUN", "input"),
+            ("35", "ADC_VREF", "passive")],
+    ref="M",
+    description="Raspberry Pi Pico module (RP2040; Pico 2/RP2350A pin-compatible): 26 usable GPIO, onboard 3V3 SMPS, USB",
+    datasheet="https://datasheets.raspberrypi.com/pico/pico-datasheet.pdf")
+
 lib = ["kicad_symbol_lib", ["version", 20241209], ["generator", "mxsch"],
-       ["generator_version", "9.0"], v20, max3241, ds12c887, core2350b] + glue_syms
+       ["generator_version", "9.0"], v20, max3241, ds12c887, core2350b, pico] + glue_syms
 
 out = os.path.join(HW, "mini-xt.kicad_sym")
 open(out, "w").write(dump(lib) + "\n")
