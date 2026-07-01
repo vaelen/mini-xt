@@ -173,6 +173,29 @@ def build(sch, lib):
              "RCLK_CTRL). Address-only updates shift 24b; controls stay latched.",
              (60.96, 335.28))
 
+    # ---- IN shift chain: 2x 74HCT165 @3V3 (full-duplex, shared SRCLK) ----
+    # U13 nearest Pico (Q7 -> IN_QH); U14 cascades in via DS.
+    UI0 = s165("U13", (365.76, 304.8))
+    in0 = ["IRQ2_S", "IRQ3_S", "IRQ4_S", "IRQ5_S", "IRQ6_S", "IRQ7_S",
+           "IRQ8_S", "DRQ1_S"]
+    for i, d in enumerate(in0):
+        N(UI0, "D%d" % i, d)
+    N(UI0, "Q7", "IN_QH")
+    N(UI0, "DS", "IN_CASCADE")
+    sch.no_connect(UI0.pin_xy("~{Q7}"))
+    UI1 = s165("U14", (441.96, 304.8))
+    in1 = ["DRQ2_S", "DRQ3_S", "IOCHCK_S"]
+    for i, d in enumerate(in1):
+        N(UI1, "D%d" % i, d)
+    for i in range(3, 8):
+        N(UI1, "D%d" % i, "GND")          # unused parallel inputs tied low
+    N(UI1, "Q7", "IN_CASCADE")
+    N(UI1, "DS", "GND")                    # far end of the cascade
+    sch.no_connect(UI1.pin_xy("~{Q7}"))
+    decouple("C6", (365.76, 274.32), "+3V3")
+    sch.text("IN chain: IRQ2-8 / DRQ1-3 / IOCHCK# -> IN_QH (U14 cascades into "
+             "U13). Sampled occasionally; off the hot path.", (365.76, 335.28))
+
     # ---- decoupling (representative) ------------------------------------
     decouple("C1", (40.64, 50.8), "+3V3")
     decouple("C2", (55.88, 50.8), "+3V3")
