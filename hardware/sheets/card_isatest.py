@@ -234,6 +234,24 @@ def build(sch, lib):
              "sensed back to Pico via U8 (CLK_S). /3 preset per cpu_core.",
              (60.96, 132.08))
 
+    # ---- power: USB 5V + external jack -> OR-ing -> P-FET -> bus +5V -----
+    jack = sch.place("Connector:Barrel_Jack", "J3", "5V jack", at=(495.3, 60.96))
+    N(jack, "1", "VEXT"); N(jack, "2", "GND")
+    dext = sch.place("Device:D_Schottky", "D1", at=(520.7, 60.96))   # jack OR-ing
+    N(dext, "2", "VEXT"); N(dext, "1", "V5RAW")                       # 2=A, 1=K
+    dusb = sch.place("Device:D_Schottky", "D2", at=(520.7, 76.2))    # USB OR-ing
+    N(dusb, "2", "+5V_USB"); N(dusb, "1", "V5RAW")
+    q = sch.place("Device:Q_PMOS", "Q1", at=(546.1, 68.58))          # high-side switch
+    N(q, "S", "V5RAW"); N(q, "D", "+5V"); N(q, "G", "DUT_PWR_EN")
+    # idle network (tester = motherboard): buffers default OFF; ready idle high.
+    pull("R1", (152.4, 96.52), "~{BUF_EN}", "+3V3")   # buffers default disabled
+    pull("R2", (571.5, 45.72), "IOCHRDY", "+5V")      # IOCHRDY idle high (ready)
+    pull("R3", (571.5, 76.2), "DUT_PWR_EN", "+3V3")   # FET off until firmware drives
+    decouple("C8", (490.22, 91.44), "+5V")            # bus rail bulk/decoupling
+    sch.text("Power: USB 5V (logic) + external jack (bus/DUT) OR-ed via D1/D2 to "
+             "V5RAW; Q1 P-FET (DUT_PWR_EN) switches bus +5V. See questions doc for "
+             "gate-drive/level detail.", (470.0, 30.48))
+
     # ---- decoupling (representative) ------------------------------------
     decouple("C1", (40.64, 50.8), "+3V3")
     decouple("C2", (55.88, 50.8), "+3V3")
