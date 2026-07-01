@@ -57,7 +57,7 @@ def build_subsheet(modname, lib):
 
 
 # Standalone soft-card PCBs (each = logic + two chainable ISA headers, isa_conn).
-CARD_SHEETS = ["card_video", "card_com", "card_lpt", "card_rtc", "card_storage"]
+CARD_SHEETS = ["card_video", "card_com", "card_lpt", "card_rtc", "card_storage", "card_isatest"]
 
 
 def build_cards(run_checks=True):
