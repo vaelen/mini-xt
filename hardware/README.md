@@ -31,6 +31,7 @@ descend into a subsystem.
 | `sheets/storage`          | XT-IDE (Chuck-mod) + CompactFlash                |
 | `sheets/audio`            | PC-speaker + op-amp summer → line-out            |
 | `sheets/sidecar`          | 2×32 IDC ISA expansion header                    |
+| `sheets/card_isatest`     | Pico ISA host/bus-master test card (standalone; ISA slot + sidecar) |
 | `mini-xt.kicad_sym`       | custom symbols (V20, MAX3241, DS12C887, flat 74xx)|
 
 ## How these were generated
