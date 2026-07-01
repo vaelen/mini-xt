@@ -96,6 +96,52 @@ def build(sch, lib):
     # ==== BLOCKS BELOW ADDED BY LATER TASKS (keep this marker) ============
     # [transceivers] [out-chain] [in-chain] [clock] [power] [connectors]
 
+    # ---- bus transceivers: 8x 74LVC245A (3V3<->5V), OE = ~{BUF_EN} -------
+    # Data (bidirectional): dir = DATADIR. A = MD (Pico), B = D (bus).
+    UD = xcvr("U1", (203.2, 76.2), "DATADIR")
+    for i in range(8):
+        N(UD, "A%d" % i, "MD%d" % i)
+        N(UD, "B%d" % i, "D%d" % i)
+    # Address (output only): dir tied high (+3V3 => A->B). A = MA, B = A(bus).
+    UA0 = xcvr("U2", (203.2, 152.4), "+3V3")
+    UA1 = xcvr("U3", (279.4, 152.4), "+3V3")
+    UA2 = xcvr("U4", (355.6, 152.4), "+3V3")
+    for i in range(8):
+        N(UA0, "A%d" % i, "MA%d" % i);        N(UA0, "B%d" % i, "A%d" % i)
+        N(UA1, "A%d" % i, "MA%d" % (8 + i));  N(UA1, "B%d" % i, "A%d" % (8 + i))
+    for i in range(4):
+        N(UA2, "A%d" % i, "MA%d" % (16 + i)); N(UA2, "B%d" % i, "A%d" % (16 + i))
+    for i in range(4, 8):
+        sch.no_connect(UA2.pin_xy("A%d" % i)); sch.no_connect(UA2.pin_xy("B%d" % i))
+    # Control OUT (output only): dir tied high. A = M_* (internal), B = bus.
+    UCO0 = xcvr("U5", (203.2, 228.6), "+3V3")
+    co0 = [("M_MEMR", "~{MEMR}"), ("M_MEMW", "~{MEMW}"), ("M_IOR", "~{IOR}"),
+           ("M_IOW", "~{IOW}"), ("M_AEN", "AEN"), ("M_RESETDRV", "RESET_DRV"),
+           ("M_TC", "TC"), ("M_BALE", "BALE")]
+    for i, (a, b) in enumerate(co0):
+        N(UCO0, "A%d" % i, a); N(UCO0, "B%d" % i, b)
+    UCO1 = xcvr("U6", (279.4, 228.6), "+3V3")
+    co1 = [("M_DACK1", "~{DACK1}"), ("M_DACK2", "~{DACK2}"),
+           ("M_DACK3", "~{DACK3}"), ("M_REFRESH", "~{REFRESH}")]
+    for i, (a, b) in enumerate(co1):
+        N(UCO1, "A%d" % i, a); N(UCO1, "B%d" % i, b)
+    for i in range(4, 8):
+        sch.no_connect(UCO1.pin_xy("A%d" % i)); sch.no_connect(UCO1.pin_xy("B%d" % i))
+    # Control IN (input only): dir tied low (GND => B->A). B = bus, A = *_S.
+    UCI0 = xcvr("U7", (355.6, 228.6), "GND")
+    ci0 = ["IRQ2", "IRQ3", "IRQ4", "IRQ5", "IRQ6", "IRQ7", "IRQ8", "DRQ1"]
+    for i, b in enumerate(ci0):
+        N(UCI0, "B%d" % i, b); N(UCI0, "A%d" % i, b + "_S")
+    UCI1 = xcvr("U8", (431.8, 228.6), "GND")
+    ci1 = [("DRQ2", "DRQ2_S"), ("DRQ3", "DRQ3_S"), ("~{IOCHCK}", "IOCHCK_S"),
+           ("IOCHRDY", "IOCHRDY_S"), ("CLK", "CLK_S")]
+    for i, (b, a) in enumerate(ci1):
+        N(UCI1, "B%d" % i, b); N(UCI1, "A%d" % i, a)
+    for i in range(5, 8):
+        sch.no_connect(UCI1.pin_xy("A%d" % i)); sch.no_connect(UCI1.pin_xy("B%d" % i))
+    decouple("C3", (190.5, 40.64), "+3V3")   # transceiver bank
+    decouple("C4", (355.6, 40.64), "+3V3")
+
     # ---- decoupling (representative) ------------------------------------
     decouple("C1", (40.64, 50.8), "+3V3")
     decouple("C2", (55.88, 50.8), "+3V3")
