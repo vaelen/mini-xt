@@ -252,6 +252,46 @@ def build(sch, lib):
              "V5RAW; Q1 P-FET (DUT_PWR_EN) switches bus +5V. See questions doc for "
              "gate-drive/level detail.", (470.0, 30.48))
 
+    # ---- DUT connectors -------------------------------------------------
+    # J1: real 8-bit ISA card-edge slot (Connector:Bus_ISA_8bit, true pinout).
+    #     -5V/-12V/+12V/UNUSED are left NC (we provide no analog rails).
+    slot = sch.place("Connector:Bus_ISA_8bit", "J1", "ISA slot (8-bit)",
+                     at=(508.0, 254.0))
+    slot_map = {
+        "GND": "GND", "VCC": "+5V", "RESET": "RESET_DRV",
+        "~{SMEMW}": "~{MEMW}", "~{SMEMR}": "~{MEMR}", "~{IOW}": "~{IOW}",
+        "~{IOR}": "~{IOR}", "~{DACK3}": "~{DACK3}", "DRQ3": "DRQ3",
+        "~{DACK1}": "~{DACK1}", "DRQ1": "DRQ1", "~{DACK0}": "~{REFRESH}",
+        "CLK": "CLK", "IRQ7": "IRQ7", "IRQ6": "IRQ6", "IRQ5": "IRQ5",
+        "IRQ4": "IRQ4", "IRQ3": "IRQ3", "IRQ2": "IRQ2", "~{DACK2}": "~{DACK2}",
+        "TC": "TC", "ALE": "BALE", "OSC": "OSC", "IO": "~{IOCHCK}",
+        "IO_READY": "IOCHRDY", "AEN": "AEN", "DRQ2": "DRQ2",
+    }
+    for i in range(20):
+        slot_map["BA%02d" % i] = "A%d" % i
+    for i in range(8):
+        slot_map["DB%d" % i] = "D%d" % i
+    NC = {"-5V", "-12V", "+12V", "UNUSED"}
+
+    def sdir(comp, num, length=5.08):
+        a = comp.sdef.pin(num).angle % 360
+        if a == 0:   return (-length, 0.0)
+        if a == 180: return (length, 0.0)
+        if a == 90:  return (0.0, length)
+        return (0.0, -length)
+
+    for p in slot.sdef.pins:
+        if p.name in NC:
+            sch.no_connect(slot.pin_xy(p.number)); continue
+        net = slot_map.get(p.name)
+        if net is None:
+            sch.no_connect(slot.pin_xy(p.number)); continue
+        dx, dy = sdir(slot, p.number)
+        sch.net(slot, p.number, net, kind="label", dx=dx, dy=dy)
+
+    # J2: 60-pin sidecar header (shared isa_conn building block; soft-card compat).
+    isa_conn.place_header(sch, "J2", (571.5, 152.4), label="ISA SIDECAR")
+
     # ---- decoupling (representative) ------------------------------------
     decouple("C1", (40.64, 50.8), "+3V3")
     decouple("C2", (55.88, 50.8), "+3V3")
