@@ -196,6 +196,44 @@ def build(sch, lib):
     sch.text("IN chain: IRQ2-8 / DRQ1-3 / IOCHCK# -> IN_QH (U14 cascades into "
              "U13). Sampled occasionally; off the hot path.", (365.76, 335.28))
 
+    # ---- clock tree: 14.318 can osc -> /2, /3 -> speed mux -> src mux ----
+    #      -> 5V buffer -> bus CLK.  OSC drives the bus OSC pin directly.
+    osc = sch.place("Oscillator:ACO-xxxMHz", "OSC1", "14.31818MHz", at=(60.96, 45.72))
+    N(osc, "Vcc", "+5V", dx=0, dy=-2.54)
+    N(osc, "GND", "GND", dx=0, dy=2.54)
+    N(osc, "OUT", "OSC")
+    ff = sch.place("mini-xt:74HCT74", "U15", at=(137.16, 45.72))     # /2
+    N(ff, "VCC", "+5V", dx=0, dy=-2.54); N(ff, "GND", "GND", dx=0, dy=2.54)
+    N(ff, "C", "OSC"); N(ff, "D", "CLK_QN"); N(ff, "~{Q}", "CLK_QN"); N(ff, "Q", "CLK7")
+    N(ff, "~{S}", "+5V"); N(ff, "~{R}", "+5V")
+    d3 = sch.place("mini-xt:74HCT163", "U16", at=(213.36, 45.72))    # /3 (preset-to-3)
+    N(d3, "VCC", "+5V", dx=0, dy=-2.54); N(d3, "GND", "GND", dx=0, dy=2.54)
+    N(d3, "CP", "OSC")
+    N(d3, "D0", "+5V"); N(d3, "D1", "GND"); N(d3, "D2", "+5V"); N(d3, "D3", "+5V")
+    N(d3, "CEP", "+5V"); N(d3, "CET", "+5V"); N(d3, "~{MR}", "+5V")
+    N(d3, "TC", "DIV3_TC"); N(d3, "~{PE}", "DIV3_LD")   # preset-to-3 per cpu_core
+    N(d3, "Q0", "CLK4")
+    m1 = sch.place("mini-xt:74HCT157", "U17", at=(60.96, 106.68))    # speed mux
+    N(m1, "VCC", "+5V", dx=0, dy=-2.54); N(m1, "GND", "GND", dx=0, dy=2.54)
+    N(m1, "I0a", "CLK7"); N(m1, "I1a", "CLK4"); N(m1, "S", "SPEED_SEL")
+    N(m1, "E", "GND"); N(m1, "Za", "CLK_HW")
+    m2 = sch.place("mini-xt:74HCT157", "U18", at=(137.16, 106.68))   # source mux
+    N(m2, "VCC", "+5V", dx=0, dy=-2.54); N(m2, "GND", "GND", dx=0, dy=2.54)
+    N(m2, "I0a", "CLK_HW"); N(m2, "I1a", "PIO_CLK"); N(m2, "S", "CLK_SRC")
+    N(m2, "E", "GND"); N(m2, "Za", "CLK_PRE")
+    buf = sch.place("mini-xt:74HCT04", "U19", at=(213.36, 106.68))   # 5V buffer
+    N(buf, "VCC", "+5V", dx=0, dy=-2.54); N(buf, "GND", "GND", dx=0, dy=2.54)
+    N(buf, "P1", "CLK_PRE"); N(buf, "P2", "CLK")
+    for p in ("P3", "P5", "P9", "P11", "P13"):
+        N(buf, p, "GND")                                # tie unused inverter inputs
+    for p in ("P4", "P6", "P8", "P10", "P12"):
+        sch.no_connect(buf.pin_xy(p))
+    decouple("C7", (60.96, 76.2), "+5V")
+    sch.text("Clock: 14.318 OSC -> /2 (U15) & /3 (U16) -> SPEED_SEL mux (U17) -> "
+             "CLK_SRC mux (U18, PIO override) -> buffer (U19) -> bus CLK. CLK "
+             "sensed back to Pico via U8 (CLK_S). /3 preset per cpu_core.",
+             (60.96, 132.08))
+
     # ---- decoupling (representative) ------------------------------------
     decouple("C1", (40.64, 50.8), "+3V3")
     decouple("C2", (55.88, 50.8), "+3V3")
