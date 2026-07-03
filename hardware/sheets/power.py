@@ -64,12 +64,14 @@ def build(sch, lib):
     L(U1, "DM", "USB_DM", dx=-2.54)
     L(U1, "DP", "USB_DP", dx=-2.54)
     L(U1, "PG", "PG")             # power-good (open-drain)
-    L(U1, "CFG1", "CFG1")         # voltage select strap
+    # CFG1 voltage select: MUST be left OPEN (internal pull-up = 5 V request).
+    # Any resistor to GND here selects the 9/12/15/20 V rows -- >= 9 V on the
+    # +5V rail would destroy the V20/SRAM/HCT logic. Do NOT add a strap.
+    sch.no_connect(U1.pin_xy("CFG1"))
     sch.no_connect(U1.pin_xy("CFG2"))
     sch.no_connect(U1.pin_xy("CFG3"))
-    # CFG1 strap: ground -> select 5 V profile (resistor value per datasheet table)
-    R3 = sch.place("Device:R", "R3", "DNP", at=(177.8, 165.1))
-    L(R3, "1", "CFG1", dx=0, dy=-2.54); L(R3, "2", "GND", dx=0, dy=2.54)
+    sch.text("CH224K CFG1 OPEN = 5V. Never strap CFG1 low (that selects 9-20V!).",
+             (129.54, 185.42))
     # PG pull-up to logic rail
     R4 = sch.place("Device:R", "R4", "10k", at=(177.8, 139.7))
     L(R4, "1", "+3V3", dx=0, dy=-2.54); L(R4, "2", "PG", dx=0, dy=2.54)

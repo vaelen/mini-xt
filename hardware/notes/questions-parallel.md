@@ -66,3 +66,9 @@ proceeded.
   them (standard for many simple LPT cards). If a defined reset state is
   required, substitute a '273 (has MR) for the control '374 and tie MR to
   RESET_DRV.
+
+---
+**Correction (2026-07-03, design review H5):** Q6's "polarity is out of scope"
+call was wrong for status bit 7 — on a real SPP the card inverts Busy (bit7 =
+NOT-Busy; INT 17h spins on bit7=1 = ready). DB25 Busy now passes through the
+spare U9 inverter (P13->P12, net BUSY_N) into the status buffer's D7.

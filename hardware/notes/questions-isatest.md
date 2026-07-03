@@ -37,3 +37,13 @@ Spec: docs/superpowers/specs/2026-07-01-isa-test-card-design.md
   physical numbers are best-effort -- confirm against the Pico datasheet at layout.
 - **Bus-mastering DUT:** address is output-only; testing a card that drives the
   address bus is out of scope (would need address-readback buffering).
+
+---
+**Corrections (2026-07-03, design review H7/H8):**
+- DUT power P-FET: the 3.3 V gate-drive placeholder could neither turn the FET
+  fully off nor default safe. Gate now pulls to V5RAW (R5, off by default) and
+  is driven low through Q2 (2N3904 open-collector, base R4 from DUT_PWR_EN,
+  which now pulls DOWN via R3). DUT_PWR_EN=1 -> DUT powered.
+- The /3 divider's TC->~PE reload was two dangling nets ('163 free-ran /16, so
+  "4.77 MHz" was 0.895 MHz). TC now inverts through a spare U19 gate into ~PE,
+  same as cpu_core.

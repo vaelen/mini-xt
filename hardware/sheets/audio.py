@@ -10,7 +10,12 @@ Signal path (single +5V supply, so a Vref = +2.5V virtual ground is used):
     AC-coupled (C_SPKR) before mixing.
   * The (absent) PicoGUS analog line-out enters on J1, a 1x3 header stub
     (L / R / GND). Each channel is AC-coupled (C_PGL / C_PGR).
-  * A TL072 (unit A) forms one inverting unity summer:
+  * An MCP6002 (unit A) forms one inverting unity summer. (RRIO part chosen
+    because the supply is a single +5 V with a +2.5 V virtual ground: a TL072
+    needs >= +-5 V and its JFET input CM range excludes (V-)+4 V, i.e. it is out
+    of spec on both counts here. The MCP6002 pinout is identical to the TL072
+    dual-op-amp body, so the mini-xt:TL072 symbol is reused with a value
+    override -- same pattern as the 74LVC245A.)
       OUT = -(SPKR + PicoGUS_L + PicoGUS_R)
     Non-inverting input sits on VREF; feedback = 10k, summing resistors = 10k.
     (Mono mix -- the build harness instantiates only unit 1 of a multi-unit
@@ -79,8 +84,10 @@ def build(sch, lib):
     cap("C4", "1uF", (101.6, 215.9), "PG_L", "PG_L_AC")  # AC-couple L
     cap("C5", "1uF", (101.6, 241.3), "PG_R", "PG_R_AC")  # AC-couple R
 
-    # ---------------- TL072 unit A: inverting unity summer (mono mix) ----------------
-    U1 = sch.place("mini-xt:TL072", "U1", at=(177.8, 152.4))
+    # ------------- MCP6002 unit A: inverting unity summer (mono mix) -------------
+    # RRIO single-supply part (TL072 is out of spec at +5V single-supply / 2.5V CM);
+    # identical pinout, so the TL072 symbol body carries a value override.
+    U1 = sch.place("mini-xt:TL072", "U1", "MCP6002", at=(177.8, 152.4))
     L(U1, "8", "+5V", dx=2.54, dy=2.54)   # V+
     L(U1, "4", "GND", dx=-2.54, dy=-2.54) # V-
     # Power pins 8 (V+) and 4 (V-) live in the TL072's separate power unit, which

@@ -76,7 +76,7 @@ def build(sch, lib, expose=True):
     L(U9, "P5", "CTRL0", dx=-2.54); L(U9, "P6", "P_STROBE")       # Strobe (inv)
     L(U9, "P9", "CTRL1", dx=-2.54); L(U9, "P8", "P_AUTOFD")       # AutoFeed (inv)
     L(U9, "P11", "CTRL3", dx=-2.54); L(U9, "P10", "P_SLIN")       # SelectIn (inv)
-    L(U9, "P13", "GND", dx=-2.54); sch.no_connect(U9.pin_xy("P12"))  # spare inverter
+    L(U9, "P13", "P_BUSY", dx=-2.54); L(U9, "P12", "BUSY_N")      # Busy -> ~Busy (status bit 7)
 
     U6 = sch.place("mini-xt:74HCT138", "U6", at=(139.7, 177.8))  # register select
     pwr(U6)
@@ -161,12 +161,14 @@ def build(sch, lib, expose=True):
 
     # ============================================================
     # Status register (0x379) -- 74HCT244 buffers printer status onto the bus
-    #   D7 Busy  D6 ~Ack  D5 PaperEnd  D4 Select  D3 ~Error  (D2..D0 = 0)
+    #   D7 ~Busy  D6 ~Ack  D5 PaperEnd  D4 Select  D3 ~Error  (D2..D0 = 0)
+    # Bit 7 is INVERTED ON THE CARD (standard SPP semantics): BIOS INT 17h
+    # spins on bit7=1 = "ready", so DB25 Busy passes through a U9 inverter.
     # ============================================================
     U3 = sch.place("mini-xt:74HCT244", "U3", at=(203.2, 228.6))
     pwr(U3)
     L(U3, "1OE", "~{RD_STAT}", dx=-2.54); L(U3, "2OE", "~{RD_STAT}", dx=-2.54)
-    sb = [("1A0", "1Y0", "P_BUSY", "D7"), ("1A1", "1Y1", "P_ACK", "D6"),
+    sb = [("1A0", "1Y0", "BUSY_N", "D7"), ("1A1", "1Y1", "P_ACK", "D6"),
           ("1A2", "1Y2", "P_PE", "D5"), ("1A3", "1Y3", "P_SEL", "D4"),
           ("2A0", "2Y0", "P_ERR", "D3")]
     for a, y, src, d in sb:

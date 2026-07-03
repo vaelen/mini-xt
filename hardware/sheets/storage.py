@@ -184,7 +184,12 @@ def build(sch, lib, expose=True):
 
     # =============================================================== passives =
     pullup("R1", "~{IORDY}", (228.6, 25.4))    # IORDY idle-high (8-bit PIO)
-    pullup("R2", "IDE_IRQ", (243.84, 25.4))    # define IRQ when no drive present
+    # ATA INTRQ is ACTIVE-HIGH and tri-stated whenever no drive is selected (or
+    # nIEN=1), so it parks DEASSERTED: pull-DOWN. (A pull-up here would hold
+    # IRQ5 permanently asserted -> interrupt storm once IRQ5 is unmasked.)
+    r2 = sch.place("Device:R", "R2", "10k", at=(243.84, 25.4))
+    sch.net(r2, "1", "IDE_IRQ", kind="label", dx=0, dy=-2.54)
+    sch.net(r2, "2", "GND", kind="label", dx=0, dy=2.54)
     pullup("R3", "~{IDE_RST}", (259.08, 25.4))
     for i, x in enumerate(range(50, 250, 50)):
         decouple("C%d" % (1 + i), (float(x), 276.86))

@@ -2,9 +2,15 @@
 
 Design doc S3/S4/S7. This is the motherboard's hard-real-time critical path:
   * NEC V20 (mini-xt:V20) in min mode
-  * 3x 74HCT573 address latches (AD0-7 + A8-A19 -> A0-A19), gated by ALE
-  * 74HCT245 data transceiver (D0-D7)
-  * 74HCT138 + 74HCT00 SRAM chip-select decode (Y5 = video block, kept internal)
+  * 3x 74HCT573 address latches (AD0-7 + A8-A19 -> A0-A19), LE = ALE (BALE),
+    OE = HLDA -> released during Bus-MCU master cycles (address handoff)
+  * 74HCT245 data transceiver (D0-D7), DIR = DT/~R, ~OE = DEN (so INTA cycles
+    pass the vector bus->CPU, and the '245 goes Z while the V20 is in HOLD)
+  * 74HCT32 strobe gates (~RD/~WR + IO/~M -> MEMR/W, IOR/W) behind a 74HCT125
+    tri-state stage (~OE = HLDA) so the Bus MCU can drive the strobes as master;
+    pull-ups park strobes + raw V20 lines inactive across the handoff gap
+  * 74HCT138 + 74HCT00 SRAM chip-select decode (Y5 = video block, kept internal);
+    spare '00 gates NAND the active-low reset sources into V20 RESET + RESET_DRV
   * 2x AS6C4008-55 SRAM (512Kx8 each) -> 640 KB + UMB
   * single-oscillator clock tree: 14.318 osc -> /2 (74HCT74) and /3 (74HCT163 preset-to-3),
     74HCT157 select (SPEED_SEL), 74HCT04 5 V buffer -> V20 CLK
@@ -52,6 +58,11 @@ def build(sch, lib):
         sch.net(c, "1", "+5V", kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
 
+    def pullup(ref, net, at, val="10k"):
+        r = sch.place("Device:R", ref, val, at=at)
+        sch.net(r, "1", "+5V", kind="label", dx=0, dy=-2.54)
+        sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
+
     # ---------------- CPU ----------------
     U1 = sch.place("mini-xt:V20", "U1", at=(101.6, 152.4))
     L(U1, "VCC", "+5V", dx=0, dy=-2.54)
@@ -74,25 +85,44 @@ def build(sch, lib):
     L(U1, "CLK", "CPUCLK")
     L(U1, "MN/~{MX}", "+5V")             # min mode strapped high
     L(U1, "~{TEST}", "+5V")              # not waiting on a coprocessor
-    sch.no_connect(U1.pin_xy("DEN"))     # min mode: no 8288, DEN/DT-R/SSO unused
-    sch.no_connect(U1.pin_xy("DT/~{R}"))
+    # min mode DEN/DT-R exist precisely to run the local data transceiver:
+    # DT/~R = direction, DEN (active low) = enable (asserted for INTA too).
+    L(U1, "DEN", "DEN")
+    L(U1, "DT/~{R}", "DT/~{R}")
     sch.no_connect(U1.pin_xy("~{SSO}"))
     # raw strobes also exported (Bus MCU senses/drives them)
     P(U1, "~{RD}", "~{RD}", shape="output"); P(U1, "~{WR}", "~{WR}", shape="output")
     P(U1, "IO/~{M}", "IO/~{M}", shape="output")
 
     # ---------------- min-mode strobe gating (IO/M + RD/WR -> MEMR/W,IOR/W) ----------------
-    # IO/M low = memory cycle. MEMR = RD when IO/M low; IOR = RD when IO/M high.
-    Ugate = sch.place("mini-xt:74HCT32", "U10", at=(165.1, 220.98))  # OR gates
+    # IO/~M low = memory cycle:  ~MEMR = ~RD OR IO/~M    ~MEMW = ~WR OR IO/~M
+    #                            ~IOR  = ~RD OR ~(IO/~M) ~IOW  = ~WR OR ~(IO/~M)
+    # (IOM_INV comes from a spare U13 inverter, below the clock tree.)
+    Ugate = sch.place("mini-xt:74HCT32", "U10", at=(165.1, 220.98))  # 4x OR
     L(Ugate, "VCC", "+5V", dx=0, dy=-2.54); L(Ugate, "GND", "GND", dx=0, dy=2.54)
-    # (functional intent captured; detailed gate wiring noted in open-questions)
-    P(Ugate, "1", "~{MEMR}", shape="output", dx=-2.54)
-    P(Ugate, "13", "~{IOR}", shape="output")
+    L(Ugate, "P1", "~{RD}", dx=-2.54);  L(Ugate, "P2", "IO/~{M}", dx=-2.54)
+    L(Ugate, "P3", "MEMR_G")
+    L(Ugate, "P4", "~{WR}", dx=-2.54);  L(Ugate, "P5", "IO/~{M}", dx=-2.54)
+    L(Ugate, "P6", "MEMW_G")
+    L(Ugate, "P9", "~{RD}", dx=-2.54);  L(Ugate, "P10", "IOM_INV", dx=-2.54)
+    L(Ugate, "P8", "IOR_G")
+    L(Ugate, "P12", "~{WR}", dx=-2.54); L(Ugate, "P13", "IOM_INV", dx=-2.54)
+    L(Ugate, "P11", "IOW_G")
 
-    Ugate2 = sch.place("mini-xt:74HCT08", "U11", at=(205.74, 220.98))  # AND gates
-    L(Ugate2, "VCC", "+5V", dx=0, dy=-2.54); L(Ugate2, "GND", "GND", dx=0, dy=2.54)
-    P(Ugate2, "1", "~{MEMW}", shape="output", dx=-2.54)
-    P(Ugate2, "13", "~{IOW}", shape="output")
+    # Tri-state stage: the gates are push-pull, but the Bus MCU also drives the
+    # same four strobes during master cycles -- so the CPU-side strobes reach
+    # the bus through a 74HCT125 whose ~OE = HLDA (enabled only while the V20
+    # owns the bus). Pull-ups (below) hold the strobes inactive in the gap.
+    Utri = sch.place("mini-xt:74HCT125", "U11", at=(205.74, 220.98))
+    L(Utri, "VCC", "+5V", dx=0, dy=-2.54); L(Utri, "GND", "GND", dx=0, dy=2.54)
+    L(Utri, "P1", "HLDA", dx=-2.54);  L(Utri, "P2", "MEMR_G", dx=-2.54)
+    P(Utri, "P3", "~{MEMR}", shape="output")
+    L(Utri, "P4", "HLDA", dx=-2.54);  L(Utri, "P5", "MEMW_G", dx=-2.54)
+    P(Utri, "P6", "~{MEMW}", shape="output")
+    L(Utri, "P10", "HLDA", dx=-2.54); L(Utri, "P9", "IOR_G", dx=-2.54)
+    P(Utri, "P8", "~{IOR}", shape="output")
+    L(Utri, "P13", "HLDA", dx=-2.54); L(Utri, "P12", "IOW_G", dx=-2.54)
+    P(Utri, "P11", "~{IOW}", shape="output")
 
     # ---------------- address latches (3x 74HCT573) ----------------
     latch_at = [(165.1, 50.8), (165.1, 109.22), (165.1, 167.64)]
@@ -101,7 +131,9 @@ def build(sch, lib):
         u = sch.place("mini-xt:74HCT573", "U%d" % (2 + i), at=at)
         lat.append(u)
         L(u, "VCC", "+5V", dx=0, dy=-2.54); L(u, "GND", "GND", dx=0, dy=2.54)
-        L(u, "Load", "BALE_L"); L(u, "OE", "GND")     # OE tied low (always enabled)
+        # LE = ALE (the BALE net); OE = HLDA so the latches release A0-A19 to
+        # the Bus MCU's counter buffers during master cycles (address handoff).
+        L(u, "Load", "BALE"); L(u, "OE", "HLDA")
     # U2: AD0-7 -> A0-A7 ; U3: A8-A15 -> A8-A15 ; U4: A16-A19 -> A16-A19
     for i in range(8):
         L(lat[0], "D%d" % i, "AD%d" % i, dx=-2.54)
@@ -113,14 +145,11 @@ def build(sch, lib):
         L(lat[2], "D%d" % i, "MA%d" % a, dx=-2.54)
         P(lat[2], "Q%d" % i, "A%d" % a, shape="output")
 
-    # ALE buffered to latch Load lines
-    sch.label("BALE_L", (lat[0].pin_xy("Load")[0] - 2.54, lat[0].pin_xy("Load")[1]), 180)
-
-    # ---------------- data transceiver (74HC245) ----------------
+    # ---------------- data transceiver (74HCT245) ----------------
     U5 = sch.place("mini-xt:74HCT245", "U5", at=(165.1, 226.06))
     L(U5, "VCC", "+5V", dx=0, dy=-2.54); L(U5, "GND", "GND", dx=0, dy=2.54)
-    L(U5, "A->B", "~{RD}")      # direction follows RD (read = drive toward CPU)
-    L(U5, "CE", "GND")
+    L(U5, "A->B", "DT/~{R}")    # V20 DT/~R: high = CPU drives bus (incl. INTA vector B->A when low)
+    L(U5, "CE", "DEN")          # V20 DEN (active low); pull-up floats it OFF during HOLD
     for i in range(8):
         L(U5, "A%d" % i, "AD%d" % i, dx=-2.54)        # CPU side (mux'd AD)
         P(U5, "B%d" % i, "D%d" % i, shape="bidirectional")  # bus side
@@ -145,7 +174,10 @@ def build(sch, lib):
             L(rm, "A%d" % a, "A%d" % a, dx=-2.54)
         for d in range(8):
             P(rm, "DQ%d" % d, "D%d" % d, shape="bidirectional")
-        L(rm, "OE#", "~{RD}"); L(rm, "WE#", "~{WR}"); L(rm, "CE#", ce)
+        # Strobed by the GATED memory strobes (design S4.1): I/O cycles leave
+        # MEMR/W inactive (no corruption on OUT), and the Bus MCU's master
+        # MEMR/W reach the SRAM for shadow-load/DMA. NOT the raw ~RD/~WR.
+        L(rm, "OE#", "~{MEMR}"); L(rm, "WE#", "~{MEMW}"); L(rm, "CE#", ce)
 
     # ---------------- clock tree ----------------
     osc = sch.place("Oscillator:ACO-xxxMHz", "OSC1", "14.31818MHz", at=(40.64, 45.72))
@@ -181,23 +213,33 @@ def build(sch, lib):
     L(buf, "P3", "CLK7"); L(buf, "P4", "CLK")    # also buffer bus CLK
     P(buf, "P4", "CLK", shape="output")
     L(buf, "P5", "DIV3_TC"); L(buf, "P6", "DIV3_LD")  # spare gate inverts TC -> ~PE
+    L(buf, "P9", "IO/~{M}", dx=-2.54); L(buf, "P8", "IOM_INV")  # for the ~IOR/~IOW gates
 
     # ---------------- reset supervisor ----------------
     rst = sch.place("Power_Supervisor:TCM809", "U14", at=(45.72, 152.4))
     L(rst, "V_{DD}", "+5V", dx=0, dy=-2.54); L(rst, "GND", "GND", dx=0, dy=2.54)
-    L(rst, "~{RESET}", "PWRGOOD")
-    # Bus MCU sequences the actual V20 reset; combine cold-start with ~CPURESET
-    rcomb = sch.place("mini-xt:74HCT08", "U15", at=(76.2, 152.4))
-    L(rcomb, "VCC", "+5V", dx=0, dy=-2.54); L(rcomb, "GND", "GND", dx=0, dy=2.54)
-    # (reset combine logic intent; detailed in open-questions)
-    sch.hier_label("RESET_DRV", (60.96, 190.5), 0, "output")   # bus reset out (interface)
-    # V20 RESET driven by the combine (internal net V_RESET); already labelled above
+    L(rst, "~{RESET}", "~{PWRGOOD}")
+    # Reset combine on spare U7 NAND gates: V20 RESET and bus RESET_DRV are
+    # ACTIVE-HIGH; the two sources (~PWRGOOD cold-start, ~CPURESET from the Bus
+    # MCU's sequencing) are active-low -> NAND asserts reset when EITHER is low.
+    L(U7, "P4", "~{PWRGOOD}", dx=-2.54)
+    P(U7, "P5", "~{CPURESET}", shape="input", dx=-2.54)
+    L(U7, "P6", "V_RESET")                       # -> V20 RESET (labelled at U1)
+    L(U7, "P9", "~{PWRGOOD}", dx=-2.54)
+    L(U7, "P10", "~{CPURESET}", dx=-2.54)
+    P(U7, "P8", "RESET_DRV", shape="output")     # -> buffered bus reset
 
-    # IOCHRDY folds into READY (handled in bus_mcu); expose both
+    # IOCHRDY folds into READY (handled in bus_mcu); AEN generated there too
     sch.hier_label("IOCHRDY", (304.8, 250), 0, "input")
-    sch.hier_label("RESET_DRV", (304.8, 245), 0, "output")
-    sch.hier_label("~{CPURESET}", (304.8, 240), 0, "input")
     sch.hier_label("AEN", (304.8, 235), 0, "bidirectional")
+
+    # ---------------- handoff pull-ups ----------------
+    # Raw V20 strobes float during HOLD (inputs to the U10 gates), DEN floats
+    # (U5 ~OE), and the gated bus strobes float in the ownership gap between
+    # the '125 stage releasing and the Bus MCU driving -- park them all high.
+    for i, net in enumerate(["~{RD}", "~{WR}", "IO/~{M}", "DEN",
+                             "~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}"]):
+        pullup("R%d" % (1 + i), net, (40.64 + 15.24 * i, 243.84))
 
     # decoupling
     for i, x in enumerate(range(40, 320, 40)):

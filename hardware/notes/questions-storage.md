@@ -48,3 +48,8 @@ card-detect/voltage-sense left unconnected (8-bit PIO, no DMA). IDE -RESET = inv
 RESET_DRV. CSEL grounded (master).
 </content>
 </invoke>
+
+---
+**Correction (2026-07-03, design review H4):** Q4's pick (pull-UP on INTRQ) was
+wrong — ATA INTRQ is active-HIGH and tri-stated when no drive is selected, so a
+pull-up parks IRQ5 asserted (interrupt storm). R2 is now a pull-DOWN.

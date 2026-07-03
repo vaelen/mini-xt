@@ -37,3 +37,9 @@ The four MCUs (2x RP2350B, RP2040 supervisor, PicoGUS RP2040) plus USB logic set
 the 3.3 V rail current; design doc S16 lists "3.3 V buck current for 4 MCUs" as an
 open item. The TPS563200 (3 A) was picked with margin, but resize the inductor and
 output caps once the budget is fixed.
+
+---
+**Correction (2026-07-03, design review H1):** the CFG1-strap answer above was
+wrong — CH224K CFG1 must be left OPEN for 5 V (internal pull-up); ANY resistor
+to GND selects the 9/12/15/20 V rows and would put >=9 V on the +5V rail. R3
+has been removed from power.py; CFG1 is no-connect with a warning note.

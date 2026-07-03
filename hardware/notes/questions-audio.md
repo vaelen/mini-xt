@@ -50,3 +50,9 @@ Pick: do NOT draw stubs on pins 4/8 (kept the design valid). Power intent is
 Q: Op-amp runs from +5V/GND only (no split rail available on this board).
 Pick: single-supply topology -- VREF = +2.5V virtual ground on the +in;
    all signals AC-coupled in (C2/C3 spkr, C4/C5 PicoGUS) and out (C7).
+
+---
+**Correction (2026-07-03, design review H6):** the single-supply summer stays,
+but the TL072 cannot run it (needs >=+-5 V; JFET input CM excludes V-+4 V, so
+2.5 V Vref is out of spec on both counts). U1 is now an MCP6002 (RRIO, CM to
+ground) via a value override on the pin-identical TL072 dual-op-amp body.

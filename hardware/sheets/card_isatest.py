@@ -211,7 +211,7 @@ def build(sch, lib):
     N(d3, "CP", "OSC")
     N(d3, "D0", "+5V"); N(d3, "D1", "GND"); N(d3, "D2", "+5V"); N(d3, "D3", "+5V")
     N(d3, "CEP", "+5V"); N(d3, "CET", "+5V"); N(d3, "~{MR}", "+5V")
-    N(d3, "TC", "DIV3_TC"); N(d3, "~{PE}", "DIV3_LD")   # preset-to-3 per cpu_core
+    N(d3, "TC", "DIV3_TC"); N(d3, "~{PE}", "DIV3_LD")   # TC -> U19 inverter -> ~PE (reload)
     N(d3, "Q0", "CLK4")
     m1 = sch.place("mini-xt:74HCT157", "U17", at=(60.96, 106.68))    # speed mux
     N(m1, "VCC", "+5V", dx=0, dy=-2.54); N(m1, "GND", "GND", dx=0, dy=2.54)
@@ -224,9 +224,12 @@ def build(sch, lib):
     buf = sch.place("mini-xt:74HCT04", "U19", at=(213.36, 106.68))   # 5V buffer
     N(buf, "VCC", "+5V", dx=0, dy=-2.54); N(buf, "GND", "GND", dx=0, dy=2.54)
     N(buf, "P1", "CLK_PRE"); N(buf, "P2", "CLK")
-    for p in ("P3", "P5", "P9", "P11", "P13"):
+    # active-high TC inverted into the '163's active-low ~PE: reload the preset
+    # at count 15 -> states 13,14,15 = divide-by-3 (same trick as cpu_core U13).
+    N(buf, "P3", "DIV3_TC"); N(buf, "P4", "DIV3_LD")
+    for p in ("P5", "P9", "P11", "P13"):
         N(buf, p, "GND")                                # tie unused inverter inputs
-    for p in ("P4", "P6", "P8", "P10", "P12"):
+    for p in ("P6", "P8", "P10", "P12"):
         sch.no_connect(buf.pin_xy(p))
     decouple("C7", (60.96, 76.2), "+5V")
     sch.text("Clock: 14.318 OSC -> /2 (U15) & /3 (U16) -> SPEED_SEL mux (U17) -> "
@@ -242,15 +245,27 @@ def build(sch, lib):
     dusb = sch.place("Device:D_Schottky", "D2", at=(520.7, 76.2))    # USB OR-ing
     N(dusb, "2", "+5V_USB"); N(dusb, "1", "V5RAW")
     q = sch.place("Device:Q_PMOS", "Q1", at=(546.1, 68.58))          # high-side switch
-    N(q, "S", "V5RAW"); N(q, "D", "+5V"); N(q, "G", "DUT_PWR_EN")
+    N(q, "S", "V5RAW"); N(q, "D", "+5V"); N(q, "G", "PFET_G")
+    # Gate drive: a 3.3 V GPIO/'595 level can neither reach Vgs=0 (off) nor be
+    # pulled to +3V3 without leaving the FET half-on (Vgs=-1.7V from a 5V
+    # source). So the gate is pulled to the SOURCE rail (V5RAW, R5 = off by
+    # default) and driven low through an open-collector NPN (Q2): DUT_PWR_EN
+    # high -> Q2 on -> gate ~0V -> Vgs=-5V -> DUT powered.
+    pull("R5", (546.1, 45.72), "PFET_G", "V5RAW")     # FET OFF by default
+    q2 = sch.place("Transistor_BJT:2N3904", "Q2", at=(546.1, 96.52))
+    N(q2, "C", "PFET_G"); N(q2, "E", "GND")
+    r4 = sch.place("Device:R", "R4", "4.7k", at=(525.78, 96.52))
+    sch.net(r4, "1", "DUT_PWR_EN", kind="label", dx=0, dy=-2.54)
+    sch.net(r4, "2", "PFET_B", kind="label", dx=0, dy=2.54)
+    N(q2, "B", "PFET_B")
     # idle network (tester = motherboard): buffers default OFF; ready idle high.
     pull("R1", (152.4, 96.52), "~{BUF_EN}", "+3V3")   # buffers default disabled
     pull("R2", (571.5, 45.72), "IOCHRDY", "+5V")      # IOCHRDY idle high (ready)
-    pull("R3", (571.5, 76.2), "DUT_PWR_EN", "+3V3")   # FET off until firmware drives
+    pull("R3", (571.5, 76.2), "DUT_PWR_EN", "GND")    # DUT power OFF until firmware drives
     decouple("C8", (490.22, 91.44), "+5V")            # bus rail bulk/decoupling
     sch.text("Power: USB 5V (logic) + external jack (bus/DUT) OR-ed via D1/D2 to "
-             "V5RAW; Q1 P-FET (DUT_PWR_EN) switches bus +5V. See questions doc for "
-             "gate-drive/level detail.", (470.0, 30.48))
+             "V5RAW; Q1 P-FET switches bus +5V. Gate pulled to V5RAW (off), pulled "
+             "low by Q2 NPN when DUT_PWR_EN=1.", (470.0, 30.48))
 
     # ---- DUT connectors -------------------------------------------------
     # J1: real 8-bit ISA card-edge slot (Connector:Bus_ISA_8bit, true pinout).
