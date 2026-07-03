@@ -1,10 +1,10 @@
 # Design review — 2026-07-03
 
-> **Status update (same day):** ALL CRITICAL, HIGH, AND MEDIUM items are
-> FIXED — C1–C5, H1–H8, M1–M8. See the "Fixes applied" sections at the end
-> of this file. Only the LOW and toolchain items remain open. Overturned
-> per-sheet decisions have correction notes in their questions-*.md files;
-> doc §5.2/§11.1/§14/§16 updated for the as-built pinout and IRQ map.
+> **Status update (same day):** EVERY item in this review is FIXED —
+> C1–C5, H1–H8, M1–M8, all LOW items, and all toolchain items. See the
+> "Fixes applied" sections at the end of this file. Overturned per-sheet
+> decisions have correction notes in their questions-*.md files; doc
+> §5.2/§11.1/§14/§16 updated for the as-built pinout and IRQ map.
 
 Full-project review (docs + generated schematics + toolchain). Findings ranked
 by severity; each has file:line, the defect, and a suggested fix. The
@@ -339,3 +339,47 @@ New parts: bus_mcu U18 '08; storage U11 '138 (+2 U3 gates now used);
 com_port JP1 (x2 instances); card_isatest R6–R15. One placement fix on the
 way: DEC3's first location overlapped the decoupling row's wire stubs and
 briefly created a +5V/GND short (multiple_net_names) — caught by ERC, moved.
+
+## Fixes applied — 2026-07-03, batch 4 (LOW + toolchain)
+
+Rebuilt (motherboard + cards); structural ERC = 0; netlist-verified.
+
+LOW:
+- ÷3 duty: comments corrected (Q0 is 67% high; the 33%-high the V20 needs
+  comes from the U13 inversion) and U13 marked as a load-bearing INVERTING
+  buffer in cpu_core.py.
+- LPT IRQ7 now tri-state like a real card: U12 NAND(ACK_POS, IRQ_EN) enables
+  a U13 '125 (input strapped high) — asserted only for the enabled ~Ack
+  pulse, Z otherwise (shareable). The push-pull U8 gate is retired. The
+  1–12 µs unlatched pulse is noted for the Bus MCU poll loop.
+- card_com: IRQ4 hard-wire replaced by a JP2 strap (1-2 IRQ4 / 2-3 IRQ3)
+  so the IRQ follows the J2 base-address strap.
+- Supervisor USB-A VBUS now fused (F1 500 mA polyfuse, net VBUS_KBD).
+- RTC: AS hold-path bench-verify note added at the U4 gate + on-sheet text.
+- card_isatest: DUT_PWR_EN moved off the address latch onto the control
+  latch's QH (address shifts can no longer glitch DUT power; SPEED_SEL /
+  CLK_SRC stay on the address latch with a firmware note); '165s get a
+  74HC165 value override (HCT VCC spec is 4.5–5.5 V — supply-range limit).
+- mxbus: PRIV_DECODE emptied (Y5 is cpu_core-internal, documentation only);
+  stale ~{WR}/SPEED_SEL comments were fixed in earlier batches.
+- cpu_core: duplicate ~{RD} stub removed (single hier stub remains).
+
+Toolchain:
+- build.py now returns a real exit code: nonzero iff a STRUCTURAL ERC
+  category (endpoint_off_grid / unconnected_wire_endpoint /
+  multiple_net_names) is hit or netlist export fails; build_cards() gates
+  each card the same way. kicad-cli's own exit code stays ignored (Q10
+  noise always trips it).
+- KiCad discovery centralized in mxsch.kicad_cli()/kicad_symdir():
+  $KICAD_CLI/$KICAD_SYMBOL_DIR, then PATH, then the snap's `current`
+  revision (never a pinned revision number). All seven tools converted.
+- Deterministic UUIDs: uuid5(title-seed, counter) per schematic — a rebuild
+  from unchanged sources is byte-identical (verified), so diffs show real
+  changes. This one-time change rewrites every UUID once.
+- S-expression escape round-trip fixed (parse now decodes \\ \" \n \t and
+  dump re-encodes them once — was double-escaping on re-emit).
+- CLAUDE.md updated (exit-code, path discovery, deterministic builds).
+
+The new structural gate paid for itself immediately: it caught the batch's
+own IRQ/DRQ pull row landing inside card_isatest's J2 header pin field
+(two multiple_net_names shorts) — moved and re-verified.

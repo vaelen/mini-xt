@@ -6,9 +6,9 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from mxsch import SymbolLib, Schematic
 
-SYMDIR = "/snap/kicad/22/usr/share/kicad/symbols"
+SYMDIR = __import__("mxsch").kicad_symdir()
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_selftest")
-CLI = "/snap/bin/kicad.kicad-cli"
+CLI = __import__("mxsch").kicad_cli()
 
 os.makedirs(OUT, exist_ok=True)
 

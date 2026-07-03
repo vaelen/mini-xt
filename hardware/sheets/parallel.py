@@ -64,10 +64,11 @@ def build(sch, lib, expose=True):
     pwr(U8)
     L(U8, "P1", "AM1", dx=-2.54); L(U8, "P2", "AM_C", dx=-2.54); L(U8, "P3", "AM2")
     L(U8, "P4", "AM2", dx=-2.54); L(U8, "P5", "NA7", dx=-2.54); L(U8, "P6", "ADDR_MATCH")
-    # IRQ7 = ack(positive) AND irq-enable  (edge normally polled by the driver)
-    L(U8, "P9", "ACK_POS", dx=-2.54); L(U8, "P10", "IRQ_EN", dx=-2.54); L(U8, "P8", "IRQ7")
-    L(U8, "P12", "GND", dx=-2.54); L(U8, "P13", "GND", dx=-2.54)  # spare gate inputs
-    sch.no_connect(U8.pin_xy("P11"))
+    # (IRQ7 drive moved to a tri-state buffer, U12/U13 below -- a push-pull
+    # gate here would block any other card from ever sharing the IRQ7 line.)
+    L(U8, "P9", "GND", dx=-2.54); L(U8, "P10", "GND", dx=-2.54)   # spare gate inputs
+    L(U8, "P12", "GND", dx=-2.54); L(U8, "P13", "GND", dx=-2.54)
+    sch.no_connect(U8.pin_xy("P8")); sch.no_connect(U8.pin_xy("P11"))
 
     U9 = sch.place("mini-xt:74HCT04", "U9", at=(76.2, 177.8))   # inverters
     pwr(U9)
@@ -77,6 +78,32 @@ def build(sch, lib, expose=True):
     L(U9, "P9", "CTRL1", dx=-2.54); L(U9, "P8", "P_AUTOFD")       # AutoFeed (inv)
     L(U9, "P11", "CTRL3", dx=-2.54); L(U9, "P10", "P_SLIN")       # SelectIn (inv)
     L(U9, "P13", "P_BUSY", dx=-2.54); L(U9, "P12", "BUSY_N")      # Busy -> ~Busy (status bit 7)
+
+    # IRQ7 drive: tri-state, like a real LPT card -- asserted high only for
+    # the ~Ack pulse while IRQ_EN (control bit 4) is set, released (Z)
+    # otherwise so the line stays shareable.  U12 NAND makes the active-low
+    # enable for the U13 '125 buffer (input strapped high).
+    # NOTE the ISA ~Ack pulse is 1-12 us and is NOT latched here (real SPP
+    # behaviour): the Bus MCU's '165 IRQ poll loop must run faster than the
+    # shortest pulse, or sample IRQ7 via PIO.
+    U12 = sch.place("mini-xt:74HCT00", "U12", at=(266.7, 76.2))
+    pwr(U12)
+    L(U12, "P1", "ACK_POS", dx=-2.54); L(U12, "P2", "IRQ_EN", dx=-2.54)
+    L(U12, "P3", "~{IRQ7_OE}")
+    for ip in ("P4", "P5", "P9", "P10", "P12", "P13"):
+        L(U12, ip, "GND", dx=-2.54)
+    for op in ("P6", "P8", "P11"):
+        sch.no_connect(U12.pin_xy(op))
+    U13 = sch.place("mini-xt:74HCT125", "U13", at=(266.7, 127.0))
+    pwr(U13)
+    L(U13, "P1", "~{IRQ7_OE}", dx=-2.54); L(U13, "P2", "+5V", dx=-2.54)
+    L(U13, "P3", "IRQ7")
+    for oe in ("P4", "P10", "P13"):
+        L(U13, oe, "+5V", dx=-2.54)        # disable spare buffers
+    for ip in ("P5", "P9", "P12"):
+        L(U13, ip, "GND", dx=-2.54)
+    for op in ("P6", "P8", "P11"):
+        sch.no_connect(U13.pin_xy(op))
 
     U6 = sch.place("mini-xt:74HCT138", "U6", at=(139.7, 177.8))  # register select
     pwr(U6)

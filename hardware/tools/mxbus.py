@@ -62,8 +62,10 @@ PRIV_CPU = [
 ]
 # external 20-bit loadable address counter control (Bus MCU <-> counter <-> A-bus)
 PRIV_COUNTER = ["CNT_CLK", "CNT_LD0", "CNT_LD1", "CNT_LD2"]
-# SRAM decode side channel (cpu_core internal; video must NOT see this)
-PRIV_DECODE = ["~{Y5_VIDCS}"]   # 0xA0000-0xBFFFF block strobe (SRAM#2 decode only)
+# SRAM decode side channel: DOCUMENTATION ONLY -- the 0xA0000-0xBFFFF block
+# strobe never leaves cpu_core (net Y5_INT there, feeds only the SRAM#2 NAND);
+# no sheet may declare it as an interface pin (video must NOT see it).
+PRIV_DECODE = []
 # speed select (Bus MCU -> clock mux), set while it holds the V20 in reset
 PRIV_SPEED = ["SPEED_SEL"]
 # cross-MCU UART link (Bus MCU <-> Supervisor), full-duplex

@@ -108,6 +108,12 @@ def build(sch, lib, expose=True):
     L(U4, "P8", "AS0", dx=2.54)                                # nIOW & nA0
     L(U4, "P12", "AS0", dx=-2.54); L(U4, "P13", "NRTCSEL", dx=-2.54)
     L(U4, "P11", "RTC_AS", dx=2.54)                            # & selected -> AS
+    # TIMING (bench-verify): AS falls ~3 gate delays (inverter + two ANDs)
+    # AFTER ~IOW rises, so the index byte must persist on D0-D7 through that
+    # skew plus the DS12C887's address-hold time. Tightest margin on this
+    # sheet; classic technique, expected fine at 7.16 MHz -- measure it.
+    sch.text("AS hold path: ~IOW -> inv -> 2x AND -> AS. Verify index-byte hold "
+             "vs DS12C887 tAHL on the bench.", (139.7, 236.22))
 
     # ---------------- OR glue: 74HCT32 (port-0x71 data strobes) ----------------
     U5 = sch.place("mini-xt:74HCT32", "U5", at=(152.4, 160.02))  # OR x4

@@ -77,7 +77,7 @@ def build(sch, lib):
         L(U1, nm, "M" + nm.split("/")[0], dx=-2.54)
     # control / strobes -> private nets + bus
     P(U1, "ALE", "BALE", shape="output")
-    L(U1, "~{RD}", "~{RD}"); L(U1, "~{WR}", "~{WR}"); L(U1, "IO/~{M}", "IO/~{M}")
+    L(U1, "~{WR}", "~{WR}"); L(U1, "IO/~{M}", "IO/~{M}")   # (~{RD} stubbed once, below)
     P(U1, "HOLD", "HOLD", shape="input"); P(U1, "HLDA", "HLDA", shape="output")
     P(U1, "READY", "READY", shape="input")
     P(U1, "INTR", "INTR", shape="input"); P(U1, "~{INTA}", "~{INTA}", shape="output")
@@ -201,7 +201,10 @@ def build(sch, lib):
     L(div3, "D0", "+5V"); L(div3, "D1", "GND"); L(div3, "D2", "+5V"); L(div3, "D3", "+5V")
     L(div3, "CEP", "+5V"); L(div3, "CET", "+5V"); L(div3, "~{MR}", "+5V")
     L(div3, "TC", "DIV3_TC"); L(div3, "~{PE}", "DIV3_LD")   # reload on terminal count
-    L(div3, "Q0", "CLK4")          # ~4.77 MHz (~33% duty, acceptable per S3.2)
+    # Q0 over the 13,14,15 cycle is HIGH 2/3 (67%) -- the V20-legal ~33%-HIGH
+    # duty (what the 8284 supplied) only appears after the INVERTING U13
+    # buffer stage below. That inversion is load-bearing, not a buffer choice.
+    L(div3, "Q0", "CLK4")          # ~4.77 MHz, 67% duty here (33% after U13)
 
     mux = sch.place("mini-xt:74HCT157", "U12", at=(116.84, 76.2))
     L(mux, "VCC", "+5V", dx=0, dy=-2.54); L(mux, "GND", "GND", dx=0, dy=2.54)
@@ -209,6 +212,10 @@ def build(sch, lib):
     P(mux, "S", "SPEED_SEL", shape="input"); L(mux, "E", "GND")
     L(mux, "Za", "CLK_MUX")
 
+    # NOTE: U13 must stay an INVERTING buffer ('04) -- it is what turns the /3
+    # divider's 67%-high Q0 into the 33%-high clock the V20's clock-low-time
+    # spec needs at 4.77 MHz. A "cleanup" to a non-inverting buffer would
+    # silently violate the CPU clock spec in turbo-down mode.
     buf = sch.place("mini-xt:74HCT04", "U13", at=(147.32, 76.2))  # 5V buffer to CPU CLK
     L(buf, "VCC", "+5V", dx=0, dy=-2.54); L(buf, "GND", "GND", dx=0, dy=2.54)
     L(buf, "P1", "CLK_MUX"); L(buf, "P2", "CPUCLK")

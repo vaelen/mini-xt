@@ -92,8 +92,14 @@ def build(sch, lib):
     decouple("C4", (279.4, 50.8))   # flash decoupling
 
     # ---------------- USB-A host jack (keyboard / hub) ----------------
+    # VBUS through a polyfuse: the board 5V rail sources the downstream USB
+    # device (doc S13 calls this the tight current loop) -- a shorted keyboard
+    # cable must not drop the whole rail.
     JU = sch.place("Connector:USB_A", "J2", "USB_HOST", at=(63.5, 101.6))
-    L(JU, "VBUS", "+5V", dx=-2.54)          # 5V sources downstream USB device
+    F1 = sch.place("Device:Polyfuse", "F1", "500mA", at=(63.5, 76.2))
+    L(F1, "1", "+5V", dx=0, dy=-2.54)
+    L(F1, "2", "VBUS_KBD", dx=0, dy=2.54)
+    L(JU, "VBUS", "VBUS_KBD", dx=-2.54)     # fused 5V to the downstream device
     L(JU, "D+", "USB_DP", dx=-2.54)
     L(JU, "D-", "USB_DM", dx=-2.54)
     L(JU, "GND", "GND", dx=-2.54)

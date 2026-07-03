@@ -8,7 +8,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 from mxsch import SymbolLib
 
-SYMDIR = "/snap/kicad/22/usr/share/kicad/symbols"
+SYMDIR = __import__("mxsch").kicad_symdir()
 HW = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIBS = ["Device", "power", "Connector", "Connector_Generic", "74xx", "4xxx",
         "Interface_UART", "Interface_USB", "Interface_LineDriver", "Memory_RAM",

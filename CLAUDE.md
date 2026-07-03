@@ -33,14 +33,15 @@ sources are:
 - `hardware/sheets/isa_conn.py` — shared 60-pin ISA header (standard 8-bit ISA
   pinout) used by the sidecar sheet and every standalone card
 
-The generator emits fresh UUIDs each run, so rebuilding produces large
-content-identical diffs in the `.kicad_sch` files.
+UUIDs are generated deterministically (uuid5 seeded by sheet title +
+counter), so a rebuild from unchanged sources is byte-identical — a large
+`.kicad_sch` diff always means a real change.
 
 ## Commands
 
-Requires KiCad 9 installed as a snap — paths `/snap/bin/kicad.kicad-cli` and
-`/snap/kicad/22/usr/share/kicad/symbols` are hardcoded in `tools/build.py`,
-`validate_sheet.py`, and `pins.py`.
+Requires KiCad 9. The tools find it via `$KICAD_CLI` / `$KICAD_SYMBOL_DIR`,
+then `kicad-cli` on PATH, then the snap install (`mxsch.kicad_cli()` /
+`kicad_symdir()`).
 
 ```sh
 python3 hardware/tools/build.py                # regenerate motherboard: all sheets + root, ERC + netlist
@@ -51,8 +52,9 @@ python3 hardware/tools/pins.py <Lib:Name>      # list a symbol's pins (e.g. mini
 python3 hardware/tools/pins.py -s <substr>     # search symbol names
 ```
 
-`build.py` currently always exits 0 — read its printed ERC/netlist output, not
-the exit code.
+`build.py` exits nonzero if any **structural** ERC category
+(`endpoint_off_grid`, `unconnected_wire_endpoint`, `multiple_net_names`) is
+hit or the netlist export fails; the expected noise categories don't fail it.
 
 ## Authoring a sheet
 

@@ -25,8 +25,23 @@ import mxsch
 import mxbus
 from mxsch import SymbolLib, Schematic
 
-SYMDIR = "/snap/kicad/22/usr/share/kicad/symbols"
-CLI = "/snap/bin/kicad.kicad-cli"
+SYMDIR = mxsch.kicad_symdir()   # $KICAD_SYMBOL_DIR / snap `current` / system
+CLI = mxsch.kicad_cli()         # $KICAD_CLI / PATH / snap
+
+# ERC categories that MUST be zero (everything else is expected interface-
+# fidelity noise, see notes/open-questions.md Q10). These fail the build.
+STRUCTURAL_ERC = ("endpoint_off_grid", "unconnected_wire_endpoint",
+                  "multiple_net_names")
+
+
+def structural_violations(rpt_path):
+    """Count structural ERC violations in a kicad-cli ERC report."""
+    import re
+    from collections import Counter
+    if not os.path.exists(rpt_path):
+        return {"missing_report": 1}
+    c = Counter(re.findall(r"\[([a-z_]+)\]", open(rpt_path).read()))
+    return {k: c[k] for k in STRUCTURAL_ERC if c.get(k)}
 
 STD_LIBS = ["Device", "power", "Connector", "Connector_Generic", "74xx",
             "Interface_UART", "Interface_USB", "Interface_LineDriver",
@@ -61,8 +76,10 @@ CARD_SHEETS = ["card_video", "card_com", "card_lpt", "card_rtc", "card_storage",
 
 
 def build_cards(run_checks=True):
-    """Build each soft-card dev PCB as its own standalone schematic in hardware/cards/."""
+    """Build each soft-card dev PCB as its own standalone schematic in
+    hardware/cards/. Returns 0, or 1 if any card has structural ERC errors."""
     lib = load_lib()
+    failures = []
     outdir = os.path.join(HW, "cards")
     os.makedirs(outdir, exist_ok=True)
     open(os.path.join(outdir, "sym-lib-table"), "w").write(
@@ -82,7 +99,12 @@ def build_cards(run_checks=True):
             r = subprocess.run([CLI, "sch", "erc", "-o", p + ".rpt", p],
                                capture_output=True, text=True)
             msg = (r.stdout.strip().splitlines() or ["?"])[-1]
+            bad = structural_violations(p + ".rpt")
+            if bad:
+                msg += "  STRUCTURAL: %s" % bad
+                failures.append(name)
         print("card %-14s %2d comps  %s" % (name, len(sch.components), msg))
+    return 1 if failures else 0
 
 
 def assemble(write=True, run_checks=True):
@@ -211,17 +233,25 @@ def write_project():
 
 
 def check():
+    """ERC + netlist the assembled project. Returns 0 unless a STRUCTURAL ERC
+    category is nonzero or the netlist export fails -- kicad-cli's own exit
+    code is useless here because the expected interface-fidelity noise
+    (pin_not_connected etc., Q10) always makes it nonzero."""
     root_sch = os.path.join(HW, "mini-xt.kicad_sch")
+    rpt = os.path.join(HW, "erc.rpt")
     r = subprocess.run([CLI, "sch", "erc", "--exit-code-violations",
-                        "--severity-error", "-o", os.path.join(HW, "erc.rpt"),
+                        "--severity-error", "-o", rpt,
                         root_sch], capture_output=True, text=True)
     print("ERC:", r.stdout.strip()[-400:], r.stderr.strip()[-200:])
     n = subprocess.run([CLI, "sch", "export", "netlist", "-o",
                         os.path.join(HW, "mini-xt.net"), root_sch],
                        capture_output=True, text=True)
     print("NETLIST rc", n.returncode, n.stderr.strip()[-200:])
-    return r.returncode
+    bad = structural_violations(rpt)
+    if bad:
+        print("STRUCTURAL ERC FAILURES:", bad)
+    return 1 if (bad or n.returncode != 0) else 0
 
 
 if __name__ == "__main__":
-    sys.exit(0 if assemble() == 0 else 0)
+    sys.exit(assemble())

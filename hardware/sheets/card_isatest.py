@@ -62,8 +62,10 @@ def build(sch, lib):
         return u
 
     def s165(ref, at):
-        """74HCT165 PISO @3V3. CP shared with SRCLK; ~{PL}=IN_PL."""
-        u = sch.place("mini-xt:74HCT165", ref, "74HCT165", at=at)
+        """'165 PISO @3V3 -- must be the 74HC grade: HCT is only specified for
+        VCC 4.5-5.5 V (this is a supply-range limit, not a threshold choice).
+        The mini-xt:74HCT165 symbol body is reused with a value override."""
+        u = sch.place("mini-xt:74HCT165", ref, "74HC165", at=at)
         N(u, "VCC", "+3V3", dx=0, dy=-2.54)
         N(u, "GND", "GND", dx=0, dy=2.54)
         N(u, "CP", "SRCLK")
@@ -156,17 +158,21 @@ def build(sch, lib):
     N(UO1, "QH'", "SER_A12"); N(UO2, "SER", "SER_A12")
     for i, q in enumerate(["QA", "QB", "QC", "QD"]):
         N(UO2, q, "MA%d" % (16 + i))
-    # address-latch spare outputs carry the STATIC config selects (set once)
+    # address-latch spare outputs carry the clock config selects. These are
+    # rewritten by every 24-bit address shift (RCLK_ADDR), so firmware MUST
+    # include the same select bits in each address word. DUT_PWR_EN does NOT
+    # live here -- one slip would glitch DUT power mid-test; it rides the
+    # control latch (U12 QH) that address updates never touch.
     N(UO2, "QE", "SPEED_SEL")
     N(UO2, "QF", "CLK_SRC")
-    N(UO2, "QG", "DUT_PWR_EN")
+    sch.no_connect(UO2.pin_xy("QG"))
     sch.no_connect(UO2.pin_xy("QH"))
     UOC = s595("U12", (289.56, 304.8), "RCLK_CTRL")
     N(UO2, "QH'", "SER_A2C"); N(UOC, "SER", "SER_A2C")
     ctl = ["M_AEN", "M_RESETDRV", "M_TC", "M_DACK1", "M_DACK2", "M_DACK3", "M_BALE"]
     for q, net in zip(["QA", "QB", "QC", "QD", "QE", "QF", "QG"], ctl):
         N(UOC, q, net)
-    sch.no_connect(UOC.pin_xy("QH"))
+    N(UOC, "QH", "DUT_PWR_EN")     # on the CONTROL latch: safe from addr shifts
     sch.no_connect(UOC.pin_xy("QH'"))
     decouple("C5", (60.96, 274.32), "+3V3")
     sch.text("OUT chain: address (U9-U11, RCLK_ADDR) + control byte (U12, "
@@ -270,7 +276,7 @@ def build(sch, lib):
     # PC convention) must read as 0 at the '165 IN chain, not float.
     for i, net in enumerate(["IRQ2", "IRQ3", "IRQ4", "IRQ5", "IRQ6", "IRQ7",
                              "IRQ8", "DRQ1", "DRQ2", "DRQ3"]):
-        pull("R%d" % (6 + i), (426.72 + 15.24 * i, 121.92), net, "GND")
+        pull("R%d" % (6 + i), (38.1 + 15.24 * i, 370.84), net, "GND")
     decouple("C8", (490.22, 91.44), "+5V")            # bus rail bulk/decoupling
     sch.text("Power: USB 5V (logic) + external jack (bus/DUT) OR-ed via D1/D2 to "
              "V5RAW; Q1 P-FET switches bus +5V. Gate pulled to V5RAW (off), pulled "

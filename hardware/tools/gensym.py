@@ -12,7 +12,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 from mxsch import dump, Sym, parse_sexp_typed
 
-SYMDIR = "/snap/kicad/22/usr/share/kicad/symbols"
+SYMDIR = __import__("mxsch").kicad_symdir()
 HW = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GRID = 2.54
 PINLEN = 3.81

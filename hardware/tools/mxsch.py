@@ -16,9 +16,47 @@ Coordinate model (verified empirically via netlist export, see selftest.py):
   - Rotation rotates the lib point about the origin before the Y flip / offset.
 """
 
+import glob
 import math
+import os
 import re
 import uuid as _uuid
+from shutil import which
+
+
+# --------------------------------------------------------------------------
+# KiCad installation discovery (shared by build/validate/pins/gensym)
+# --------------------------------------------------------------------------
+
+def kicad_cli():
+    """Path to kicad-cli: $KICAD_CLI, then PATH, then the snap install."""
+    p = os.environ.get("KICAD_CLI")
+    if p:
+        return p
+    for cand in ("kicad-cli", "kicad.kicad-cli"):
+        w = which(cand)
+        if w:
+            return w
+    return "/snap/bin/kicad.kicad-cli"
+
+
+def kicad_symdir():
+    """KiCad symbol-library dir: $KICAD_SYMBOL_DIR, else the snap's `current`
+    revision (never a hardcoded revision number -- those change on refresh),
+    else the newest snap revision, else the system install."""
+    p = os.environ.get("KICAD_SYMBOL_DIR")
+    if p:
+        return p
+    cur = "/snap/kicad/current/usr/share/kicad/symbols"
+    if os.path.isdir(cur):
+        return cur
+    hits = glob.glob("/snap/kicad/*/usr/share/kicad/symbols")
+    if hits:
+        def _rev(h):
+            part = h.split("/")[3]
+            return int(part) if part.isdigit() else -1
+        return max(hits, key=_rev)
+    return "/usr/share/kicad/symbols"
 
 
 # --------------------------------------------------------------------------
@@ -89,7 +127,12 @@ def _tokenize(text):
 
 def _atom_to_py(tok):
     if tok.startswith('"') and tok.endswith('"'):
-        return tok[1:-1]  # quoted string -> str
+        # decode KiCad string escapes (mirror of _atom's encode) so a
+        # parse -> dump round trip never double-escapes
+        s = tok[1:-1]
+        return (s.replace("\\\\", "\x00").replace('\\"', '"')
+                 .replace("\\n", "\n").replace("\\t", "\t")
+                 .replace("\x00", "\\"))
     return Sym(tok)  # bare token
 
 
@@ -130,7 +173,9 @@ def _atom(x):
     if isinstance(x, Sym):
         return str(x)
     if isinstance(x, str):
-        return '"' + x.replace("\\", "\\\\").replace('"', '\\"') + '"'
+        s = (x.replace("\\", "\\\\").replace('"', '\\"')
+              .replace("\n", "\\n").replace("\t", "\\t"))
+        return '"' + s + '"'
     if isinstance(x, float):
         s = ("%f" % x).rstrip("0").rstrip(".")
         return s if s else "0"
@@ -314,7 +359,7 @@ class Component:
         self.rotation = rotation
         self.mirror = mirror      # None, "x", or "y"
         self.sdef = sdef
-        self.uuid = uid()
+        self.uuid = sch._uid()
 
     def pin_xy(self, key):
         """World coordinate of a pin's connection endpoint."""
@@ -344,7 +389,13 @@ class Schematic:
         self.company = company
         self.date = date
         self.paper = paper
-        self.uuid = uid()
+        # Deterministic UUIDs: every id is uuid5(title-seed, counter), so a
+        # rebuild from unchanged sources is byte-identical -- diffs show real
+        # changes instead of ~7500 lines of uuid4 churn. Requires each
+        # schematic in a project to have a distinct title (they do).
+        self._uid_ns = _uuid.uuid5(_uuid.NAMESPACE_URL, "mini-xt:" + title)
+        self._uid_n = 0
+        self.uuid = self._uid()
         self.components = []
         self.items = []          # wires, labels, buses, etc (typed nodes)
         self.used_libs = {}      # lib_id -> SymbolDef (to embed)
@@ -355,6 +406,11 @@ class Schematic:
         # default: standalone/root -> single instance at "/<own uuid>"
         self.inst_paths = None   # set by Project for sub-sheets
         self.sheet_uuids = []    # suuids of child sheet symbols (root only)
+
+    def _uid(self):
+        """Next deterministic UUID in this schematic's stream."""
+        self._uid_n += 1
+        return str(_uuid.uuid5(self._uid_ns, str(self._uid_n)))
 
     # ---- placement ----
     def place(self, lib_id, ref, value=None, at=(0, 0), rotation=0, mirror=None):
@@ -372,23 +428,23 @@ class Schematic:
         p1 = snapxy(p1); p2 = snapxy(p2)
         self.items.append(["wire", ["pts", ["xy", p1[0], p1[1]], ["xy", p2[0], p2[1]]],
                            ["stroke", ["width", 0], ["type", Sym("default")]],
-                           ["uuid", uid()]])
+                           ["uuid", self._uid()]])
 
     def bus_wire(self, p1, p2):
         self.items.append(["bus", ["pts", ["xy", p1[0], p1[1]], ["xy", p2[0], p2[1]]],
                            ["stroke", ["width", 0], ["type", Sym("default")]],
-                           ["uuid", uid()]])
+                           ["uuid", self._uid()]])
 
     def bus_entry(self, p, size=(2.54, 2.54)):
         self.items.append(["bus_entry", ["at", p[0], p[1]],
                            ["size", size[0], size[1]],
                            ["stroke", ["width", 0], ["type", Sym("default")]],
-                           ["uuid", uid()]])
+                           ["uuid", self._uid()]])
 
     def junction(self, p):
         p = snapxy(p)
         self.items.append(["junction", ["at", p[0], p[1]], ["diameter", 0],
-                           ["color", 0, 0, 0, 0], ["uuid", uid()]])
+                           ["color", 0, 0, 0, 0], ["uuid", self._uid()]])
 
     #: net names that must be GLOBAL (power rails) -- promoted automatically so
     #: every sheet's "+5V"/"GND"/"+3V3" join one project-wide net.
@@ -399,19 +455,19 @@ class Schematic:
             return self.global_label(name, at, rotation, "input", justify)
         at = snapxy(at)
         node = ["label", name, ["at", at[0], at[1], rotation],
-                self._eff(justify), ["uuid", uid()]]
+                self._eff(justify), ["uuid", self._uid()]]
         self.items.append(node)
 
     def global_label(self, name, at, rotation=0, shape="bidirectional", justify=None):
         at = snapxy(at)
         node = ["global_label", name, ["shape", Sym(_shape(shape))], ["at", at[0], at[1], rotation],
-                self._eff(justify), ["uuid", uid()]]
+                self._eff(justify), ["uuid", self._uid()]]
         self.items.append(node)
 
     def hier_label(self, name, at, rotation=0, shape="bidirectional", justify=None):
         at = snapxy(at)
         node = ["hierarchical_label", name, ["shape", Sym(_shape(shape))],
-                ["at", at[0], at[1], rotation], self._eff(justify), ["uuid", uid()]]
+                ["at", at[0], at[1], rotation], self._eff(justify), ["uuid", self._uid()]]
         self.items.append(node)
 
     def _eff(self, justify):
@@ -423,11 +479,11 @@ class Schematic:
     def text(self, s, at, size=1.27):
         at = snapxy(at)
         self.items.append(["text", s, ["at", at[0], at[1], 0],
-                           ["effects", ["font", ["size", size, size]]], ["uuid", uid()]])
+                           ["effects", ["font", ["size", size, size]]], ["uuid", self._uid()]])
 
     def no_connect(self, p):
         p = snapxy(p)
-        self.items.append(["no_connect", ["at", p[0], p[1]], ["uuid", uid()]])
+        self.items.append(["no_connect", ["at", p[0], p[1]], ["uuid", self._uid()]])
 
     # ---- high-level: stub a pin out to a label of net name ----
     def net(self, comp, pinkey, name, dx=2.54, dy=0.0, kind="label", shape="bidirectional"):
@@ -455,7 +511,7 @@ class Schematic:
         """pins: list of (pinname, shape, side, offset) where side in l/r/t/b."""
         x, y = at
         w, h = size
-        suuid = uid()
+        suuid = self._uid()
         node = ["sheet", ["at", x, y], ["size", w, h],
                 ["exclude_from_sim", Sym("no")], ["in_bom", Sym("yes")],
                 ["on_board", Sym("yes")], ["dnp", Sym("no")],
@@ -482,7 +538,7 @@ class Schematic:
                          ["at", px, py, rot],
                          ["effects", ["font", ["size", 1.27, 1.27]],
                           ["justify", Sym("right" if side == "l" else "left")]],
-                         ["uuid", uid()]])
+                         ["uuid", self._uid()]])
         node.append(["instances", ["project", self.proj,
                      ["path", "/" + self.uuid, ["page", str(len(self.sheet_uuids) + 2)]]]])
         self.items.append(node)
@@ -547,7 +603,7 @@ class Schematic:
                   ["effects", ["font", ["size", 1.27, 1.27]], ["hide", Sym("yes")]]])
         # pin uuids
         for p in c.sdef.pins:
-            n.append(["pin", p.number, ["uuid", uid()]])
+            n.append(["pin", p.number, ["uuid", self._uid()]])
         # instance paths: sub-sheets get one path per placement (with per-inst ref)
         proj = ["project", self.proj]
         if self.inst_paths:

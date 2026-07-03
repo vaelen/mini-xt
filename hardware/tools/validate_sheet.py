@@ -19,7 +19,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HW, "sheets"))
 import mxsch  # noqa
 from build import load_lib  # noqa
-CLI = "/snap/bin/kicad.kicad-cli"
+CLI = __import__("mxsch").kicad_cli()
 
 
 def main(name):
