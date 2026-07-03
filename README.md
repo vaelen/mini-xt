@@ -61,12 +61,79 @@ python3 hardware/tools/build.py           # regenerate all sheets + root, run ER
 
 Each soft card also builds as its own standalone PCB in `hardware/cards/`, with
 two chainable 60-pin ISA headers (standard 8-bit ISA pinout) so cards can be
-fabbed and daisy-chained for development before the motherboard exists. The
-`card_isatest` board is a Pico-based ISA bus master for exercising any card
-over USB serial.
+fabbed and daisy-chained for development before the motherboard exists.
 
 See `hardware/README.md` for the sheet list and
 `hardware/tools/SHEET_AUTHORING_GUIDE.md` for how to author a sheet.
+
+## The sub-boards
+
+Every sub-board obeys the same contract: it talks **only standard 8-bit ISA
+signals plus +5 V/GND**, self-decodes its own addresses, enters the bus on
+`J_IN` and passes it through unchanged to `J_OUT` (60-pin headers, standard
+8-bit ISA pinout), and fits the ≤100 × 100 mm SMD fab tier. Any card can
+therefore be developed against the `card_isatest` board alone, chained with
+the others in any order, and later lifted unchanged onto a real ISA card or
+into the combined board.
+
+- **`card_video`** — soft CGA/MDA/Hercules on an RP2350B (Core2350B module,
+  8 MB PSRAM variant for the future VGA aperture). Snoop-and-mirror design:
+  it owns its video RAM, captures bus writes to `0xA0000–0xBFFFF` and the
+  CRTC/mode ports at 0 wait through a PIO FIFO, and serves the (rare) reads
+  itself, wait-stated via IOCHRDY — so there is no shared-framebuffer
+  arbitration and no CGA snow. Renders once to internal RAM, outputs VGA
+  (resistor-ladder DAC) or HDMI (RP2350 HSTX on GP12–19, no transmitter
+  chip); graphics scope (CGA → mode 13h → planar VGA) is purely a firmware
+  milestone. Its own 74LVC245A shifters and the module's LDO keep it a
+  self-contained 3.3 V island on the 5 V bus.
+
+- **`card_com`** — one full RS-232 port: 16C550 UART + MAX3241 (3 drivers /
+  5 receivers = a complete DB9 DTE with all modem lines, no ±12 V thanks to
+  the charge pump). The UART sits in an SMD PLCC-44 socket that accepts new
+  TI silicon, NOS tubes, or period NS16550AFN pulls alike. Strap-configured,
+  not hard-wired: J2 picks the base address (0x3F8/0x2F8), JP2 picks the
+  matching IRQ (4/3), JP1 switches the UART's RX between the DB9 and a 5 V
+  TTL console header. Baud reference is a 1.8432 MHz crystal on the 16C550's
+  own oscillator, so the card needs nothing but the 5 V rail.
+
+- **`card_lpt`** — a period-correct SPP/Centronics printer port at 0x378
+  built from nothing but 74HCT logic: '574 latches for the data and control
+  registers, '244 buffers for status and read-back, discrete AND-tree
+  address decode. Register semantics match a real LPT card bit-for-bit
+  (Busy inverted on-card into status bit 7; Strobe/AutoFd/SelectIn inverted
+  on the way out) and IRQ7 is driven tri-state, only during an enabled ~Ack
+  pulse, so the line stays shareable. DB25 out.
+
+- **`card_rtc`** — the machine's clock and CMOS: a DS12C887 (integral
+  battery + crystal, in a machined DIP-24 socket) at the PC-standard
+  0x70/0x71. Strapped to Intel bus mode and glued to the demultiplexed ISA
+  bus by a discrete exact 10-bit decode ('138 + NOR/AND tree) that
+  synthesizes the multiplexed AS/DS/R~W cycle from ~IOW/~IOR; its
+  open-drain ~IRQ is pulled up and inverted to the bus's active-high IRQ8.
+
+- **`card_storage`** — mass storage as a true XT-IDE rev 2 ("Chuck-mod"):
+  the A0↔A3 address-line swap puts the data register at 0x300 and the
+  '573 high-byte latch at 0x301, exactly the layout XTIDE Universal BIOS's
+  "XT-IDE rev 2" type boots fastest, and the latch pair turns the 16-bit
+  IDE data register into two 8-bit transfers. Both a 40-pin IDE header and
+  a CompactFlash socket (True-IDE) hang off the same bus; IRQ5 out,
+  parked low so an empty card can't interrupt-storm.
+
+- **`card_isatest`** — the development jig: a Raspberry Pi Pico acting as
+  the *motherboard* side of the bus (the opposite role from every other
+  card) so any card — or a real ISA card in its edge-connector slot — can
+  be exercised over USB serial with no mini-xt hardware present. Pin-count
+  arithmetic drives its design: address/control go out through split 74HC595
+  shift chains (address updates don't disturb the control byte), IRQ/DRQ/
+  IOCHCK# come back through a 74HC165 chain, and only the hot data path
+  D0–D7 gets direct GPIO. It generates the real 14.318 MHz clock tree
+  (÷2/÷3, PIO override), and the DUT's 5 V rail is switched by a
+  default-off P-FET fed from USB or a barrel jack, so a shorted
+  device-under-test can't take the tester down.
+
+The **motherboard** proper (V20 + SRAM + the two-MCU chipset + power/audio,
+the `hardware/sheets/` hierarchy) is the seventh board: the one node allowed
+private side-channels, since it *is* the machine the cards plug into.
 
 ## Fabrication
 
