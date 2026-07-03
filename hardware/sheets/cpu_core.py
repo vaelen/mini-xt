@@ -34,9 +34,10 @@ PINS = (
      pin("BALE", "output"), pin("AEN", "bidirectional"),
      pin("CLK", "output"), pin("OSC", "output"),
      pin("RESET_DRV", "output"), pin("IOCHRDY", "input")] +
-    # private V20 <-> Bus MCU
+    # private V20 <-> Bus MCU  (~{WR} / IO/~{M} are sheet-internal: the Bus MCU
+    # doesn't sense them -- GPIO budget -- so only ~{RD} crosses the boundary)
     [pin("HOLD", "input"), pin("HLDA", "output"), pin("READY", "input"),
-     pin("~{RD}", "output"), pin("~{WR}", "output"), pin("IO/~{M}", "output"),
+     pin("~{RD}", "output"),
      pin("INTR", "input"), pin("~{INTA}", "output"), pin("NMI", "input"),
      pin("~{CPURESET}", "input"), pin("SPEED_SEL", "input")]
 )
@@ -90,9 +91,10 @@ def build(sch, lib):
     L(U1, "DEN", "DEN")
     L(U1, "DT/~{R}", "DT/~{R}")
     sch.no_connect(U1.pin_xy("~{SSO}"))
-    # raw strobes also exported (Bus MCU senses/drives them)
-    P(U1, "~{RD}", "~{RD}", shape="output"); P(U1, "~{WR}", "~{WR}", shape="output")
-    P(U1, "IO/~{M}", "IO/~{M}", shape="output")
+    # raw ~{RD} also exported (Bus MCU senses it on GPIO46); ~{WR} and IO/~{M}
+    # stay sheet-internal (labelled above) -- the MCU tracks writes via the
+    # gated MEMW/IOW strobes instead.
+    P(U1, "~{RD}", "~{RD}", shape="output")
 
     # ---------------- min-mode strobe gating (IO/M + RD/WR -> MEMR/W,IOR/W) ----------------
     # IO/~M low = memory cycle:  ~MEMR = ~RD OR IO/~M    ~MEMW = ~WR OR IO/~M

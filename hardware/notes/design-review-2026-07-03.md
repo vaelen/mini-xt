@@ -1,11 +1,10 @@
 # Design review — 2026-07-03
 
-> **Status update (same day):** ALL CRITICAL AND HIGH items are FIXED —
-> C1–C5, H1–H8 (H2 in full: strobe/DEN pulls + IOCHRDY/~IOCHCK pull-ups,
-> IRQ2–9 pull-downs, ~DACK2/3 pull-ups, AEN fixed-drive + pull-down).
-> See "Fixes applied" at the end of this file. M1–M8 and the LOW/toolchain
-> items remain open. The overturned per-sheet decisions have correction
-> notes appended in their questions-*.md files.
+> **Status update (same day):** ALL CRITICAL, HIGH, AND MEDIUM items are
+> FIXED — C1–C5, H1–H8, M1–M8. See the "Fixes applied" sections at the end
+> of this file. Only the LOW and toolchain items remain open. Overturned
+> per-sheet decisions have correction notes in their questions-*.md files;
+> doc §5.2/§11.1/§14/§16 updated for the as-built pinout and IRQ map.
 
 Full-project review (docs + generated schematics + toolchain). Findings ranked
 by severity; each has file:line, the defect, and a suggested fix. The
@@ -300,3 +299,43 @@ parallel,audio,isatest}.md.
 
 New parts: bus_mcu R2–R13; storage R2 repurposed; card_isatest Q2 (2N3904),
 R4 4.7k, R5 10k. Removed: power R3.
+
+## Fixes applied — 2026-07-03, batch 3 (M1–M8)
+
+Rebuilt (motherboard + all six cards); structural ERC = 0; netlist-verified.
+
+- **M1** supervisor.py: LINK moved to GPIO4/5 (a real UART1 TX/RX pair; GPIO2/3
+  are only UART0 CTS/RTS); POST display shifted to GPIO6–15.
+- **M2** bus_mcu.py: new U18 '08 computes CNT_RUN = LD0·LD1·LD2 into every
+  '163 CEP — during any lane-load pulse the non-loading stages hold ('163
+  load overrides CEP on the loading stage), killing the load-cascade hazard.
+- **M3** GPIO/PINS reconciliation: ~{WR} and IO/~{M} removed from
+  mxbus.PRIV_CPU and both sheet interfaces (now cpu_core-internal); CLK is
+  genuinely sensed (GPIO22, batch 1); DRQ2/3 pulled low (R14/R15) with a
+  schematic note; doc §5.2 gained an "as built: 48/48" row and §16 updated.
+- **M4** storage.py: TRUE XT-IDE rev-2 map (= rev 1 with bus A0<->A3 swapped):
+  DEC1 splits even (/CS0) vs odd on A0; DEC2 decodes A1/A2/A3 in the odd half
+  (Y0 = latch @0x301, Y3/Y7 AND into /CS1 @0x307/0x30F, so the latch address
+  never enables a drive CS or the low-byte buffer); new DEC3 (U11) gives the
+  data reg @0x300; drive DA0 = bus A3 at both connectors. This is the layout
+  XTIDE Universal BIOS's "XT-IDE rev 2" device type expects (data 300, latch
+  301, error 308, count 302, sector 30A, cyl 304/30C, drv/head 306, status
+  30E, altstatus 307, drive-addr 30F).
+- **M5** COM4/IRQ drift: doc §11.1/§14 now assign sidecar COM4 to the bus IRQ2
+  line delivered as IRQ9 (AT redirect); IRQ10/11/14/15 marked "no line on the
+  8-bit header"; ~{REFRESH} added to mxbus ISA_CTRL; questions-sidecar.md
+  marked superseded (it described the old 64-pin header).
+- **M6** card_isatest.py: clock tree (OSC1, U15–U19, C7) moved to the
+  UNswitched V5RAW rail per spec §8 — CLK/OSC and frequency reporting work
+  before DUT power, and no back-powering through unpowered-HCT clamp diodes.
+- **M7** card_isatest.py: R6–R15 pull-downs on IRQ2–8 and DRQ1–3 (spec §4/§9
+  idle network) so a tri-stated DUT IRQ reads 0 at the IN chain.
+- **M8** com_port.py: MAX3241 R1OUT renamed onto RXD_RS232 and a JP1 3-pin
+  jumper selects the 16550 SIN source (1-2 DB9, 2-3 TTL console via J3's
+  CONSOLE_RXI) — R1OUT is push-pull, so the console TX can never share the
+  net; J3 notes 5 V TTL levels.
+
+New parts: bus_mcu U18 '08; storage U11 '138 (+2 U3 gates now used);
+com_port JP1 (x2 instances); card_isatest R6–R15. One placement fix on the
+way: DEC3's first location overlapped the decoupling row's wire stubs and
+briefly created a +5V/GND short (multiple_net_names) — caught by ERC, moved.

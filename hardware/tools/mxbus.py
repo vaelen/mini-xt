@@ -46,6 +46,7 @@ ISA_CTRL = [
     "TC",                                          # DMA terminal count
     "DRQ1", "DRQ2", "DRQ3",                       # DMA requests
     "~{DACK1}", "~{DACK2}", "~{DACK3}",           # DMA acknowledges
+    "~{REFRESH}",                                  # refresh strobe (pin 35, Bus MCU drives)
 ]
 
 # ----- PRIVATE motherboard-only signals (NOT part of the ISA contract) -----
@@ -53,7 +54,9 @@ ISA_CTRL = [
 PRIV_CPU = [
     "HOLD", "HLDA",            # bus grant handshake
     "READY",                   # folded wait input to V20
-    "~{RD}", "~{WR}", "IO/~{M}",  # raw V20 min-mode strobes (gated to MEMR/W,IOR/W)
+    "~{RD}",                   # raw V20 read strobe (Bus MCU sense; ~{WR} and
+                               # IO/~{M} stay cpu_core-internal, gated to
+                               # MEMR/W,IOR/W there -- MCU GPIO budget)
     "INTR", "~{INTA}", "NMI",  # interrupt delivery V20 <-> Bus MCU
     "~{CPURESET}",             # Bus MCU sequences V20 reset
 ]
@@ -61,7 +64,7 @@ PRIV_CPU = [
 PRIV_COUNTER = ["CNT_CLK", "CNT_LD0", "CNT_LD1", "CNT_LD2"]
 # SRAM decode side channel (cpu_core internal; video must NOT see this)
 PRIV_DECODE = ["~{Y5_VIDCS}"]   # 0xA0000-0xBFFFF block strobe (SRAM#2 decode only)
-# speed select (Supervisor static latch -> clock mux), set while CPU in reset
+# speed select (Bus MCU -> clock mux), set while it holds the V20 in reset
 PRIV_SPEED = ["SPEED_SEL"]
 # cross-MCU UART link (Bus MCU <-> Supervisor), full-duplex
 PRIV_LINK = ["LINK_B2S", "LINK_S2B"]   # Bus->Super TX, Super->Bus TX

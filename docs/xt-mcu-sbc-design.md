@@ -331,7 +331,7 @@ beyond the 2-wire link (§5.3).
 | Speaker | PWM → op-amp | 1 | |
 | Transceiver DIR | master/slave | 0–1 | can be HLDA-derived externally |
 | **Link to Supervisor** | **UART TX/RX** | **2** | §5.3 |
-| **Total** | | **≈ 44–46 / 48** | fits with margin **because** the link is UART (2 pins). SPI (+3) would push to ~47–49 — at/over the edge. |
+| **Total** | | **≈ 44–46 / 48** | fits with margin **because** the link is UART (2 pins). SPI (+3) would push to ~47–49 — at/over the edge. **As built: 48/48** — the margin was spent on a direct bus-CLK sense, ~{REFRESH}, and READY; the raw ~WR and IO/M̄ senses and DMA ch2/3 (DRQ/DACK) were dropped (DACK2/3 parked deasserted by pull-ups; first candidates for a '165/'595 expansion). |
 
 Speed-select moves to the Supervisor (a static latch it sets before reset release), and the
 POST display is Supervisor-driven — both off the Bus MCU. The link choice is worth ~3 pins
@@ -523,9 +523,11 @@ Discrete and period-correct (uses 74HCT on hand):
   RXD/CTS/DSR/DCD/RI in), internal charge pump (single-supply, no ±12 V).
 - **TTL console header** jumpered onto COM1 (ahead of the MAX3241) for headless bring-up.
 - (TL16C554 quad rejected: ~6× the cost for 4× ports; add COM3/4 on the sidecar later — note
-  **COM3 0x3E8 is reserved for the emulated serial mouse**, §11.4.) Because the soft-PIC has
-  15 lines, **COM4 (0x2E8) uses a higher IRQ (IRQ10)** rather than legacy-sharing IRQ3 with
-  COM2 — avoiding the ISA edge-triggered IRQ-sharing problem. The virtual COM3 mouse keeps
+  **COM3 0x3E8 is reserved for the emulated serial mouse**, §11.4.) The 60-pin sidecar header
+  carries only the standard 8-bit ISA IRQ lines (IRQ2–7, + IRQ8 on a reclaimed pin), so a
+  sidecar COM4 cannot use IRQ10+: **COM4 (0x2E8) uses the bus IRQ2 line, delivered as IRQ9**
+  (the standard AT IRQ2→9 redirect) rather than legacy-sharing IRQ3 with COM2 — still
+  avoiding the ISA edge-triggered IRQ-sharing problem. The virtual COM3 mouse keeps
   **IRQ4** (the convention mouse drivers expect), so it *does* share IRQ4 with COM1; in
   practice you use one or the other (most mouse use implies COM1 is free).
 
@@ -590,7 +592,7 @@ Xi 8088's CMOS setup.
 | 0x220.../0x240.../0x330/0x388 | PicoGUS (SB / GUS / MPU / OPL) |
 | 0x2F8 / 0x3F8 | COM2 / COM1 (16C550) |
 | 0x3E8 | **COM3 — emulated serial mouse** (Bus MCU, IRQ4) |
-| 0x2E8 | COM4 (sidecar, **IRQ10**) |
+| 0x2E8 | COM4 (sidecar, **bus IRQ2 line → IRQ9**) |
 | 0x300–0x31F | XT-IDE |
 | 0x378 | LPT1 |
 | 0x3B0–0x3BF / 0x3D0–0x3DF | MDA-Hercules / CGA (video MCU) |
@@ -599,13 +601,13 @@ Xi 8088's CMOS setup.
 | IRQ | Use | | IRQ | Use |
 |---|---|---|---|---|
 | 0 | Timer | | 8 | RTC |
-| 1 | Keyboard (USB-HID) | | 9 | (IRQ2 redirect) / spare |
-| 2 | cascade → slave | | 10 | COM4 / sidecar |
-| 3 | COM2 | | 11 | sidecar / spare |
+| 1 | Keyboard (USB-HID) | | 9 | IRQ2 redirect (sidecar COM4 etc.) |
+| 2 | cascade → slave | | 10 | spare (no line on 8-bit header) |
+| 3 | COM2 | | 11 | spare (no line on 8-bit header) |
 | 4 | COM1 (+ COM3 mouse, shared) | | 12 | PS/2 mouse (if used) |
 | 5 | XT-IDE / sound | | 13 | (FPU — unused) |
-| 6 | Floppy (opt) / spare | | 14 | sidecar / spare |
-| 7 | LPT1 | | 15 | sidecar / spare |
+| 6 | Floppy (opt) / spare | | 14 | spare (no line on 8-bit header) |
+| 7 | LPT1 | | 15 | spare (no line on 8-bit header) |
 
 ### DMA
 | Ch | Use | | Ch | Use |
@@ -648,9 +650,9 @@ Xi 8088's CMOS setup.
 ---
 
 ## 16. Open decisions / next steps
-- **Bus MCU GPIO pinout** — finalize the exact bus/IRQ/DMA/counter/link pin assignment on the
-  RP2350B against the §5.2 budget (≈44–46/48); confirm the partial-address-decode and
-  single-DMA-channel assumptions, and the core0-PIO (bus) / core1 (DMA+PIC) split under load.
+- **Bus MCU GPIO pinout** — assignment is now drawn at 48/48 (see §5.2 "as built"); still to
+  confirm: the partial-address-decode (A0–A7 sense only) and single-DMA-channel assumptions,
+  and the core0-PIO (bus) / core1 (DMA+PIC) split under load.
 - **Cross-MCU UART protocol** — define the framing (length + CRC) and message set (image push,
   HID event, menu draw, POST code, CMOS-write); pick the baud (hardware UART vs PIO multi-Mbaud)
   and confirm worst-case keystroke latency through USB → Supervisor → UART → KBC.

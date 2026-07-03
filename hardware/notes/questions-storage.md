@@ -53,3 +53,11 @@ RESET_DRV. CSEL grounded (master).
 **Correction (2026-07-03, design review H4):** Q4's pick (pull-UP on INTRQ) was
 wrong — ATA INTRQ is active-HIGH and tri-stated when no drive is selected, so a
 pull-up parks IRQ5 asserted (interrupt storm). R2 is now a pull-DOWN.
+
+---
+**Correction (2026-07-03, design review M4):** Q2's guessed register map (CS0
+at +0, CS1 at +8, latch at +0x10) matched no real XT-IDE revision and no XTIDE
+Universal BIOS device type. The decode is now the TRUE rev-2 / Chuck-mod map
+(bus A0<->A3 swap): data 0x300, latch 0x301, CS1 regs 0x307/0x30F, drive DA0 =
+bus A3, 16-byte window. See design-review-2026-07-03.md batch 3 for the
+DEC1/DEC2/DEC3 split.

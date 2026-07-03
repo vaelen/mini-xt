@@ -140,7 +140,9 @@ def build(sch, lib, expose=True):
     L(U2, "T1IN", "UART_TXD", dx=-2.54)
     L(U2, "T2IN", "UART_RTS", dx=-2.54)
     L(U2, "T3IN", "UART_DTR", dx=-2.54)
-    L(U2, "R1OUT", "UART_RXD", dx=-2.54)
+    L(U2, "R1OUT", "RXD_RS232", dx=-2.54)   # -> JP1: R1OUT is push-pull, so the
+                                            # console TX must be jumper-selected,
+                                            # never wire-OR'd onto UART_RXD
     L(U2, "R2OUT", "UART_CTS", dx=-2.54)
     L(U2, "R3OUT", "UART_DSR", dx=-2.54)
     L(U2, "R4OUT", "UART_DCD", dx=-2.54)
@@ -187,11 +189,22 @@ def build(sch, lib, expose=True):
 
     # ---------------- J3: TTL console header (ahead of MAX3241) ----------------
     # Tapped on the UART TTL lines; populated on COM1 only (see design S11.1).
+    # NOTE 5 V TTL levels -- use a 5 V-tolerant USB-serial adapter (most 3.3 V
+    # dongles are not). Pin 4 supplies +5V for a self-powered adapter only.
     J3 = sch.place("Connector_Generic:Conn_01x04", "J3", at=(165.1, 254.0))
     L(J3, "Pin_1", "GND", dx=2.54)
     L(J3, "Pin_2", "UART_TXD", dx=2.54)   # board TX (TTL) out
-    L(J3, "Pin_3", "UART_RXD", dx=2.54)   # board RX (TTL) in
+    L(J3, "Pin_3", "CONSOLE_RXI", dx=2.54)  # console TX -> JP1 pin 3
     L(J3, "Pin_4", "+5V", dx=2.54)
+
+    # ---------------- JP1: UART RX source select ----------------
+    # The MAX3241 R1OUT is PUSH-PULL, so the console adapter's TX cannot share
+    # UART_RXD with it -- JP1 selects exactly one driver for the 16550's SIN:
+    #   1-2 = DB9 (RS-232, via MAX3241)   2-3 = TTL console (J3)
+    JP1 = sch.place("Connector_Generic:Conn_01x03", "JP1", at=(203.2, 254.0))
+    L(JP1, "Pin_1", "RXD_RS232", dx=2.54)
+    L(JP1, "Pin_2", "UART_RXD", dx=2.54)
+    L(JP1, "Pin_3", "CONSOLE_RXI", dx=2.54)
 
     # ---------------- decoupling ----------------
     decouple("C1", (109.22, 50.8))   # U1
@@ -199,7 +212,8 @@ def build(sch, lib, expose=True):
 
     sch.text("Base-address strap J2: jumper A8 (0x3F8/COM1) or ~A8 (0x2F8/COM2)",
              (60.96, 233.68))
-    sch.text("TTL console header J3: populate on COM1 only", (165.1, 248.92))
+    sch.text("TTL console header J3 (5V levels!): populate on COM1 only;", (165.1, 248.92))
+    sch.text("JP1 selects UART RX source: 1-2 DB9, 2-3 console", (165.1, 246.38))
 
 
 INSTANCES = [("COM1", "", {"COM_IRQ": "IRQ4"}),

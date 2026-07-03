@@ -105,10 +105,10 @@ def build(sch, lib):
     # ---------------- 2-digit hex POST display ----------------
     # POST_A..G + DP segment lines and two digit-select lines, driven from GPIO.
     # No 7-seg symbol in libs (see questions): a 10-pin display header carries them.
-    post = [("GPIO5", "POST_A"), ("GPIO6", "POST_B"), ("GPIO7", "POST_C"),
-            ("GPIO8", "POST_D"), ("GPIO9", "POST_E"), ("GPIO10", "POST_F"),
-            ("GPIO11", "POST_G"), ("GPIO12", "POST_DP"),
-            ("GPIO13", "POST_DIG0"), ("GPIO14", "POST_DIG1")]
+    post = [("GPIO6", "POST_A"), ("GPIO7", "POST_B"), ("GPIO8", "POST_C"),
+            ("GPIO9", "POST_D"), ("GPIO10", "POST_E"), ("GPIO11", "POST_F"),
+            ("GPIO12", "POST_G"), ("GPIO13", "POST_DP"),
+            ("GPIO14", "POST_DIG0"), ("GPIO15", "POST_DIG1")]
     for gpio, net in post:
         L(U1, gpio, net, dx=2.54)
     JP = sch.place("Connector_Generic:Conn_01x10", "J3", "POST_HEX", at=(279.4, 152.4))
@@ -124,8 +124,11 @@ def build(sch, lib):
     L(JC, "3", "GND", dx=2.54)
 
     # ---------------- UART link to Bus MCU (the only data tie off-sheet) ----------------
-    L(U1, "GPIO2", "LINK_S2B", dx=-2.54)     # UART1 TX -> Bus MCU (out)
-    L(U1, "GPIO3", "LINK_B2S", dx=-2.54)     # UART1 RX <- Bus MCU (in)
+    # GPIO4/5 are a real UART1 TX/RX pair (GPIO2/3 are only UART0 CTS/RTS on
+    # the RP2040 -- a link there would force a PIO UART). POST segments moved
+    # to GPIO6-15 to free these.
+    L(U1, "GPIO4", "LINK_S2B", dx=-2.54)     # UART1 TX -> Bus MCU (out)
+    L(U1, "GPIO5", "LINK_B2S", dx=-2.54)     # UART1 RX <- Bus MCU (in)
 
     # ---------------- speed-select latch (static, set before reset release) ----------
     # speed-select moved to the Bus MCU: the Supervisor now sends the chosen

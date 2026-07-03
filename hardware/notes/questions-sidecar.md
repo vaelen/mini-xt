@@ -38,3 +38,11 @@ cable's +5V quiet. Not strictly required for a pass-through connector but cheap
 insurance per the guide's "representative decoupling".
 </content>
 </invoke>
+
+---
+**Superseded (2026-07-03, design review M5):** everything above describes the
+ORIGINAL 64-pin header, which was replaced by the standard-pinout 60-pin 8-bit
+ISA header in `isa_conn.py` (see open-questions.md "ISA connector re-based").
+IRQ10/11/14 and the pin-63 key no longer exist; IRQ8 rides reclaimed pin 15,
+~IOCHCK pin 7, extra GND pin 11, REFRESH# pin 35. A sidecar COM4 now uses the
+bus IRQ2 line (delivered as IRQ9 via the AT redirect) — doc §11.1/§14 updated.

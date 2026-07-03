@@ -55,7 +55,7 @@ _DIR = {
     "~{DACK1}": "output", "~{DACK2}": "output", "~{DACK3}": "output",
     # private V20 <-> Bus MCU
     "HOLD": "output", "HLDA": "input", "READY": "output",
-    "~{RD}": "input", "~{WR}": "input", "IO/~{M}": "input",
+    "~{RD}": "input",
     "INTR": "output", "~{INTA}": "input", "NMI": "output", "~{CPURESET}": "output",
     # counter strobes + link
     "CNT_CLK": "output", "CNT_LD0": "output", "CNT_LD1": "output", "CNT_LD2": "output",
@@ -70,6 +70,8 @@ PINS = (
     [pin(s, "bidirectional") for s in mxbus.DATA] +
     [pin(s, "input") for s in mxbus.IRQ] +
     [pin(s, _DIR[s]) for s in _CTRL] +
+    # (~{WR} / IO/~{M} are not in PRIV_CPU anymore: not sensed here -- GPIO
+    # budget -- writes are tracked via the gated MEMW/IOW strobes instead.)
     [pin(s, _DIR[s]) for s in mxbus.PRIV_CPU] +
     [pin(s, _DIR[s]) for s in mxbus.PRIV_COUNTER] +
     [pin("LINK_B2S", "output"), pin("LINK_S2B", "input"),
@@ -101,7 +103,7 @@ GPIO_NET.update({
 _NET_SHAPE = {"IOCHRDY": "bidirectional", "~{IOCHCK}": "input",
               "HOLD": "output", "HLDA": "input", "INTR": "output",
               "~{INTA}": "input", "NMI": "output", "READY": "output",
-              "~{CPURESET}": "output", "~{RD}": "input", "~{WR}": "input",
+              "~{CPURESET}": "output", "~{RD}": "input",
               "DRQ1": "input", "~{DACK1}": "output",
               "CNT_CLK": "output", "CNT_LD0": "output", "CNT_LD1": "output",
               "CNT_LD2": "output", "LINK_B2S": "output", "LINK_S2B": "input",
@@ -242,7 +244,7 @@ def build(sch, lib):
             N(u, "Q%d" % q, "CA%d" % adst[q])     # -> U14-U16 '244s -> A0-A19
         N(u, "~{PE}", pe)                          # active-low parallel load
         N(u, "CP", "CNT_CLK")                      # advance one byte per pulse
-        N(u, "CEP", "+5V")
+        N(u, "CEP", "CNT_RUN")                     # held while any lane loads (U18)
         N(u, "CET", cetin)                         # cascade carry-in
         N(u, "~{MR}", "+5V")                       # no async master reset (Q)
         if tcout:
@@ -251,6 +253,21 @@ def build(sch, lib):
             sch.no_connect(u.pin_xy("TC"))
     sch.text("§5.1 20-bit loadable address counter: load D0-D7 (3 lanes), tick CNT_CLK",
              (60.96, 248.92))
+
+    # Load-cascade guard: '163 load is SYNCHRONOUS, so each lane-load's CP edge
+    # would also *count* the stages not being loaded (a stale stage at TC could
+    # carry into a just-loaded lane).  CNT_RUN = LD0·LD1·LD2 gates every CEP:
+    # during any load pulse the non-loading stages hold (load overrides CEP on
+    # the loading stage, so it still loads).
+    gate = sch.place("mini-xt:74HCT08", "U18", at=(398.78, 203.2))
+    N(gate, "VCC", "+5V", length=2.54)
+    N(gate, "GND", "GND", length=2.54)
+    N(gate, "P1", "CNT_LD0"); N(gate, "P2", "CNT_LD1"); N(gate, "P3", "CNT_LD01")
+    N(gate, "P4", "CNT_LD01"); N(gate, "P5", "CNT_LD2"); N(gate, "P6", "CNT_RUN")
+    for p in ("P9", "P10", "P12", "P13"):
+        N(gate, p, "GND")
+    for p in ("P8", "P11"):
+        sch.no_connect(gate.pin_xy(p))
 
     # Counter -> bus output-enable stage: 74HCT244 x3, enabled ONLY during
     # master cycles (~OE = ~HLDA, inverted from HLDA by U17).  Complements the
@@ -314,7 +331,12 @@ def build(sch, lib):
         pull("R%d" % (4 + i), "IRQ%d" % (2 + i),      # released when unclaimed --
              "GND", (116.84 + 15.24 * i, 25.4))       # no floating '165 inputs
     pull("R12", "~{DACK2}", "+5V", (238.76, 25.4))    # declared, undriven (GPIO
-    pull("R13", "~{DACK3}", "+5V", (253.99, 25.4))    # dropped): park deasserted
+    pull("R13", "~{DACK3}", "+5V", (254.0, 25.4))     # dropped): park deasserted
+    pull("R14", "DRQ2", "GND", (269.24, 25.4))        # DRQ2/3 not wired to the MCU
+    pull("R15", "DRQ3", "GND", (284.48, 25.4))        # (GPIO budget): idle low
+    sch.text("DMA ch2/3 + raw ~WR/IO-M are NOT wired to the MCU (48-GPIO budget, "
+             "S5.2): DACK2/3 parked high, DRQ2/3 low. First candidates for a "
+             "second '165/'595 if sidecar DMA is ever needed.", (86.36, 15.24))
 
     sch.text("U6 strobes DIR = HLDA (bus role, §5.2);  DATADIR = data read/write dir;",
              (200.66, 116.84))
