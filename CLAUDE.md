@@ -72,10 +72,12 @@ Boards are fabbed and assembled at JLCPCB. Rules that shape every sheet:
 - **SMD construction** to keep each board within **100 × 100 mm** (the cheap
   JLC tier): 0603 passives, SOIC/TSSOP logic. Through-hole is reserved for
   connectors, headers, jumpers — and the socketed parts below.
-- **Sockets, installed by the fab**, for expensive/irreplaceable chips: the
-  V20 (DIP-40), the 2× AS6C4008 SRAMs (DIP-32; no 5 V 512K×8 SRAM exists at
-  JLC), the DS12C887 (DIP-24 600 mil), and female headers for the
-  Core2350B/Pico modules. For these the `LCSC Part Num` is the SOCKET.
+- **Sockets, installed by the fab**, for expensive/irreplaceable/swappable
+  chips: the V20 (DIP-40), the 2× AS6C4008 SRAMs (DIP-32; no 5 V 512K×8
+  SRAM exists at JLC), the DS12C887 (DIP-24 600 mil), the COM cards' 16550s
+  (SMD PLCC-44 socket — reflows in the SMD pass; takes new TL16C550CFNR or
+  period NS16550AFN alike), and female headers for the Core2350B/Pico
+  modules. For these the `LCSC Part Num` is the SOCKET.
 - **Sub-boards stay standalone**: each card must remain buildable as its own
   ≤100×100 mm PCB that daisy-chains over the 60-pin ISA headers; a combined
   board comes later, after the separate boards are proven.

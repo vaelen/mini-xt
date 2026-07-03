@@ -44,6 +44,10 @@ def build(sch, lib, expose=True):
         mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
 
     # ---------------- U1: 16C550 UART ----------------
+    # Socketed: the fab reflows an SMD PLCC-44 socket (parts.py C2828044) and
+    # a TL16C550CFNR (or NOS/period 16550AFN -- same industry pinout) drops
+    # in by hand. Schematic stays the generic DIP-style 16550 symbol; the
+    # PLCC-44 pin mapping happens at footprint time.
     U1 = sch.place("Interface_UART:16550", "U1", at=(127.0, 101.6))
     L(U1, "VCC", "+5V", dx=0, dy=-2.54)
     L(U1, "GND", "GND", dx=0, dy=2.54)

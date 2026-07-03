@@ -54,8 +54,14 @@ Verified against JLCPCB/EasyEDA symbol data and the Maxim datasheets:
 | V20 (µPD70108)       | DIP-40 socket C2332          | user stock (vintage) |
 | AS6C4008-55 SRAM ×2  | DIP-32 socket C72122         | user stock (no 5 V 512K×8 SRAM at JLC at all) |
 | DS12C887 RTC         | DIP-24 600 mil socket C72120 | LCSC C9869 ($14, extended) or user stock |
+| 16550 UART (COM ×2)  | **SMD** PLCC-44 socket C2828044 (reflows with the SMD pass) | TL16C550CFNR (Active, Mouser ~320 pcs, $4-6; JLC C2653193) — or NOS/period NS16550AFN pulls, same industry PLCC pinout |
 | Core2350B module ×2  | 2.54 mm female headers C2897411 | Waveshare        |
 | Pico module          | 2.54 mm female headers C2897411 | Raspberry Pi     |
+
+The 16550 socket choice (2026-07-03): swappable UART for ~$0.39 + ~2 cm²
+per port; one footprint takes new TI silicon, NOS tubes, and vintage pulls.
+MaxLinear's PLCC ST16C550CJ44-F is EOL (their TQFP ST16C550IQ48-F lives on),
+and TI's tube-packed CFN is obsolete — the reel CFNR is the active leg.
 
 ## Not available at JLCPCB (source elsewhere / consign)
 
@@ -66,15 +72,14 @@ Verified against JLCPCB/EasyEDA symbol data and the Maxim datasheets:
 
 ## Thin stock — re-verify with jlc_stock_check before ordering
 
-- TL16C550DPTR (C544406): ~18 pcs at the JLC warehouse, $4.9 — but do NOT
-  panic-buy used pulls: the TL16C550C/D is ACTIVE TI production with real
-  depth at Mouser/DigiKey (checked 2026-07-03: DPT ~233, CPTR ~1066,
-  DPFBR ~508 pcs; $2.5-3.4 @ qty 100). Options: use JLC's 18 (2/board),
-  JLC Global Sourcing from DigiKey/Mouser, or buy-and-consign. JLC even
-  catalogs the PDIP-40 TL16C550BN (back-orderable) if a socketed THT COM
-  card is ever wanted. Avoid eBay/AliExpress "16550" pulls — widely
-  remarked/fake. Also note the LQFP-48 pin numbers do NOT match the
-  DIP-40-style KiCad symbol — remap at footprint time.
+- 16550: now SOCKETED (SMD PLCC-44, see socket table) with TL16C550CFNR as
+  the chip — Active TI production, ~320 pcs at Mouser ($4-6 ea; ~$4.10@100),
+  ~10 CIFNR at JLC. The TL16C550C/D family in general is healthy (LQFP DPT
+  ~233, CPTR ~1066, DPFBR ~508 at Mouser), so no used pulls are ever
+  *required*; the socket merely also accepts NOS/period NS16550AFN if
+  wanted. Avoid eBay/AliExpress "16550" pulls for function — widely
+  remarked/fake. PLCC-44 pin numbers differ from the DIP-40-style KiCad
+  symbol — remap at footprint time.
 - DB25 male (C5400534): ~10 pcs — likely needs a substitute.
 - MAX3241EEAI+T (C406859): ~175. DS12C887+ (C9869): ~573.
 - TPS563200DDCR (C97253): ~256.

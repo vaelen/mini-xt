@@ -70,9 +70,16 @@ PART_MAP = {
     ("74xx:74HC595", "74HC595"):      E("C5947", "74HC595D,118", "SOIC-16"),
     # ---- ICs ----
     ("mini-xt:MAX3241", "MAX3241"):   E("C406859", "MAX3241EEAI+T", "SSOP-28"),
-    ("Interface_UART:16550", "16550"): E("C544406", "TL16C550DPTR", "LQFP-48",
-                                         "thin stock; LQFP pin map differs from "
-                                         "the DIP-40 symbol -- map at layout"),
+    # 16550: fab places an SMD PLCC-44 SOCKET (reflows with everything else);
+    # the UART itself is a TL16C550CFNR (PLCC-44, Active at Mouser ~$4-6, or
+    # JLC C2653193 TL16C550CIFNR) installed by hand. One footprint accepts
+    # new TI parts, NOS tubes, and period NS16550AFN pulls, and a suspect
+    # UART is diagnosed by swap. (MaxLinear's PLCC ST16C550CJ44-F is EOL.)
+    ("Interface_UART:16550", "16550"): E("C2828044", "Nextron Z-15144001280000",
+                                         "PLCC-44 SMD socket",
+                                         "chip = TL16C550CFNR (consign/global "
+                                         "sourcing); PLCC-44 pin map differs "
+                                         "from the DIP-40 symbol -- map at layout"),
     ("MCU_RaspberryPi:RP2040", "RP2040"): E("C2040", "RP2040", "LQFN-56"),
     ("Memory_Flash:W25Q128JVS", "W25Q128JVS"): E("C97521", "W25Q128JVSIQ", "SOIC-8"),
     ("mini-xt:TL072", "MCP6002"):     E("C7377", "MCP6002T-I/SN", "SOIC-8"),
