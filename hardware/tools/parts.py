@@ -91,12 +91,17 @@ PART_MAP = {
     ("Device:Q_PMOS", "Q_PMOS"):      E("C15127", "AO3401A", "SOT-23"),
     ("Device:D_Schottky", "D_Schottky"): E("C8678", "SS34", "SMA"),
     # ---- socketed vintage / user-stock parts: LCSC number = the SOCKET ----
-    ("mini-xt:V20", "V20"):           E("C2332", "DIP-40 socket", "DIP-40 THT",
+    # Machined-pin (round-hole) sockets, all 600 mil row spacing: better grip,
+    # repeated-insertion tolerant, gentler on 40-year-old pins than stamped tin.
+    ("mini-xt:V20", "V20"):           E("C2874018", "XFCN IC254V-12-40-0743-P1524",
+                                        "DIP-40 THT machined",
                                         "NEC uPD70108 (user stock) installs in socket"),
-    ("Memory_RAM:AS6C4008-55PCN", "AS6C4008-55PCN"): E("C72122", "DIP-32 socket",
-                                        "DIP-32 THT",
+    ("Memory_RAM:AS6C4008-55PCN", "AS6C4008-55PCN"): E("C2874017",
+                                        "XFCN IC254V-12-32-0743-P1524",
+                                        "DIP-32 THT machined",
                                         "AS6C4008-55PC (user stock) installs in socket"),
-    ("mini-xt:DS12C887", "DS12C887"): E("C72120", "DIP-24 600mil socket", "DIP-24 THT",
+    ("mini-xt:DS12C887", "DS12C887"): E("C2684765", "XKB X5621FV-2x12-C1524D7430",
+                                        "DIP-24 THT machined",
                                         "DS12C887+ chip = LCSC C9869 (extended)"),
     # ---- modules on female headers ----
     ("mini-xt:Core2350B",):           None,  # placeholder, see fallbacks below

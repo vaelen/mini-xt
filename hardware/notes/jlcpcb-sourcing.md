@@ -51,12 +51,19 @@ Verified against JLCPCB/EasyEDA symbol data and the Maxim datasheets:
 
 | Component            | Socket (= its LCSC Part Num) | Chip source        |
 |----------------------|------------------------------|--------------------|
-| V20 (µPD70108)       | DIP-40 socket C2332          | user stock (vintage) |
-| AS6C4008-55 SRAM ×2  | DIP-32 socket C72122         | user stock (no 5 V 512K×8 SRAM at JLC at all) |
-| DS12C887 RTC         | DIP-24 600 mil socket C72120 | LCSC C9869 ($14, extended) or user stock |
+| V20 (µPD70108)       | DIP-40 **machined** socket C2874018 | user stock (vintage) |
+| AS6C4008-55 SRAM ×2  | DIP-32 **machined** socket C2874017 | user stock (no 5 V 512K×8 SRAM at JLC at all) |
+| DS12C887 RTC         | DIP-24 600 mil **machined** socket C2684765 | LCSC C9869 ($14, extended) or user stock |
 | 16550 UART (COM ×2)  | **SMD** PLCC-44 socket C2828044 (reflows with the SMD pass) | TL16C550CFNR (Active, Mouser ~320 pcs, $4-6; JLC C2653193) — or NOS/period NS16550AFN pulls, same industry PLCC pinout |
 | Core2350B module ×2  | 2.54 mm female headers C2897411 | Waveshare        |
 | Pico module          | 2.54 mm female headers C2897411 | Raspberry Pi     |
+
+The DIP sockets are the machined-pin (round-hole) grade, all verified
+600 mil (15.24 mm) row spacing — ~$0.70–0.90 each vs $0.06–0.12 stamped,
+worth it for vintage pins and repeated insertion. (Stamped fallbacks if
+the machined parts go out of stock: DIP-40 C2332, DIP-32 C72122, DIP-24
+C72120. Beware: many catalog DIP-24/32 sockets are the NARROW 300 mil
+variant — check row spacing.)
 
 The 16550 socket choice (2026-07-03): swappable UART for ~$0.39 + ~2 cm²
 per port; one footprint takes new TI silicon, NOS tubes, and vintage pulls.
