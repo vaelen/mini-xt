@@ -66,8 +66,15 @@ Verified against JLCPCB/EasyEDA symbol data and the Maxim datasheets:
 
 ## Thin stock — re-verify with jlc_stock_check before ordering
 
-- TL16C550DPTR (C544406): ~18 pcs, $4.9. Also note the LQFP-48 pin numbers
-  do NOT match the DIP-40-style KiCad symbol — remap at footprint time.
+- TL16C550DPTR (C544406): ~18 pcs at the JLC warehouse, $4.9 — but do NOT
+  panic-buy used pulls: the TL16C550C/D is ACTIVE TI production with real
+  depth at Mouser/DigiKey (checked 2026-07-03: DPT ~233, CPTR ~1066,
+  DPFBR ~508 pcs; $2.5-3.4 @ qty 100). Options: use JLC's 18 (2/board),
+  JLC Global Sourcing from DigiKey/Mouser, or buy-and-consign. JLC even
+  catalogs the PDIP-40 TL16C550BN (back-orderable) if a socketed THT COM
+  card is ever wanted. Avoid eBay/AliExpress "16550" pulls — widely
+  remarked/fake. Also note the LQFP-48 pin numbers do NOT match the
+  DIP-40-style KiCad symbol — remap at footprint time.
 - DB25 male (C5400534): ~10 pcs — likely needs a substitute.
 - MAX3241EEAI+T (C406859): ~175. DS12C887+ (C9869): ~573.
 - TPS563200DDCR (C97253): ~256.
