@@ -49,6 +49,15 @@ python3 tools/pins.py <Lib:Name>             # introspect a symbol's pins
 To author or change a sheet, edit `sheets/<name>.py` and re-run `build.py`.
 See `tools/SHEET_AUTHORING_GUIDE.md`.
 
+## Fabrication (JLCPCB)
+
+Every component carries an `LCSC Part Num` property, generated at build time
+from the sourcing map in `tools/parts.py` (SMD parts, ≤100×100 mm boards,
+fab-installed sockets for the V20/SRAM/RTC/modules). The sheets stay generic;
+the parts map is the single place where generic symbols bind to purchasable
+parts. Decisions, verified pinouts, and stock-forced substitutions:
+`notes/jlcpcb-sourcing.md`.
+
 ## Notes / decisions
 
 `notes/open-questions.md` records the decisions made during generation and the

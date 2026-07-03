@@ -182,20 +182,24 @@ def build(sch, lib):
         L(rm, "OE#", "~{MEMR}"); L(rm, "WE#", "~{MEMW}"); L(rm, "CE#", ce)
 
     # ---------------- clock tree ----------------
+    # 14.318 canned oscillators are only stocked as 3.3 V parts (JLC), so the
+    # XO runs from +3V3 and a spare U13 HCT gate (TTL Vih reads 3.3 V) squares
+    # it up to the 5 V OSC that feeds the dividers and the ISA OSC pin.
+    # (Clock phase inversion through the gate is irrelevant.)
     osc = sch.place("Oscillator:ACO-xxxMHz", "OSC1", "14.31818MHz", at=(40.64, 45.72))
-    L(osc, "Vcc", "+5V", dx=0, dy=-2.54); L(osc, "GND", "GND", dx=0, dy=2.54)
-    L(osc, "OUT", "OSC")
-    P(osc, "OUT", "OSC", shape="output")          # raw 14.318 to ISA OSC pin
+    L(osc, "Vcc", "+3V3", dx=0, dy=-2.54); L(osc, "GND", "GND", dx=0, dy=2.54)
+    L(osc, "OUT", "OSC_3V3")
 
     ff = sch.place("mini-xt:74HCT74", "U8", at=(76.2, 60.96))   # /2
     L(ff, "VCC", "+5V", dx=0, dy=-2.54); L(ff, "GND", "GND", dx=0, dy=2.54)
     L(ff, "C", "OSC"); L(ff, "D", "CLK_QN"); L(ff, "~{Q}", "CLK_QN")
     L(ff, "Q", "CLK7"); L(ff, "~{S}", "+5V"); L(ff, "~{R}", "+5V")
 
-    # /3 via 74HCT163 preset-to-3 (no HCT 4017 exists): preload 13 (1101), the TC
-    # at count 15 reloads the preset through ~PE -> a 3-state cycle. (Design S3.2
-    # lists a 74HC161/163 preset-to-3 as the equivalent substitute for the 4017.)
-    div3 = sch.place("mini-xt:74HCT163", "U9", at=(76.2, 109.22))  # /3
+    # /3 via '161 preset-to-3: preload 13 (1101), the TC at count 15 reloads
+    # the preset through ~PE -> a 3-state cycle. (74HC161: same pinout as the
+    # '163, async ~MR -- tied inactive here -- and it IS stocked at JLC where
+    # no HC/HCT163 is. All inputs are 5 V on this sheet, so HC grade is fine.)
+    div3 = sch.place("mini-xt:74HCT163", "U9", "74HC161", at=(76.2, 109.22))  # /3
     L(div3, "VCC", "+5V", dx=0, dy=-2.54); L(div3, "GND", "GND", dx=0, dy=2.54)
     L(div3, "CP", "OSC")
     L(div3, "D0", "+5V"); L(div3, "D1", "GND"); L(div3, "D2", "+5V"); L(div3, "D3", "+5V")
@@ -206,10 +210,15 @@ def build(sch, lib):
     # buffer stage below. That inversion is load-bearing, not a buffer choice.
     L(div3, "Q0", "CLK4")          # ~4.77 MHz, 67% duty here (33% after U13)
 
-    mux = sch.place("mini-xt:74HCT157", "U12", at=(116.84, 76.2))
+    # Speed mux is 74HC157 (no HCT/ACT157 stocked at JLC). Its clock inputs
+    # are 5 V, but the SPEED_SEL select comes from a 3.3 V MCU GPIO -- below
+    # HC's Vih at 5 V -- so the select passes through a spare U13 HCT
+    # inverter (reads 3.3 V, drives 5 V) and I0/I1 are SWAPPED to keep the
+    # firmware polarity: SPEED_SEL=0 still selects 7.16 MHz.
+    mux = sch.place("mini-xt:74HCT157", "U12", "74HC157", at=(116.84, 76.2))
     L(mux, "VCC", "+5V", dx=0, dy=-2.54); L(mux, "GND", "GND", dx=0, dy=2.54)
-    L(mux, "I0a", "CLK7"); L(mux, "I1a", "CLK4")
-    P(mux, "S", "SPEED_SEL", shape="input"); L(mux, "E", "GND")
+    L(mux, "I0a", "CLK4"); L(mux, "I1a", "CLK7")
+    L(mux, "S", "SPEED_INV"); L(mux, "E", "GND")
     L(mux, "Za", "CLK_MUX")
 
     # NOTE: U13 must stay an INVERTING buffer ('04) -- it is what turns the /3
@@ -223,6 +232,10 @@ def build(sch, lib):
     P(buf, "P4", "CLK", shape="output")
     L(buf, "P5", "DIV3_TC"); L(buf, "P6", "DIV3_LD")  # spare gate inverts TC -> ~PE
     L(buf, "P9", "IO/~{M}", dx=-2.54); L(buf, "P8", "IOM_INV")  # for the ~IOR/~IOW gates
+    P(buf, "P11", "SPEED_SEL", shape="input", dx=-2.54)  # 3.3V MCU select read at TTL Vih...
+    L(buf, "P10", "SPEED_INV")                           # ...inverted to 5V (mux I0/I1 swapped)
+    L(buf, "P13", "OSC_3V3", dx=-2.54)                   # 3.3V XO squared up...
+    P(buf, "P12", "OSC", shape="output")                 # ...to the 5V OSC (dividers + ISA B30)
 
     # ---------------- reset supervisor ----------------
     rst = sch.place("Power_Supervisor:TCM809", "U14", at=(45.72, 152.4))

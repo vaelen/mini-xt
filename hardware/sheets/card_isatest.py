@@ -208,39 +208,46 @@ def build(sch, lib):
     # CLK_SENSE frequency report must work before DUT power is enabled, and an
     # unpowered tree would be back-powered through its clamp diodes by the
     # Pico's 3.3 V PIO_CLK / '595 select lines.
+    # 14.318 canned XOs are only stocked as 3.3 V parts: the oscillator runs
+    # from +3V3 (unswitched, Pico rail) and a spare U19 HCT gate squares it up
+    # to the 5 V OSC net. HC-grade '161/'157 (no HCT/HC163 or HCT157 at JLC)
+    # are fine in the 5 V clock chain, EXCEPT that their 3.3 V-driven inputs
+    # (SPEED_SEL / CLK_SRC selects from the '595, PIO_CLK from the Pico) must
+    # come through U19's HCT gates -- inverting, so the mux I0/I1 pairs are
+    # swapped to keep firmware polarity, and PIO_CLK's phase flip is harmless.
     osc = sch.place("Oscillator:ACO-xxxMHz", "OSC1", "14.31818MHz", at=(60.96, 45.72))
-    N(osc, "Vcc", "V5RAW", dx=0, dy=-2.54)
+    N(osc, "Vcc", "+3V3", dx=0, dy=-2.54)
     N(osc, "GND", "GND", dx=0, dy=2.54)
-    N(osc, "OUT", "OSC")
+    N(osc, "OUT", "OSC_3V3")
     ff = sch.place("mini-xt:74HCT74", "U15", at=(137.16, 45.72))     # /2
     N(ff, "VCC", "V5RAW", dx=0, dy=-2.54); N(ff, "GND", "GND", dx=0, dy=2.54)
     N(ff, "C", "OSC"); N(ff, "D", "CLK_QN"); N(ff, "~{Q}", "CLK_QN"); N(ff, "Q", "CLK7")
     N(ff, "~{S}", "V5RAW"); N(ff, "~{R}", "V5RAW")
-    d3 = sch.place("mini-xt:74HCT163", "U16", at=(213.36, 45.72))    # /3 (preset-to-3)
+    d3 = sch.place("mini-xt:74HCT163", "U16", "74HC161", at=(213.36, 45.72))  # /3 (preset-to-3)
     N(d3, "VCC", "V5RAW", dx=0, dy=-2.54); N(d3, "GND", "GND", dx=0, dy=2.54)
     N(d3, "CP", "OSC")
     N(d3, "D0", "V5RAW"); N(d3, "D1", "GND"); N(d3, "D2", "V5RAW"); N(d3, "D3", "V5RAW")
     N(d3, "CEP", "V5RAW"); N(d3, "CET", "V5RAW"); N(d3, "~{MR}", "V5RAW")
     N(d3, "TC", "DIV3_TC"); N(d3, "~{PE}", "DIV3_LD")   # TC -> U19 inverter -> ~PE (reload)
     N(d3, "Q0", "CLK4")
-    m1 = sch.place("mini-xt:74HCT157", "U17", at=(60.96, 106.68))    # speed mux
+    m1 = sch.place("mini-xt:74HCT157", "U17", "74HC157", at=(60.96, 106.68))  # speed mux
     N(m1, "VCC", "V5RAW", dx=0, dy=-2.54); N(m1, "GND", "GND", dx=0, dy=2.54)
-    N(m1, "I0a", "CLK7"); N(m1, "I1a", "CLK4"); N(m1, "S", "SPEED_SEL")
+    N(m1, "I0a", "CLK4"); N(m1, "I1a", "CLK7"); N(m1, "S", "SPEED_INV")
     N(m1, "E", "GND"); N(m1, "Za", "CLK_HW")
-    m2 = sch.place("mini-xt:74HCT157", "U18", at=(137.16, 106.68))   # source mux
+    m2 = sch.place("mini-xt:74HCT157", "U18", "74HC157", at=(137.16, 106.68)) # source mux
     N(m2, "VCC", "V5RAW", dx=0, dy=-2.54); N(m2, "GND", "GND", dx=0, dy=2.54)
-    N(m2, "I0a", "CLK_HW"); N(m2, "I1a", "PIO_CLK"); N(m2, "S", "CLK_SRC")
+    N(m2, "I0a", "PIO_CLK_5V"); N(m2, "I1a", "CLK_HW"); N(m2, "S", "CLKSRC_INV")
     N(m2, "E", "GND"); N(m2, "Za", "CLK_PRE")
-    buf = sch.place("mini-xt:74HCT04", "U19", at=(213.36, 106.68))   # 5V buffer
+    buf = sch.place("mini-xt:74HCT04", "U19", at=(213.36, 106.68))   # HCT: reads 3.3V, drives 5V
     N(buf, "VCC", "V5RAW", dx=0, dy=-2.54); N(buf, "GND", "GND", dx=0, dy=2.54)
     N(buf, "P1", "CLK_PRE"); N(buf, "P2", "CLK")
-    # active-high TC inverted into the '163's active-low ~PE: reload the preset
+    # active-high TC inverted into the '161's active-low ~PE: reload the preset
     # at count 15 -> states 13,14,15 = divide-by-3 (same trick as cpu_core U13).
     N(buf, "P3", "DIV3_TC"); N(buf, "P4", "DIV3_LD")
-    for p in ("P5", "P9", "P11", "P13"):
-        N(buf, p, "GND")                                # tie unused inverter inputs
-    for p in ("P6", "P8", "P10", "P12"):
-        sch.no_connect(buf.pin_xy(p))
+    N(buf, "P5", "SPEED_SEL"); N(buf, "P6", "SPEED_INV")     # 3.3V '595 -> 5V (inv)
+    N(buf, "P9", "CLK_SRC"); N(buf, "P8", "CLKSRC_INV")      # 3.3V '595 -> 5V (inv)
+    N(buf, "P11", "PIO_CLK"); N(buf, "P10", "PIO_CLK_5V")    # 3.3V Pico -> 5V (inv, harmless)
+    N(buf, "P13", "OSC_3V3"); N(buf, "P12", "OSC")           # 3.3V XO -> 5V OSC
     decouple("C7", (60.96, 76.2), "V5RAW")
     sch.text("Clock: 14.318 OSC -> /2 (U15) & /3 (U16) -> SPEED_SEL mux (U17) -> "
              "CLK_SRC mux (U18, PIO override) -> buffer (U19) -> bus CLK. CLK "

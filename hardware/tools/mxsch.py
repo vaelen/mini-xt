@@ -359,6 +359,7 @@ class Component:
         self.rotation = rotation
         self.mirror = mirror      # None, "x", or "y"
         self.sdef = sdef
+        self.props = {}           # extra properties (e.g. "LCSC Part Num")
         self.uuid = sch._uid()
 
     def pin_xy(self, key):
@@ -601,6 +602,10 @@ class Schematic:
                   ["effects", ["font", ["size", 1.27, 1.27]]]])
         n.append(["property", "Footprint", "", ["at", c.at[0], c.at[1], 0],
                   ["effects", ["font", ["size", 1.27, 1.27]], ["hide", Sym("yes")]]])
+        for k in sorted(c.props):
+            n.append(["property", k, c.props[k], ["at", c.at[0], c.at[1], 0],
+                      ["effects", ["font", ["size", 1.27, 1.27]],
+                       ["hide", Sym("yes")]]])
         # pin uuids
         for p in c.sdef.pins:
             n.append(["pin", p.number, ["uuid", self._uid()]])

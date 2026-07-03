@@ -5,10 +5,10 @@ Design doc S11.2. A *soft* card: it speaks ONLY the standard 8-bit XT/ISA bus
 private motherboard nets cross this sheet.
 
 Three classic registers in the 0x378 block (Centronics/SPP):
-  * 0x378  Data    (R/W)  -- 74HCT374 output latch -> DB25 pins 2-9
+  * 0x378  Data    (R/W)  -- 74HCT574 output latch -> DB25 pins 2-9
                              read-back via 74HC245 onto the bus
   * 0x379  Status  (RO )  -- 74HCT244 buffers Busy/Ack/PaperEnd/Select/Error
-  * 0x37A  Control (R/W)  -- 74HCT374 output latch (Strobe/AutoFd/Init/SlctIn
+  * 0x37A  Control (R/W)  -- 74HCT574 output latch (Strobe/AutoFd/Init/SlctIn
                              + IRQ-enable); read-back via 74HCT244
 
 Address decode: 74HCT138 selects the three registers (A0-A2) once a 74HCT08
@@ -20,7 +20,7 @@ import mxbus
 from mxbus import pin
 
 NAME = "parallel"
-TITLE = "Parallel port (LPT1) -- 74HCT374/244/245 @ 0x378 + DB25"
+TITLE = "Parallel port (LPT1) -- 74HCT574/244/245 @ 0x378 + DB25"
 
 # Soft card: ISA signals + power only.  DB25 is a LOCAL connector (not a hier pin).
 PINS = (
@@ -136,15 +136,16 @@ def build(sch, lib, expose=True):
         sch.no_connect(U11.pin_xy(o))
 
     # ============================================================
-    # Data register  (0x378) -- 74HCT374 latch, always-enabled outputs
+    # Data register  (0x378) -- 74HCT574 latch, always-enabled outputs
+    # ('574 = '374 with flow-through pinout; the '374 is not stocked at JLC)
     # ============================================================
-    U1 = sch.place("mini-xt:74HCT374", "U1", at=(139.7, 76.2))
+    U1 = sch.place("mini-xt:74HCT574", "U1", at=(139.7, 76.2))
     pwr(U1)
     L(U1, "Cp", "WR_DATA", dx=-2.54)
     L(U1, "OE", "GND", dx=-2.54)
     for i in range(8):
         L(U1, "D%d" % i, "D%d" % i, dx=-2.54)         # bus -> latch
-        L(U1, "O%d" % i, "PD%d" % i)                  # latch -> DB25 data pin
+        L(U1, "Q%d" % i, "PD%d" % i)                  # latch -> DB25 data pin
 
     # data read-back: latched value driven onto the bus during a read of 0x378
     U4 = sch.place("mini-xt:74HCT245", "U4", at=(203.2, 76.2))
@@ -156,10 +157,10 @@ def build(sch, lib, expose=True):
         L(U4, "B%d" % i, "D%d" % i)
 
     # ============================================================
-    # Control register (0x37A) -- 74HCT374 latch + 74HCT244 read-back
-    #   O0 Strobe  O1 AutoFeed  O2 Init(direct)  O3 SelectIn  O4 IRQ-enable
+    # Control register (0x37A) -- 74HCT574 latch + 74HCT244 read-back
+    #   Q0 Strobe  Q1 AutoFeed  Q2 Init(direct)  Q3 SelectIn  Q4 IRQ-enable
     # ============================================================
-    U2 = sch.place("mini-xt:74HCT374", "U2", at=(139.7, 127.0))
+    U2 = sch.place("mini-xt:74HCT574", "U2", at=(139.7, 127.0))
     pwr(U2)
     L(U2, "Cp", "WR_CTRL", dx=-2.54)
     L(U2, "OE", "GND", dx=-2.54)
@@ -167,10 +168,10 @@ def build(sch, lib, expose=True):
         L(U2, "D%d" % i, "D%d" % i, dx=-2.54)
     for i in range(5, 8):
         L(U2, "D%d" % i, "GND", dx=-2.54)             # unused control bits
-    L(U2, "O0", "CTRL0"); L(U2, "O1", "CTRL1")
-    L(U2, "O2", "CTRL2")          # Init is non-inverted: latch -> DB25 pin 16 direct
-    L(U2, "O3", "CTRL3"); L(U2, "O4", "IRQ_EN")
-    for o in ("O5", "O6", "O7"):
+    L(U2, "Q0", "CTRL0"); L(U2, "Q1", "CTRL1")
+    L(U2, "Q2", "CTRL2")          # Init is non-inverted: latch -> DB25 pin 16 direct
+    L(U2, "Q3", "CTRL3"); L(U2, "Q4", "IRQ_EN")
+    for o in ("Q5", "Q6", "Q7"):
         sch.no_connect(U2.pin_xy(o))
 
     U5 = sch.place("mini-xt:74HCT244", "U5", at=(203.2, 127.0))  # control read-back

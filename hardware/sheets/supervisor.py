@@ -75,20 +75,23 @@ def build(sch, lib):
     L(crun, "1", "RUN", dx=0, dy=2.54); L(crun, "2", "GND", dx=0, dy=-2.54)
 
     # ---------------- QSPI flash (firmware + BIOS / option-ROM images) ----------------
-    # No QSPI-flash symbol exists in the available libs (see questions); represented as
-    # an 8-pin footprint header: CS, SCLK, SD0..SD3, +3V3, GND.
+    # Real W25Q128JVSIQ (16 MB, JLC basic part) -- was a placeholder header;
+    # the Supervisor cannot boot without actual flash on QSPI.
     L(U1, "56", "QSPI_CS", dx=2.54)          # ~{QSPI_SS}
     L(U1, "52", "QSPI_SCLK", dx=2.54)
     L(U1, "53", "QSPI_SD0", dx=2.54)
     L(U1, "55", "QSPI_SD1", dx=2.54)
     L(U1, "54", "QSPI_SD2", dx=2.54)
     L(U1, "51", "QSPI_SD3", dx=2.54)
-    JF = sch.place("Connector_Generic:Conn_01x08", "J1", "QSPI_FLASH", at=(279.4, 76.2))
-    for pn, net in [("1", "QSPI_CS"), ("2", "QSPI_SCLK"), ("3", "QSPI_SD0"),
-                    ("4", "QSPI_SD1"), ("5", "QSPI_SD2"), ("6", "QSPI_SD3")]:
-        L(JF, pn, net, dx=2.54)
-    L(JF, "7", "+3V3", dx=2.54)
-    L(JF, "8", "GND", dx=2.54)
+    UF = sch.place("Memory_Flash:W25Q128JVS", "U2", at=(279.4, 76.2))
+    L(UF, "~{CS}", "QSPI_CS", dx=-2.54)
+    L(UF, "CLK", "QSPI_SCLK", dx=-2.54)
+    L(UF, "DI/IO_{0}", "QSPI_SD0", dx=-2.54)
+    L(UF, "DO/IO_{1}", "QSPI_SD1", dx=2.54)
+    L(UF, "~{WP}/IO_{2}", "QSPI_SD2", dx=-2.54)
+    L(UF, "~{HOLD}/~{RESET}/IO_{3}", "QSPI_SD3", dx=2.54)
+    L(UF, "VCC", "+3V3", dx=0, dy=-2.54)
+    L(UF, "GND", "GND", dx=0, dy=2.54)
     decouple("C4", (279.4, 50.8))   # flash decoupling
 
     # ---------------- USB-A host jack (keyboard / hub) ----------------

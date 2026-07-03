@@ -619,6 +619,12 @@ Xi 8088's CMOS setup.
 
 ## 15. BOM — period part vs. this build
 
+> Concrete JLCPCB/LCSC part numbers for everything below live in
+> `hardware/tools/parts.py` (applied to the schematics as `LCSC Part Num`
+> properties); sourcing decisions and stock-forced substitutions ('374→'574,
+> '163→'161, '157→HC157, '02→HC02, TCM809→MCP809, baud osc→crystal) are in
+> `hardware/notes/jlcpcb-sourcing.md`.
+
 | Function | Period part | This build |
 |---|---|---|
 | CPU | 8088 | **NEC V20 (µPD70108, 9 MHz grade, on hand)** — min mode; ≥8 MHz part required for the 7.16 MHz default |

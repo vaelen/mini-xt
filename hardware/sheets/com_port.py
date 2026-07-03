@@ -13,7 +13,7 @@ Structure:
   * J3  TTL console header tapped ahead of the MAX3241 (populated on COM1 only)
   * U3/U4/U5  address-decode glue -> active-low chip-select on ~{CS2}
   * U6  74HCT125 buffer gating INTR onto COM_IRQ under ~{OUT2}
-  * OSC1 1.8432 MHz baud reference -> XIN; ~{BAUDOUT} -> RCLK
+  * Y1  1.8432 MHz baud crystal on XIN/XOUT; ~{BAUDOUT} -> RCLK
 
 Soft card: uses ONLY ISA bus signals + power (no private nets).
 """
@@ -63,9 +63,12 @@ def build(sch, lib, expose=True):
     L(U1, "~{CS2}", "~{UART_CS}", dx=-2.54)
     # reset
     L(U1, "MR", "RESET_DRV", dx=-2.54)
-    # baud clock: external 1.8432 MHz osc on XIN, RX clock from internal ~{BAUDOUT}
-    L(U1, "XIN", "BAUD_CLK", dx=-2.54)
-    sch.no_connect(U1.pin_xy("XOUT"))
+    # baud reference: 1.8432 MHz CRYSTAL on the 16C550's own XIN/XOUT
+    # oscillator (canned oscillators at this frequency are only stocked as
+    # 3.3 V parts and a soft card has only the 5 V ISA rail -- a crystal is
+    # supply-agnostic). RX clock from internal ~{BAUDOUT}.
+    L(U1, "XIN", "BAUD_XI", dx=-2.54)
+    L(U1, "XOUT", "BAUD_XO", dx=2.54)
     L(U1, "RCLK", "BAUDOUT_N", dx=-2.54)
     L(U1, "~{BAUDOUT}", "BAUDOUT_N", dx=2.54)
     # modem control / status -> TTL side of MAX3241
@@ -79,12 +82,14 @@ def build(sch, lib, expose=True):
     for nc in ["~{OUT1}", "DDIS", "~{RXRDY}", "~{TXRDY}"]:
         sch.no_connect(U1.pin_xy(nc))
 
-    # ---------------- baud reference oscillator ----------------
-    osc = sch.place("Oscillator:ACO-xxxMHz", "OSC1", "1.8432MHz", at=(60.96, 142.24))
-    L(osc, "Vcc", "+5V", dx=0, dy=-2.54)
-    L(osc, "GND", "GND", dx=0, dy=2.54)
-    L(osc, "OUT", "BAUD_CLK", dx=2.54)
-    sch.no_connect(osc.pin_xy("NC"))
+    # ---------------- baud reference crystal (XIN/XOUT) ----------------
+    Y1 = sch.place("Device:Crystal", "Y1", "1.8432MHz", at=(60.96, 142.24))
+    L(Y1, "1", "BAUD_XI", dx=-2.54)
+    L(Y1, "2", "BAUD_XO", dx=2.54)
+    cx1 = sch.place("Device:C", "C7", "22pF", at=(50.8, 154.94))
+    L(cx1, "1", "BAUD_XI", dx=0, dy=-2.54); L(cx1, "2", "GND", dx=0, dy=2.54)
+    cx2 = sch.place("Device:C", "C8", "22pF", at=(71.12, 154.94))
+    L(cx2, "1", "BAUD_XO", dx=0, dy=-2.54); L(cx2, "2", "GND", dx=0, dy=2.54)
 
     # ---------------- address decode -> ~{UART_CS} ----------------
     # Match when A3..A7,A9 = 1, A8 = strap-selected, AEN = 0 (not a DMA cycle).
@@ -156,10 +161,13 @@ def build(sch, lib, expose=True):
     L(U2, "R3IN", "RS_DSR", dx=2.54)
     L(U2, "R4IN", "RS_DCD", dx=2.54)
     L(U2, "R5IN", "RS_RI", dx=2.54)
-    # enable / status
-    L(U2, "~{FORCEOFF}", "+5V", dx=-2.54)  # deassert force-off -> transceiver online
-    L(U2, "~{FORCEON}", "+5V", dx=-2.54)   # auto-online management
-    sch.no_connect(U2.pin_xy("~{INVALID}"))
+    # enable / status (real MAX3241 control set, verified vs LCSC C406859:
+    # SHDN# high = transceiver running; EN# low = receiver outputs enabled;
+    # R1OUTB/R2OUTB are the always-active wake-up receiver outputs, unused)
+    L(U2, "~{SHDN}", "+5V", dx=-2.54)
+    L(U2, "~{EN}", "GND", dx=-2.54)
+    sch.no_connect(U2.pin_xy("R1OUTB"))
+    sch.no_connect(U2.pin_xy("R2OUTB"))
     # charge pump caps (route vertically so adjacent pin stubs don't collide)
     L(U2, "C1+", "C1P", dx=0, dy=-2.54); L(U2, "C1-", "C1N", dx=0, dy=2.54)
     L(U2, "C2+", "C2P", dx=0, dy=-2.54); L(U2, "C2-", "C2N", dx=0, dy=2.54)

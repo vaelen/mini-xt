@@ -5,8 +5,12 @@
   - MAX3241     : RS-232 transceiver, 3 drivers + 5 receivers (authored).
   - DS12C887    : RTC/CMOS with integral battery+crystal (authored).
 
-Pin numbers for the two authored parts are best-effort from the datasheets and
-flagged in notes/open-questions.md for review.
+Pin numbers for the two authored parts were VERIFIED against JLCPCB/EasyEDA
+symbol data on 2026-07-03 (MAX3241EEAI+T = LCSC C406859, DS12C887+ = C9869):
+the original best-effort numbering was wrong on almost every MAX3241 pin (and
+used MAX3243-style FORCEON/FORCEOFF names -- the real MAX3241 has SHDN#/EN#
+plus two always-on receiver outputs) and on four DS12C887 pins (DS=17,
+RESET#=18, IRQ#=19, SQW=23). See notes/jlcpcb-sourcing.md.
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
@@ -116,26 +120,28 @@ v20 = copy_symbol(SYMDIR + "/MCU_Intel.kicad_sym", "8088", "V20",
                   description="NEC uPD70108 (V20), 8088-compatible CPU, min mode")
 
 # ---- MAX3241: 3 drivers (T1..T3) + 5 receivers (R1..R5) + charge pump ----
-# Pin numbers per MAX3241E 28-pin (SSOP); flagged for datasheet review.
+# Pin numbers/names per the real MAX3241E SSOP-28 (verified vs LCSC C406859):
+# SHDN# (22) active-low shutdown, EN# (23) active-low receiver-output enable,
+# R1OUTB/R2OUTB (21/20) always-active complementary receiver outputs (wake-up).
 max3241 = make_ic(
     "MAX3241",
     left=[
-        ("13", "T1IN", "input"), ("14", "T2IN", "input"), ("15", "T3IN", "input"),
-        ("9",  "R1OUT", "output"), ("12", "R2OUT", "output"), ("23", "R3OUT", "output"),
-        ("24", "R4OUT", "output"), ("25", "R5OUT", "output"),
-        ("8",  "~{FORCEOFF}", "input"), ("21", "~{FORCEON}", "input"),
-        ("20", "~{INVALID}", "output"),
+        ("14", "T1IN", "input"), ("13", "T2IN", "input"), ("12", "T3IN", "input"),
+        ("19", "R1OUT", "output"), ("18", "R2OUT", "output"), ("17", "R3OUT", "output"),
+        ("16", "R4OUT", "output"), ("15", "R5OUT", "output"),
+        ("21", "R1OUTB", "output"), ("20", "R2OUTB", "output"),
+        ("22", "~{SHDN}", "input"), ("23", "~{EN}", "input"),
     ],
     right=[
-        ("16", "T1OUT", "output"), ("17", "T2OUT", "output"), ("18", "T3OUT", "output"),
-        ("10", "R1IN", "input"), ("11", "R2IN", "input"), ("26", "R3IN", "input"),
-        ("27", "R4IN", "input"), ("28", "R5IN", "input"),
+        ("9", "T1OUT", "output"), ("10", "T2OUT", "output"), ("11", "T3OUT", "output"),
+        ("4", "R1IN", "input"), ("5", "R2IN", "input"), ("6", "R3IN", "input"),
+        ("7", "R4IN", "input"), ("8", "R5IN", "input"),
     ],
-    top=[("4", "VCC", "power_in"), ("2", "V+", "passive"), ("3", "C1+", "passive"),
+    top=[("26", "VCC", "power_in"), ("27", "V+", "passive"), ("28", "C1+", "passive"),
          ("1", "C2+", "passive")],
-    bottom=[("19", "GND", "power_in"), ("7", "V-", "passive"), ("5", "C1-", "passive"),
-            ("6", "C2-", "passive")],
-    description="RS-232 transceiver, 3 drivers / 5 receivers, charge pump (full DB9)",
+    bottom=[("25", "GND", "power_in"), ("3", "V-", "passive"), ("24", "C1-", "passive"),
+            ("2", "C2-", "passive")],
+    description="RS-232 transceiver, 3 drivers / 5 receivers, charge pump (full DB9). MAX3241EEAI SSOP-28",
     datasheet="https://www.analog.com/media/en/technical-documentation/data-sheets/MAX3222-MAX3241.pdf")
 
 # ---- DS12C887: RTC/CMOS, MC146818-compatible, integral battery+crystal (24-pin) ----
@@ -148,9 +154,11 @@ ds12c887 = make_ic(
         ("10", "AD6", "bidirectional"), ("11", "AD7", "bidirectional"),
     ],
     right=[
-        ("14", "AS", "input"), ("16", "DS", "input"), ("15", "R/~{W}", "input"),
-        ("13", "~{CS}", "input"), ("17", "~{RESET}", "input"),
-        ("18", "~{IRQ}", "output"), ("21", "SQW", "output"), ("1", "MOT", "input"),
+        # numbers verified vs DS12C887+ (LCSC C9869): DS=17, RESET#=18,
+        # IRQ#=19, SQW=23 (16/20/21/22 are NC on the encapsulated module)
+        ("14", "AS", "input"), ("17", "DS", "input"), ("15", "R/~{W}", "input"),
+        ("13", "~{CS}", "input"), ("18", "~{RESET}", "input"),
+        ("19", "~{IRQ}", "output"), ("23", "SQW", "output"), ("1", "MOT", "input"),
     ],
     top=[("24", "VCC", "power_in")],
     bottom=[("12", "GND", "power_in")],
@@ -212,6 +220,7 @@ GLUE = [
     ("74xx:74LS157", "74HCT157", "Quad 2-to-1 mux (clock select)"),
     ("74xx:74HC04", "74HCT04", "Hex inverter (clock buffer)"),
     ("74xx:74HC374", "74HCT374", "Octal D flip-flop (LPT data latch)"),
+    ("74xx:74HCT574", "74HCT574", "Octal D flip-flop, 3-state (LPT latches; '374 not stocked at JLC)"),
     ("74xx:74HC244", "74HCT244", "Octal buffer (LPT status/control)"),
     ("74xx:74HC165", "74HCT165", "8-bit PISO shift register (IRQ collector)"),
     ("74xx:74LS163", "74HCT163", "4-bit binary counter (bus-master addr / div-by-3)"),

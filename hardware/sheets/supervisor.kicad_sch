@@ -1589,31 +1589,54 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "Connector_Generic:Conn_01x08"
-			(pin_names
-				(offset 1.016)
-				(hide yes)
-			)
+		(symbol "Memory_Flash:W25Q128JVS"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
-			(property "Reference" "J"
-				(at 0 10.16 0)
+			(property "Reference" "U"
+				(at -6.35 11.43 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
 				)
 			)
-			(property "Value" "Conn_01x08"
-				(at 0 -12.7 0)
+			(property "Value" "W25Q128JVS"
+				(at 7.62 11.43 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
 				)
 			)
-			(property "Footprint" ""
+			(property "Footprint" "Package_SO:SOIC-8_5.3x5.3mm_P1.27mm"
+				(at 0 22.86 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://www.winbond.com/resource-files/w25q128jv_dtr%20revc%2003272018%20plus.pdf"
+				(at 0 25.4 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "128Mbit / 16MiB Serial Flash Memory, Standard/Dual/Quad SPI, 2.7-3.6V, SOIC-8"
+				(at 0 27.94 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "flash memory SPI QPI DTR"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1622,7 +1645,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "~"
+			(property "ki_fp_filters" "*SOIC*5.3x5.3mm*P1.27mm*"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1631,37 +1654,10 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "Generic connector, single row, 01x08, script generated (kicad-library-utils/schlib/autogen/connector/)"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "ki_keywords" "connector"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "ki_fp_filters" "Connector*:*_1x??_*"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(symbol "Conn_01x08_1_1"
+			(symbol "W25Q128JVS_0_1"
 				(rectangle
-					(start -1.27 8.89)
-					(end 1.27 -11.43)
+					(start -7.62 10.16)
+					(end 10.16 -10.16)
 					(stroke
 						(width 0.254)
 						(type default)
@@ -1670,98 +1666,12 @@
 						(type background)
 					)
 				)
-				(rectangle
-					(start -1.27 7.747)
-					(end 0 7.493)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 5.207)
-					(end 0 4.953)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 2.667)
-					(end 0 2.413)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 0.127)
-					(end 0 -0.127)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 -2.413)
-					(end 0 -2.667)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 -4.953)
-					(end 0 -5.207)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 -7.493)
-					(end 0 -7.747)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 -10.033)
-					(end 0 -10.287)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(pin passive line
-					(at -5.08 7.62 0)
-					(length 3.81)
-					(name "Pin_1"
+			)
+			(symbol "W25Q128JVS_1_1"
+				(pin input line
+					(at -10.16 7.62 0)
+					(length 2.54)
+					(name "~{CS}"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -1776,82 +1686,10 @@
 						)
 					)
 				)
-				(pin passive line
-					(at -5.08 5.08 0)
-					(length 3.81)
-					(name "Pin_2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 2.54 0)
-					(length 3.81)
-					(name "Pin_3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 0 0)
-					(length 3.81)
-					(name "Pin_4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -2.54 0)
-					(length 3.81)
-					(name "Pin_5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -5.08 0)
-					(length 3.81)
-					(name "Pin_6"
+				(pin input line
+					(at -10.16 5.08 0)
+					(length 2.54)
+					(name "CLK"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -1866,10 +1704,64 @@
 						)
 					)
 				)
-				(pin passive line
-					(at -5.08 -7.62 0)
-					(length 3.81)
-					(name "Pin_7"
+				(pin bidirectional line
+					(at -10.16 2.54 0)
+					(length 2.54)
+					(name "DI/IO_{0}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at -10.16 0 0)
+					(length 2.54)
+					(name "DO/IO_{1}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at -10.16 -2.54 0)
+					(length 2.54)
+					(name "~{WP}/IO_{2}"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at -10.16 -5.08 0)
+					(length 2.54)
+					(name "~{HOLD}/~{RESET}/IO_{3}"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -1884,10 +1776,10 @@
 						)
 					)
 				)
-				(pin passive line
-					(at -5.08 -10.16 0)
-					(length 3.81)
-					(name "Pin_8"
+				(pin power_in line
+					(at 0 12.7 270)
+					(length 2.54)
+					(name "VCC"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -1895,6 +1787,24 @@
 						)
 					)
 					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 0 -12.7 90)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3635,8 +3545,8 @@
 	)
 	(wire
 		(pts
-			(xy 274.32 68.58)
-			(xy 276.86 68.58)
+			(xy 269.24 68.58)
+			(xy 266.7 68.58)
 		)
 		(stroke
 			(width 0)
@@ -3645,7 +3555,7 @@
 		(uuid "67479b0e-9f46-5596-a1cc-7ec6eadfe517")
 	)
 	(label "QSPI_CS"
-		(at 276.86 68.58 0)
+		(at 266.7 68.58 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3655,8 +3565,8 @@
 	)
 	(wire
 		(pts
-			(xy 274.32 71.12)
-			(xy 276.86 71.12)
+			(xy 269.24 71.12)
+			(xy 266.7 71.12)
 		)
 		(stroke
 			(width 0)
@@ -3665,7 +3575,7 @@
 		(uuid "c1a800df-96cf-5051-a68f-735558359a7f")
 	)
 	(label "QSPI_SCLK"
-		(at 276.86 71.12 0)
+		(at 266.7 71.12 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3675,8 +3585,8 @@
 	)
 	(wire
 		(pts
-			(xy 274.32 73.66)
-			(xy 276.86 73.66)
+			(xy 269.24 73.66)
+			(xy 266.7 73.66)
 		)
 		(stroke
 			(width 0)
@@ -3685,7 +3595,7 @@
 		(uuid "f8ea55aa-7c0c-5c31-917d-06b39b25b29e")
 	)
 	(label "QSPI_SD0"
-		(at 276.86 73.66 0)
+		(at 266.7 73.66 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3695,8 +3605,8 @@
 	)
 	(wire
 		(pts
-			(xy 274.32 76.2)
-			(xy 276.86 76.2)
+			(xy 269.24 76.2)
+			(xy 271.78 76.2)
 		)
 		(stroke
 			(width 0)
@@ -3705,7 +3615,7 @@
 		(uuid "cfae69ed-e9b8-52ae-b758-8919a3e7bf64")
 	)
 	(label "QSPI_SD1"
-		(at 276.86 76.2 0)
+		(at 271.78 76.2 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3715,8 +3625,8 @@
 	)
 	(wire
 		(pts
-			(xy 274.32 78.74)
-			(xy 276.86 78.74)
+			(xy 269.24 78.74)
+			(xy 266.7 78.74)
 		)
 		(stroke
 			(width 0)
@@ -3725,7 +3635,7 @@
 		(uuid "2124d5c8-8483-5d04-9bd8-ca5c539f5c7d")
 	)
 	(label "QSPI_SD2"
-		(at 276.86 78.74 0)
+		(at 266.7 78.74 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3735,8 +3645,8 @@
 	)
 	(wire
 		(pts
-			(xy 274.32 81.28)
-			(xy 276.86 81.28)
+			(xy 269.24 81.28)
+			(xy 271.78 81.28)
 		)
 		(stroke
 			(width 0)
@@ -3745,7 +3655,7 @@
 		(uuid "5a1ee4a5-bee1-5d0b-afcf-64644bfac904")
 	)
 	(label "QSPI_SD3"
-		(at 276.86 81.28 0)
+		(at 271.78 81.28 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3755,8 +3665,8 @@
 	)
 	(wire
 		(pts
-			(xy 274.32 83.82)
-			(xy 276.86 83.82)
+			(xy 279.4 63.5)
+			(xy 279.4 60.96)
 		)
 		(stroke
 			(width 0)
@@ -3766,7 +3676,7 @@
 	)
 	(global_label "+3V3"
 		(shape input)
-		(at 276.86 83.82 0)
+		(at 279.4 60.96 90)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -3776,8 +3686,8 @@
 	)
 	(wire
 		(pts
-			(xy 274.32 86.36)
-			(xy 276.86 86.36)
+			(xy 279.4 88.9)
+			(xy 279.4 91.44)
 		)
 		(stroke
 			(width 0)
@@ -3787,7 +3697,7 @@
 	)
 	(global_label "GND"
 		(shape input)
-		(at 276.86 86.36 0)
+		(at 279.4 91.44 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -5031,6 +4941,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C2040"
+			(at 177.8 127 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "19"
 			(uuid "40688f17-5502-5c0b-b314-35624c4db94b")
 		)
@@ -5246,6 +5165,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C9002"
+			(at 127 190.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "be72079a-e6a6-5c3b-a549-cb8e674a2252")
 		)
@@ -5288,6 +5216,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 116.84 203.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C1644"
 			(at 116.84 203.2 0)
 			(effects
 				(font
@@ -5346,6 +5283,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C1644"
+			(at 137.16 203.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "cfb3a867-4aea-5309-a96e-9e9a1c933b3f")
 		)
@@ -5388,6 +5334,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 228.6 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C25804"
 			(at 228.6 76.2 0)
 			(effects
 				(font
@@ -5446,6 +5401,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C15849"
+			(at 241.3 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "11624c9f-f20b-500b-b1ab-45fd1d2e95c9")
 		)
@@ -5462,7 +5426,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector_Generic:Conn_01x08")
+		(lib_id "Memory_Flash:W25Q128JVS")
 		(at 279.4 76.2 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -5471,7 +5435,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "0aa48934-c4b6-5765-8c50-f0b0dffeb414")
-		(property "Reference" "J1"
+		(property "Reference" "U2"
 			(at 279.4 71.12 0)
 			(effects
 				(font
@@ -5479,7 +5443,7 @@
 				)
 			)
 		)
-		(property "Value" "QSPI_FLASH"
+		(property "Value" "W25Q128JVS"
 			(at 279.4 81.28 0)
 			(effects
 				(font
@@ -5496,34 +5460,43 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C97521"
+			(at 279.4 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "23fff116-e0e3-50c6-9eef-1ab164891288")
 		)
-		(pin "2"
+		(pin "6"
 			(uuid "a1594385-8f64-5fec-851d-aa51cf559123")
 		)
-		(pin "3"
+		(pin "5"
 			(uuid "ffea54e6-d447-51d8-a10b-bea6fdec6403")
 		)
-		(pin "4"
+		(pin "2"
 			(uuid "55ea7814-70fa-5155-9449-122c11ecd691")
 		)
-		(pin "5"
+		(pin "3"
 			(uuid "598804c4-7e21-5999-94ee-6dbc65c3eeac")
 		)
-		(pin "6"
+		(pin "7"
 			(uuid "58f3559b-e62f-56cd-b12c-71210adb5146")
 		)
-		(pin "7"
+		(pin "8"
 			(uuid "637c5f2b-e14d-50d4-b14a-9e79a98d8793")
 		)
-		(pin "8"
+		(pin "4"
 			(uuid "0aedcf9d-31a2-5eef-981f-d31b205128e2")
 		)
 		(instances
 			(project "mini-xt"
 				(path "/26736c46-8b40-5460-874f-03596d17270c/e314c42b-162a-53a5-8396-214d4f49fe96"
-					(reference "J301")
+					(reference "U302")
 					(unit 1)
 				)
 			)
@@ -5556,6 +5529,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 279.4 50.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C14663"
 			(at 279.4 50.8 0)
 			(effects
 				(font
@@ -5606,6 +5588,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 63.5 101.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C456015"
 			(at 63.5 101.6 0)
 			(effects
 				(font
@@ -5673,6 +5664,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C46641014"
+			(at 63.5 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "ab6a21f8-95ec-5ebe-afec-e94eca6ffba1")
 		)
@@ -5715,6 +5715,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 279.4 152.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C2337"
 			(at 279.4 152.4 0)
 			(effects
 				(font
@@ -5797,6 +5806,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C2337"
+			(at 279.4 215.9 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "5bd75dbe-7a93-5744-9f8e-13cfdf7265c6")
 		)
@@ -5842,6 +5860,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 101.6 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C2337"
 			(at 101.6 76.2 0)
 			(effects
 				(font
@@ -5903,6 +5930,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C14663"
+			(at 101.6 248.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "16a0d166-9f06-51ef-a0bd-81f7c27a589b")
 		)
@@ -5945,6 +5981,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 127 248.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C15850"
 			(at 127 248.92 0)
 			(effects
 				(font
@@ -6003,6 +6048,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C14663"
+			(at 59.69 270.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "4556087b-077c-5243-9d93-045e1bbeb32f")
 		)
@@ -6045,6 +6099,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 100.33 270.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C14663"
 			(at 100.33 270.51 0)
 			(effects
 				(font
@@ -6103,6 +6166,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C14663"
+			(at 139.7 270.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "714bac6d-c426-582a-97c6-a833a64611fa")
 		)
@@ -6145,6 +6217,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 180.34 270.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C14663"
 			(at 180.34 270.51 0)
 			(effects
 				(font
@@ -6203,6 +6284,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C14663"
+			(at 219.71 270.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "744fce4a-f6bf-50eb-a3cc-93fab827665d")
 		)
@@ -6245,6 +6335,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 260.35 270.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C14663"
 			(at 260.35 270.51 0)
 			(effects
 				(font

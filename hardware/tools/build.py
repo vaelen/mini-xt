@@ -45,9 +45,10 @@ def structural_violations(rpt_path):
 
 STD_LIBS = ["Device", "power", "Connector", "Connector_Generic", "74xx",
             "Interface_UART", "Interface_USB", "Interface_LineDriver",
-            "Memory_RAM", "MCU_RaspberryPi", "Oscillator", "Regulator_Switching",
-            "Regulator_Linear", "Power_Supervisor", "Switch", "Audio",
-            "Amplifier_Operational", "Timer_RTC", "Diode", "Transistor_BJT"]
+            "Memory_RAM", "Memory_Flash", "MCU_RaspberryPi", "Oscillator",
+            "Regulator_Switching", "Regulator_Linear", "Power_Supervisor",
+            "Switch", "Audio", "Amplifier_Operational", "Timer_RTC", "Diode",
+            "Transistor_BJT"]
 
 SHEETS = ["cpu_core", "bus_mcu", "supervisor", "video", "com_port",
           "parallel", "rtc", "power", "storage", "audio", "sidecar"]
@@ -68,6 +69,8 @@ def build_subsheet(modname, lib):
     sch = Schematic(lib, title=getattr(mod, "TITLE", modname), rev="1",
                     paper=getattr(mod, "PAPER", "A3"))
     mod.build(sch, lib)
+    import parts
+    parts.apply(sch)      # attach 'LCSC Part Num' properties (JLCPCB BOM)
     return mod, sch
 
 

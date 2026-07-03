@@ -68,6 +68,18 @@ over USB serial.
 See `hardware/README.md` for the sheet list and
 `hardware/tools/SHEET_AUTHORING_GUIDE.md` for how to author a sheet.
 
+## Fabrication
+
+Boards are fabricated and assembled at **JLCPCB**: SMD construction so each
+sub-board fits the cheap ≤100 × 100 mm tier, with through-hole only for
+connectors/headers and for the fab-installed **sockets** that carry the
+irreplaceable parts (the V20, the 5 V SRAMs, the DS12C887, and the MCU
+modules). Every schematic component carries an `LCSC Part Num` property —
+generated from the sourcing map in `hardware/tools/parts.py` — so the BOM
+export drives JLCPCB assembly directly. Sourcing decisions, verified pinouts,
+and stock-forced substitutions are logged in
+`hardware/notes/jlcpcb-sourcing.md`.
+
 ## Status
 
 Schematic capture / architecture-validation stage. Firmware (Bus MCU chipset

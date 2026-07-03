@@ -3785,7 +3785,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "mini-xt:74HCT374"
+		(symbol "mini-xt:74HCT574"
 			(pin_names
 				(offset 1.016)
 			)
@@ -3800,7 +3800,7 @@
 					)
 				)
 			)
-			(property "Value" "74HCT374"
+			(property "Value" "74HCT574"
 				(at -10.16 19.05 0)
 				(effects
 					(font
@@ -3826,7 +3826,7 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "Octal D flip-flop (LPT data latch)"
+			(property "Description" "Octal D flip-flop, 3-state (LPT latches; '374 not stocked at JLC)"
 				(at 0 0 0)
 				(effects
 					(font
@@ -3835,7 +3835,7 @@
 					(hide yes)
 				)
 			)
-			(symbol "74HCT374_0_1"
+			(symbol "74HCT574_0_1"
 				(rectangle
 					(start -10.16 13.97)
 					(end 10.16 -13.97)
@@ -3848,7 +3848,7 @@
 					)
 				)
 			)
-			(symbol "74HCT374_1_1"
+			(symbol "74HCT574_1_1"
 				(pin input line
 					(at -13.97 11.43 0)
 					(length 3.81)
@@ -3859,7 +3859,7 @@
 							)
 						)
 					)
-					(number "3"
+					(number "2"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3877,7 +3877,7 @@
 							)
 						)
 					)
-					(number "4"
+					(number "3"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3895,7 +3895,7 @@
 							)
 						)
 					)
-					(number "7"
+					(number "4"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3913,7 +3913,7 @@
 							)
 						)
 					)
-					(number "8"
+					(number "5"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3931,7 +3931,7 @@
 							)
 						)
 					)
-					(number "13"
+					(number "6"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3949,7 +3949,7 @@
 							)
 						)
 					)
-					(number "14"
+					(number "7"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3967,7 +3967,7 @@
 							)
 						)
 					)
-					(number "17"
+					(number "8"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3985,7 +3985,7 @@
 							)
 						)
 					)
-					(number "18"
+					(number "9"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -4032,14 +4032,14 @@
 				(pin tri_state line
 					(at 13.97 11.43 180)
 					(length 3.81)
-					(name "O0"
+					(name "Q0"
 						(effects
 							(font
 								(size 1.27 1.27)
 							)
 						)
 					)
-					(number "2"
+					(number "19"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -4050,14 +4050,14 @@
 				(pin tri_state line
 					(at 13.97 8.89 180)
 					(length 3.81)
-					(name "O1"
+					(name "Q1"
 						(effects
 							(font
 								(size 1.27 1.27)
 							)
 						)
 					)
-					(number "5"
+					(number "18"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -4068,14 +4068,14 @@
 				(pin tri_state line
 					(at 13.97 6.35 180)
 					(length 3.81)
-					(name "O2"
+					(name "Q2"
 						(effects
 							(font
 								(size 1.27 1.27)
 							)
 						)
 					)
-					(number "6"
+					(number "17"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -4086,61 +4086,7 @@
 				(pin tri_state line
 					(at 13.97 3.81 180)
 					(length 3.81)
-					(name "O3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "9"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin tri_state line
-					(at 13.97 1.27 180)
-					(length 3.81)
-					(name "O4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "12"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin tri_state line
-					(at 13.97 -1.27 180)
-					(length 3.81)
-					(name "O5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "15"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin tri_state line
-					(at 13.97 -3.81 180)
-					(length 3.81)
-					(name "O6"
+					(name "Q3"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -4156,16 +4102,70 @@
 					)
 				)
 				(pin tri_state line
-					(at 13.97 -6.35 180)
+					(at 13.97 1.27 180)
 					(length 3.81)
-					(name "O7"
+					(name "Q4"
 						(effects
 							(font
 								(size 1.27 1.27)
 							)
 						)
 					)
-					(number "19"
+					(number "15"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin tri_state line
+					(at 13.97 -1.27 180)
+					(length 3.81)
+					(name "Q5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "14"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin tri_state line
+					(at 13.97 -3.81 180)
+					(length 3.81)
+					(name "Q6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "13"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin tri_state line
+					(at 13.97 -6.35 180)
+					(length 3.81)
+					(name "Q7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "12"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -13521,6 +13521,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C2333"
+			(at 444.5 152.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "25bda082-1681-5695-b319-48c51e03c0c4")
 		)
@@ -13737,6 +13746,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 508 152.4 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C2333"
 			(at 508 152.4 0)
 			(effects
 				(font
@@ -13969,6 +13987,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C5959"
+			(at 76.2 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "52f0bd4c-2fd0-5f8c-b597-aeff3ed831f0")
 		)
@@ -14047,6 +14074,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 76.2 127 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C5959"
 			(at 76.2 127 0)
 			(effects
 				(font
@@ -14141,6 +14177,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C672096"
+			(at 76.2 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "26814d73-2bae-575d-9292-f79ef876819b")
 		)
@@ -14219,6 +14264,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 266.7 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C282337"
 			(at 266.7 76.2 0)
 			(effects
 				(font
@@ -14313,6 +14367,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C5962"
+			(at 266.7 127 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "c92feaa9-8262-56d6-9a98-ec53e0bef310")
 		)
@@ -14391,6 +14454,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 139.7 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C5965"
 			(at 139.7 177.8 0)
 			(effects
 				(font
@@ -14491,6 +14563,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C5985"
+			(at 203.2 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "3054ccde-ca13-5e24-a98f-9bf81a92ccf2")
 		)
@@ -14577,6 +14658,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C5985"
+			(at 266.7 177.8 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "a0a173c0-f564-58ad-809d-72f849eb55d6")
 		)
@@ -14629,7 +14719,7 @@
 		)
 	)
 	(symbol
-		(lib_id "mini-xt:74HCT374")
+		(lib_id "mini-xt:74HCT574")
 		(at 139.7 76.2 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -14646,7 +14736,7 @@
 				)
 			)
 		)
-		(property "Value" "74HCT374"
+		(property "Value" "74HCT574"
 			(at 139.7 81.28 0)
 			(effects
 				(font
@@ -14663,28 +14753,37 @@
 				(hide yes)
 			)
 		)
-		(pin "3"
+		(property "LCSC Part Num" "C6001"
+			(at 139.7 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
 			(uuid "abd7c310-aac2-50e7-a73c-670e19f80bc6")
 		)
-		(pin "4"
+		(pin "3"
 			(uuid "3e2f2ea4-93d4-5cb5-b434-6205fc237dc5")
 		)
-		(pin "7"
+		(pin "4"
 			(uuid "4f5e175c-a59d-50fe-9ddc-cf5e33649f24")
 		)
-		(pin "8"
+		(pin "5"
 			(uuid "a6328d16-e72a-5407-9d29-f765fd244e6f")
 		)
-		(pin "13"
+		(pin "6"
 			(uuid "01db784d-170b-5882-aad7-eeac533d537d")
 		)
-		(pin "14"
+		(pin "7"
 			(uuid "a7afb5c9-894f-5b90-a742-5a3368fd496f")
 		)
-		(pin "17"
+		(pin "8"
 			(uuid "1fd91c86-2b3e-5752-a1de-a4b74780b372")
 		)
-		(pin "18"
+		(pin "9"
 			(uuid "9172da98-619c-52d1-b22c-ad9a751e04e8")
 		)
 		(pin "11"
@@ -14693,28 +14792,28 @@
 		(pin "1"
 			(uuid "49e91609-5fa4-5978-a99e-3b08e5abedb7")
 		)
-		(pin "2"
+		(pin "19"
 			(uuid "828c14d6-18aa-58e4-96bc-76e186f5b509")
 		)
-		(pin "5"
+		(pin "18"
 			(uuid "a77e1419-e745-5b38-8cf3-8ba329a9d8c5")
 		)
-		(pin "6"
+		(pin "17"
 			(uuid "a37cab3d-4589-5f07-bece-3a77a8c33db0")
 		)
-		(pin "9"
+		(pin "16"
 			(uuid "ba87a814-c3a8-513b-92a5-430e1e71c855")
 		)
-		(pin "12"
+		(pin "15"
 			(uuid "51a19554-e067-57a7-b5e2-f3d3528e9228")
 		)
-		(pin "15"
+		(pin "14"
 			(uuid "a72e2d22-c2cc-5342-a721-936970250e77")
 		)
-		(pin "16"
+		(pin "13"
 			(uuid "0cba2b2f-5409-54c5-b430-82b43412623f")
 		)
-		(pin "19"
+		(pin "12"
 			(uuid "19c09fe3-9679-51f7-9054-b78c04de7bb0")
 		)
 		(pin "20"
@@ -14759,6 +14858,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 203.2 76.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C5979"
 			(at 203.2 76.2 0)
 			(effects
 				(font
@@ -14837,7 +14945,7 @@
 		)
 	)
 	(symbol
-		(lib_id "mini-xt:74HCT374")
+		(lib_id "mini-xt:74HCT574")
 		(at 139.7 127 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -14854,7 +14962,7 @@
 				)
 			)
 		)
-		(property "Value" "74HCT374"
+		(property "Value" "74HCT574"
 			(at 139.7 132.08 0)
 			(effects
 				(font
@@ -14871,28 +14979,37 @@
 				(hide yes)
 			)
 		)
-		(pin "3"
+		(property "LCSC Part Num" "C6001"
+			(at 139.7 127 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
 			(uuid "35347213-3e92-5134-989d-5516eabf43fa")
 		)
-		(pin "4"
+		(pin "3"
 			(uuid "eab7109b-a902-5d4b-a14e-b6516d46e583")
 		)
-		(pin "7"
+		(pin "4"
 			(uuid "e96ec4ad-a2fb-5446-9177-956e03f9b18d")
 		)
-		(pin "8"
+		(pin "5"
 			(uuid "da03dc58-5898-519b-91ad-8fa457d2d405")
 		)
-		(pin "13"
+		(pin "6"
 			(uuid "3343ab70-f448-59c9-bd9d-ebebe6c8741d")
 		)
-		(pin "14"
+		(pin "7"
 			(uuid "093e7671-f52c-583b-9959-0ee9205528e4")
 		)
-		(pin "17"
+		(pin "8"
 			(uuid "f8327acf-0712-5a39-b54d-ffd98b8b9dd0")
 		)
-		(pin "18"
+		(pin "9"
 			(uuid "92955b71-2b89-51b2-9fce-a16d83ae4a55")
 		)
 		(pin "11"
@@ -14901,28 +15018,28 @@
 		(pin "1"
 			(uuid "cadbe164-248b-5651-8ef1-2b35221bec69")
 		)
-		(pin "2"
+		(pin "19"
 			(uuid "2118ecd1-550e-550b-8fbd-f0e148f81299")
 		)
-		(pin "5"
+		(pin "18"
 			(uuid "2327f742-d0e0-58e3-a593-d1c2a008d9fc")
 		)
-		(pin "6"
+		(pin "17"
 			(uuid "7f6558c7-eb29-5176-8970-826954ca1c55")
 		)
-		(pin "9"
+		(pin "16"
 			(uuid "420a4275-2dd0-544c-86ab-ff9079bc59f7")
 		)
-		(pin "12"
+		(pin "15"
 			(uuid "7a6d367d-0217-534a-8c99-b0ff6b898208")
 		)
-		(pin "15"
+		(pin "14"
 			(uuid "f54d7aca-d332-5318-9905-508810561254")
 		)
-		(pin "16"
+		(pin "13"
 			(uuid "f0ffda7b-1b95-5f61-b4b5-a154f47c6f66")
 		)
-		(pin "19"
+		(pin "12"
 			(uuid "1daf0b8b-a6a1-5ab1-b558-e1dfefcd2449")
 		)
 		(pin "20"
@@ -14967,6 +15084,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 203.2 127 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C5978"
 			(at 203.2 127 0)
 			(effects
 				(font
@@ -15079,6 +15205,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C5978"
+			(at 203.2 228.6 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "2"
 			(uuid "8f9d77ee-9c7e-5cad-84ec-89462947ef81")
 		)
@@ -15175,6 +15310,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 355.6 127 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C5400534"
 			(at 355.6 127 0)
 			(effects
 				(font
@@ -15302,6 +15446,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C14663"
+			(at 76.2 264.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "14c00a31-124f-5f9f-aa68-6ce4034c1507")
 		)
@@ -15344,6 +15497,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 116.84 264.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C14663"
 			(at 116.84 264.16 0)
 			(effects
 				(font
@@ -15402,6 +15564,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C14663"
+			(at 157.48 264.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "82d53c0d-72a6-5116-90b5-9720ce0980a1")
 		)
@@ -15444,6 +15615,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 198.12 264.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C14663"
 			(at 198.12 264.16 0)
 			(effects
 				(font
@@ -15502,6 +15682,15 @@
 				(hide yes)
 			)
 		)
+		(property "LCSC Part Num" "C14663"
+			(at 238.76 264.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "e666eb22-4203-59da-a96c-27c3f279a893")
 		)
@@ -15544,6 +15733,15 @@
 			)
 		)
 		(property "Footprint" ""
+			(at 279.4 264.16 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC Part Num" "C14663"
 			(at 279.4 264.16 0)
 			(effects
 				(font

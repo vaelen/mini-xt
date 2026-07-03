@@ -84,7 +84,10 @@ def build(sch, lib, expose=True):
 
     # ---------------- "upper address all zero" detector ----------------
     # need A1=A2=A3=A7=A8=A9=0.  NOR pairs -> high when both 0; AND them.
-    U3 = sch.place("mini-xt:74HCT02", "U3", at=(88.9, 215.9))   # NOR x4
+    # 74HC grade (no HCT02 at JLC): safe here because every input is a bus
+    # address line, which is always 5 V-driven (the '573 latches or the
+    # Bus MCU's '244 counter buffers) -- never a 3.3 V level.
+    U3 = sch.place("mini-xt:74HCT02", "U3", "74HC02", at=(88.9, 215.9))   # NOR x4
     L(U3, "VCC", "+5V", dx=0, dy=-2.54)
     L(U3, "GND", "GND", dx=0, dy=2.54)
     L(U3, "P2", "A1", dx=-2.54); L(U3, "P3", "A2", dx=-2.54)

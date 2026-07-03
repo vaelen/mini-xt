@@ -51,3 +51,13 @@ generic interrupt net `COM_IRQ` (-> IRQ4 on COM1, IRQ3 on COM2).
 - Decision: ~{FORCEOFF} and ~{FORCEON} both tied to +5V (transceiver online with
   auto-power management). ~{INVALID} left unconnected. Adjust if explicit
   always-on driver behaviour is required.
+
+---
+**Corrections (2026-07-03, JLCPCB sourcing):**
+- The MAX3241 symbol's control pins were wrong (MAX3243-style names, wrong
+  numbers). Real part: SHDN# (22) tied high, EN# (23) tied LOW to enable the
+  receiver outputs, R1OUTB/R2OUTB NC. Note ~FORCEON high would have DISABLED
+  a real chip's receivers — the EN# ground is a functional fix.
+- The 1.8432 MHz canned oscillator became a crystal on the 16C550's own
+  XIN/XOUT amp: JLC stocks that frequency only as 3.3 V oscillators and a
+  soft card has no 3.3 V rail.

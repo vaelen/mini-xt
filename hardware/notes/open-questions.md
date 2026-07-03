@@ -46,10 +46,11 @@ pinout *is* the min-mode pinout: ALE, ~WR, IO/~M, ~RD, HOLD, HLDA, ~SS0, MN/~MX,
 ### Q5. MAX3241 and DS12C887 symbols.
 **Why:** Neither exists in the KiCad libs.
 **Chosen:** authored both as flat single-body symbols in `mini-xt.kicad_sym`.
-**REVIEW NEEDED:** the **pin numbers** for MAX3241 (28-pin) and DS12C887 (24-pin)
-are best-effort from the datasheets — please verify against the real datasheets
-before any layout. Functional pin *names* and the interface are correct; only the
-package pin-number assignment is the risk.
+**RESOLVED 2026-07-03:** both symbols were verified against JLCPCB/EasyEDA
+data and regenerated — the MAX3241 was wrong on nearly every pin (and used
+MAX3243-style control-pin names; the real part has SHDN#/EN#/R1OUTB/R2OUTB),
+the DS12C887 on four pins (DS=17, RESET#=18, IRQ#=19, SQW=23). See
+`notes/jlcpcb-sourcing.md`.
 
 ### Q6. 74xx glue as flat symbols.
 **Why:** KiCad's 74xx symbols are multi-unit (e.g. a quad NAND = 4 gate units +
@@ -129,7 +130,8 @@ To drive these to zero you'd add no-connect flags on every unused pin and model
 bus tri-state enables — out of scope for an interface/isolation study.
 
 ## To review together
-- MAX3241 / DS12C887 pin-number assignment (Q5).
+- ~~MAX3241 / DS12C887 pin-number assignment (Q5)~~ — resolved 2026-07-03
+  (verified via JLCPCB data; both symbols regenerated).
 - Whether you want drawn bus graphics vs the name-based bus connectivity (Q3).
 - Whether storage / audio / sidecar should stay in scope (Q8).
 - The per-sheet `questions-*.md` files for component/decode choices.

@@ -222,31 +222,34 @@ def build(sch, lib):
     # =================================================================
     #  External 20-bit loadable address counter (5x 74HCT163), §5.1
     # =================================================================
-    # Each '163 = 4 bits.  Load steered in 3 byte-lanes from D0-D7:
-    #   CNT_LD0 -> bits 0-7, CNT_LD1 -> bits 8-15, CNT_LD2 -> bits 16-19.
-    # Carry chained TC->CET; all CP = CNT_CLK.  Outputs go to CA0-CA19 and
-    # reach the bus through the U14-U16 '244 stage (~OE = ~HLDA) -- a '163
-    # cannot tri-state, and the cpu_core '573 latches own A0-A19 whenever the
-    # V20 has the bus.
+    # Counters are 74HC161 (same pinout as the '163; async ~MR tied inactive;
+    # no HC/HCT163 is stocked at JLC) and run in the 3.3 V DOMAIN (VCC =
+    # 3V3_BUS): every control input (CNT_CLK/CNT_LD*/CNT_RUN) is a 3.3 V MCU
+    # signal that 5 V HC could not read, and the load DATA comes from the
+    # MCU-side MD0-MD7 nets (the MCU drives them during master-cycle loads),
+    # not the 5 V bus.  The 3.3 V CA outputs feed the 5 V-side U14-U16
+    # 74HCT244s, whose TTL Vih (2.0 V) reads them cleanly.
+    # Load steered in 3 byte-lanes: CNT_LD0 -> bits 0-7, CNT_LD1 -> 8-15,
+    # CNT_LD2 -> 16-19.  Carry chained TC->CET; all CP = CNT_CLK.
     cnt_cfg = [  # (ref, x, Dsrc[4], Adst[4], PE, CETin, TCout)
-        ("U7",  60.96, [0, 1, 2, 3], [0, 1, 2, 3],     "CNT_LD0", "+5V",     "CNT_TC0"),
+        ("U7",  60.96, [0, 1, 2, 3], [0, 1, 2, 3],     "CNT_LD0", "3V3_BUS", "CNT_TC0"),
         ("U8", 127.00, [4, 5, 6, 7], [4, 5, 6, 7],     "CNT_LD0", "CNT_TC0", "CNT_TC1"),
         ("U9", 193.04, [0, 1, 2, 3], [8, 9, 10, 11],   "CNT_LD1", "CNT_TC1", "CNT_TC2"),
         ("U10", 259.08, [4, 5, 6, 7], [12, 13, 14, 15], "CNT_LD1", "CNT_TC2", "CNT_TC3"),
         ("U11", 325.12, [0, 1, 2, 3], [16, 17, 18, 19], "CNT_LD2", "CNT_TC3", None),
     ]
     for ref, x, dsrc, adst, pe, cetin, tcout in cnt_cfg:
-        u = sch.place("mini-xt:74HCT163", ref, at=(x, 271.78))
-        N(u, "VCC", "+5V", length=2.54)
+        u = sch.place("mini-xt:74HCT163", ref, "74HC161", at=(x, 271.78))
+        N(u, "VCC", "3V3_BUS", length=2.54)        # 3.3 V domain (see above)
         N(u, "GND", "GND", length=2.54)
         for q in range(4):
-            N(u, "D%d" % q, "D%d" % dsrc[q])      # load byte-lane from data bus
+            N(u, "D%d" % q, "MD%d" % dsrc[q])     # load byte-lane, MCU side (3.3V)
             N(u, "Q%d" % q, "CA%d" % adst[q])     # -> U14-U16 '244s -> A0-A19
         N(u, "~{PE}", pe)                          # active-low parallel load
         N(u, "CP", "CNT_CLK")                      # advance one byte per pulse
         N(u, "CEP", "CNT_RUN")                     # held while any lane loads (U18)
         N(u, "CET", cetin)                         # cascade carry-in
-        N(u, "~{MR}", "+5V")                       # no async master reset (Q)
+        N(u, "~{MR}", "3V3_BUS")                   # async master reset unused ('161)
         if tcout:
             N(u, "TC", tcout)                      # carry to next stage
         else:
@@ -259,8 +262,10 @@ def build(sch, lib):
     # carry into a just-loaded lane).  CNT_RUN = LD0·LD1·LD2 gates every CEP:
     # during any load pulse the non-loading stages hold (load overrides CEP on
     # the loading stage, so it still loads).
-    gate = sch.place("mini-xt:74HCT08", "U18", at=(398.78, 203.2))
-    N(gate, "VCC", "+5V", length=2.54)
+    # 74HC08 in the counters' 3.3 V domain: its CNT_LD inputs are 3.3 V MCU
+    # strobes and its CNT_RUN output must not exceed the HC161s' 3.3 V VCC.
+    gate = sch.place("mini-xt:74HCT08", "U18", "74HC08", at=(398.78, 203.2))
+    N(gate, "VCC", "3V3_BUS", length=2.54)
     N(gate, "GND", "GND", length=2.54)
     N(gate, "P1", "CNT_LD0"); N(gate, "P2", "CNT_LD1"); N(gate, "P3", "CNT_LD01")
     N(gate, "P4", "CNT_LD01"); N(gate, "P5", "CNT_LD2"); N(gate, "P6", "CNT_RUN")
@@ -268,6 +273,7 @@ def build(sch, lib):
         N(gate, p, "GND")
     for p in ("P8", "P11"):
         sch.no_connect(gate.pin_xy(p))
+    decouple("C11", (398.78, 182.88), "3V3_BUS")   # U18 (3.3 V domain)
 
     # Counter -> bus output-enable stage: 74HCT244 x3, enabled ONLY during
     # master cycles (~OE = ~HLDA, inverted from HLDA by U17).  Complements the
@@ -356,5 +362,5 @@ def build(sch, lib):
     decouple("C6", (190.5, 40.64), "3V3_BUS")      # data xcvr
     decouple("C7", (271.78, 40.64), "3V3_BUS")     # addr xcvrs
     decouple("C8", (350.52, 40.64), "+3V3")
-    decouple("C9", (50.8, 220.98), "+5V")          # counters
+    decouple("C9", (50.8, 220.98), "3V3_BUS")      # counters (3.3 V domain)
     decouple("C10", (190.5, 198.12), "+5V")        # '165
