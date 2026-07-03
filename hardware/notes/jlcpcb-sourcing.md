@@ -55,8 +55,23 @@ Verified against JLCPCB/EasyEDA symbol data and the Maxim datasheets:
 | AS6C4008-55 SRAM ×2  | DIP-32 **machined** socket C2874017 | user stock (no 5 V 512K×8 SRAM at JLC at all) |
 | DS12C887 RTC         | DIP-24 600 mil **machined** socket C2684765 | LCSC C9869 ($14, extended) or user stock |
 | 16550 UART (COM ×2)  | **SMD** PLCC-44 socket C2828044 (reflows with the SMD pass) | TL16C550CFNR (Active, Mouser ~320 pcs, $4-6; JLC C2653193) — or NOS/period NS16550AFN pulls, same industry PLCC pinout |
-| Core2350B module ×2  | 2.54 mm female headers C2897411 | Waveshare        |
-| Pico module          | 2.54 mm female headers C2897411 | Raspberry Pi     |
+| Core2350B module ×2  | 2.54 mm female headers C2897411 | Waveshare (consign) |
+| Pico module          | 2.54 mm female headers C2897411 | Raspberry Pi — official Pico stocked at JLC (C7203002, ~$8; Pico W C7203003) |
+
+Module mounting (verified 2026-07-03 from the photos in
+`hardware/Core2350B0-details-size.jpg` / `-inter.jpg`):
+- **Core2350B has NO castellated edges** — it is a 25.4 × 25.4 mm
+  double-ring through-hole PGA (two concentric 2.54 mm rows, 22.86 mm inner
+  span, ~6 GND holes). It MUST mount on headers: one dual-row 2×N female
+  strip per side covers both rings. Holes are silk-labelled by signal name
+  (no canonical pin numbering), so the symbol's pin numbers are
+  project-defined and the layout footprint must be authored to match them.
+  Photos also confirm HSTX = GP12–19 and PSRAM CS = GP47, as the design
+  assumes.
+- **The Pico IS castellated** and JLC stocks the official module
+  (C7203002), so the test card's Pico could alternatively be reflowed
+  flat as an SMD part (confirm assembly eligibility of the dev-board
+  category at quote time, or consign). Currently still on female headers.
 
 The DIP sockets are the machined-pin (round-hole) grade, all verified
 600 mil (15.24 mm) row spacing — ~$0.70–0.90 each vs $0.06–0.12 stamped,

@@ -195,7 +195,12 @@ level shifters, address counter, and IRQ collector stay on the carrier.
   the modules just no longer load it. Verified: +3V3 still has the Supervisor.
 
 Module symbol pin NAMES are authoritative; the PGA pin NUMBERS in the symbol are a
-functional placeholder -- match them to the Waveshare pinout before layout.
+functional placeholder. **Resolved 2026-07-03:** module photos
+(`hardware/Core2350B0-details-*.jpg`) show the holes are silk-labelled by signal
+name with NO canonical numbering — so the symbol's numbers are project-defined
+and the layout footprint must simply be authored to match them. The module is a
+25.4 mm² double-ring PGA (no castellations → header-mounted only, ~6 GND holes);
+photos confirm HSTX = GP12-19 and PSRAM CS = GP47. See notes/jlcpcb-sourcing.md.
 
 ---
 

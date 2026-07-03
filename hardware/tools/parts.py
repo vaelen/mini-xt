@@ -171,7 +171,9 @@ LIBID_MAP = {
     "Connector_Generic:Conn_02x20_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x20)", "THT"),
     "Connector_Generic:Conn_02x30_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x30)", "THT"),
     "mini-xt:Core2350B": E("C2897411", "PM254 2.54mm female headers", "THT",
-                           "module socket -- strips cut to the Core2350B rows"),
+                           "module is a DOUBLE-RING PGA (25.4mm sq, no "
+                           "castellations): dual-row 2xN female strips per "
+                           "side; cannot be SMD-mounted"),
     "mini-xt:Pico": E("C2897411", "PM254 2.54mm female headers", "THT",
                       "module socket -- 2x 1x20 strips"),
 }

@@ -237,12 +237,20 @@ for src, new, desc in GLUE:
     except Exception as e:
         print("  (skip glue %s: %s)" % (new, e))
 
-# ---- Waveshare Core2350B RP2350B module (64-pin 2.54mm PGA) ----
+# ---- Waveshare Core2350B RP2350B module (double-ring 2.54mm PGA) ----
+# Physical (verified from module photos, hardware/Core2350B0-details-*.jpg):
+# 25.4 x 25.4 mm, TWO concentric rings of through-holes on a 2.54 mm grid
+# (22.86 mm inner span), NO castellated edges -- must mount on female
+# headers/sockets, cannot be reflowed as an SMD part. Holes are silk-labelled
+# by SIGNAL NAME (GP0..GP47, VB, 3V, BS, ...) with no canonical 1..64
+# numbering, so the pin NUMBERS below are project-defined: the layout
+# footprint must be authored with the SAME numbers as this symbol. The
+# module has ~6 GND holes; this symbol models 2 (tie all at the footprint).
 # Exposes all 48 GPIO + VBUS / 3V3 (onboard ME6217C33 LDO out) / 3V3_EN /
 # ADC_VREF / RUN / SWCLK / SWDIO / USB_DP / USB_DM / BOOTSEL / GND.  Onboard:
-# W25Q128 16MB flash, optional 0/2/8MB QSPI PSRAM (CS=GPIO47), user LED on GPIO39
-# (GPIO39 still usable). Pin NAMES are authoritative; the PGA pin NUMBERS here are
-# a functional placeholder -- confirm against the Waveshare pinout before layout.
+# W25Q128 16MB flash, optional 0/2/8MB QSPI PSRAM (CS=GPIO47), user LED on
+# GPIO39 (GPIO39 still usable). HSTX = GP12-19 (photos confirm the design's
+# HDMI and PSRAM-CS assignments).
 core2350b = make_ic(
     "Core2350B",
     left=[(str(i + 1), "GPIO%d" % i, "bidirectional") for i in range(24)],
