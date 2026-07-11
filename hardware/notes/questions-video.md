@@ -61,5 +61,15 @@ before the HD15. Deferred to layout: a TMDS-rated ESD array (TPD4E05U06-class,
 libs, and the 270R+CML trick needs the array footprint picked with the
 connector placement. VGA DAC note: 510/1k/2k weights assume the monitor's 75R
 termination (~0.7V full scale).
+
+## 8. Enable + base straps (2026-07-11)
+VID_EN (GPIO42, JP1) and VID_BASE (GPIO43, JP2) are boot-read straps with 10k
+pull-ups to 3V3_VID: this card self-decodes in firmware, so a hardware
+chip-select gate doesn't exist to jumper -- instead firmware honors VID_EN
+before enabling ANY bus-facing OE (all drivers are already MCU-gated
+tri-states, so a disabled card is electrically silent), and VID_BASE picks
+the default window set (closed = CGA 0x3D4/0xB8000, open = MDA 0x3B4/0xB0000)
+like a period card's MDA/CGA switch. Lets an on-board video coexist with a
+card_video on the sidecar chain (one CGA, one MDA, or one disabled).
 </content>
 </invoke>

@@ -28,9 +28,13 @@ Design doc S10. A discrete, period-correct mass-storage soft card:
     (Conn_02x25, 50-pin -- no CF symbol in lib, see questions-storage.md) wired
     in parallel.
   * Drive INTRQ -> 2N7002-gated 74HCT125 -> IRQ5 (asserted high, released when idle).
+  * JP1: base-address strap (0x300 vs 0x320; differ only in A5).
+  * JP2: enable/disable jumper; open kills the card, closed enables it.
 
 Soft card: exposes ONLY ISA signals + power. The IDE/CF connectors are local.
 See hardware/notes/questions-storage.md for the register-map / topology picks.
+Card can be disabled or re-strapped so an external XT-IDE on the sidecar
+doesn't conflict.
 """
 import mxbus
 from mxbus import pin
@@ -82,7 +86,7 @@ def build(sch, lib, expose=True):
     AND1 = sch.place("mini-xt:74HCT08", "U2", at=(38.1, 142.24))
     pwr(AND1, "VCC", "GND")
     L(AND1, "P1", "A9", dx=-2.54); L(AND1, "P2", "A8", dx=-2.54); L(AND1, "P3", "M1")
-    L(AND1, "P4", "nA5", dx=-2.54); L(AND1, "P5", "nA6", dx=-2.54); L(AND1, "P6", "M2")
+    L(AND1, "P4", "A5_SEL", dx=-2.54); L(AND1, "P5", "nA6", dx=-2.54); L(AND1, "P6", "M2")
     L(AND1, "P9", "M1", dx=-2.54); L(AND1, "P10", "M2", dx=-2.54); L(AND1, "P8", "M3")
     L(AND1, "P12", "M3", dx=-2.54); L(AND1, "P13", "nA7", dx=-2.54); L(AND1, "P11", "HI_MATCH")
 
@@ -131,7 +135,7 @@ def build(sch, lib, expose=True):
     DEC1 = sch.place("mini-xt:74HCT138", "U6", at=(114.3, 63.5))
     pwr(DEC1, "VCC", "GND")
     L(DEC1, "A0", "A0", dx=-2.54); L(DEC1, "A1", "A4", dx=-2.54); L(DEC1, "A2", "GND", dx=-2.54)
-    L(DEC1, "~{E0}", "AEN", dx=-2.54); L(DEC1, "~{E1}", "GND", dx=-2.54); L(DEC1, "E2", "HI_MATCH", dx=-2.54)
+    L(DEC1, "~{E0}", "AEN", dx=-2.54); L(DEC1, "~{E1}", "~{STOR_EN}", dx=-2.54); L(DEC1, "E2", "HI_MATCH", dx=-2.54)
     L(DEC1, "~{Y0}", "~{IDE_CS0}")     # even offsets 0x300..0x30E: command block
     L(DEC1, "~{Y1}", "~{ODD_SEL}")     # odd offsets 0x301..0x30F: latch + ctrl
     for y in ("~{Y2}", "~{Y3}", "~{Y4}", "~{Y5}", "~{Y6}", "~{Y7}"):
@@ -229,8 +233,25 @@ def build(sch, lib, expose=True):
     sch.net(r2, "2", "GND", kind="label", dx=0, dy=2.54)
     pullup("R3", "~{IDE_RST}", (259.08, 25.4))
     pullup("R4", "~{IRQ5_OE}", (91.44, 243.84))  # buffer released (Z) when INTRQ low
+    # JP1: base address -- 1-2 = 0x300 (A5 must be 0), 2-3 = 0x320 (A5 must be 1).
+    # 0x300/0x320 differ only in A5; the U1 inverter already provides nA5.
+    JP1 = sch.place("Connector_Generic:Conn_01x03", "JP1", "BASE 300/320", at=(274.32, 25.4))
+    L(JP1, "Pin_1", "nA5")
+    L(JP1, "Pin_2", "A5_SEL")
+    L(JP1, "Pin_3", "A5")
+    # JP2: enable -- closed grounds ~{STOR_EN} (enabled); open = R5 parks it
+    # high and DEC1 never selects, so /CS0, /ODD_SEL and everything downstream
+    # (DEC2/DEC3, both '573 latch clocks, the '245 enable) are inert. IRQ5
+    # stays quiet: the drive is never selected and R2 holds INTRQ low.
+    JP2 = sch.place("Connector_Generic:Conn_01x02", "JP2", "STOR_EN", at=(289.56, 25.4))
+    L(JP2, "Pin_1", "~{STOR_EN}")
+    L(JP2, "Pin_2", "GND")
+    pullup("R5", "~{STOR_EN}", (320.04, 25.4))
     for i, x in enumerate(range(30, 250, 20)):
         decouple("C%d" % (1 + i), (float(x), 276.86))
     cb = sch.place("Device:C", "C12", "10uF", at=(256.54, 276.86))   # card bulk
     sch.net(cb, "1", "+5V", kind="label", dx=0, dy=-2.54)
     sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)
+
+    # =============== strapping notes ==
+    sch.text("JP1 base 0x300/0x320 (XTIDE UB supports both); JP2 open = card disabled.", at=(266.7, 17.78))

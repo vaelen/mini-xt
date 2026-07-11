@@ -71,3 +71,14 @@ into the '125 ~OE with R4 10k release pull-up: INTRQ high -> IRQ5 driven high,
 else Z. ~200ns enable delay through R4 is fine for interrupt latency. Spare
 '125 sections tied per com_port U6 pattern. Decoupling grown to one 100nF per
 IC (C1-C11) + 10uF bulk (C12).
+
+---
+
+## Base strap + enable jumper (2026-07-11)
+JP1 selects 0x300 vs 0x320 (differ only in A5; A5_SEL replaces nA5 in the
+HI_MATCH tree -- the rest of the decode, including the rev-2 A0<->A3 swap, is
+base-independent). JP2 lifts DEC1's spare ~E1: open kills /CS0 and /ODD_SEL,
+so DEC2/DEC3, both high-byte latches and the low-byte '245 are all inert and
+IRQ5 stays released (INTRQ pull-down). Same pattern as the LPT sheet. This
+lets an on-board storage port coexist with a card_storage on the sidecar
+chain (strap one to 0x300, the other to 0x320, or disable one).

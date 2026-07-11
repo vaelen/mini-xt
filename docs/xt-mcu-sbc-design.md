@@ -449,6 +449,13 @@ modern display, fully decoupled from the CPU.
   latched A17–A19 and `MEMR̄/MEMW̄/IOR̄/IOW̄` — it uses **no signal that isn't on the ISA bus**,
   which is what keeps it liftable to a standalone ISA card unchanged. (The motherboard's Y5
   block-strobe, §4.1, is for the SRAM #2 decode only; the video card never sees it.)
+- **Boot straps** (firmware-read GPIO jumpers — decode lives in firmware, so there is no
+  hardware chip-select to gate): **JP1 (VID_EN)** open = card disabled — firmware keeps every
+  bus-facing OE off, and all its drivers are MCU-gated tri-states, so a disabled card is
+  electrically silent; **JP2 (VID_BASE)** picks the default window set, closed = CGA
+  (0x3D4–3DF / 0xB8000), open = MDA/Hercules (0x3B4–3BF / 0xB0000) — the snoop-design
+  equivalent of a period card's MDA/CGA switch, and how an on-board video coexists with a
+  `card_video` on the sidecar chain.
 - **Snoop & accept writes** to `0xB0000–0xB7FFF` (MDA/Herc), `0xB8000–0xBBFFF` (CGA), and
   the CRTC/mode/color register ports (`3B4/3B5/3B8/3BA/3BF`, `3D4/3D5/3D8/3D9/3DA`) into
   its **own** internal video RAM + register state. **Writes are the hot path** (mode 13h
@@ -518,7 +525,11 @@ the gameport).
 
 Discrete and period-correct (uses 74HCT on hand):
 - **XT-IDE rev 2 / "Chuck-mod"** 8-bit interface: a **74HCT573/652 high-byte latch** makes
-  the 16-bit IDE data register two 8-bit transfers. **I/O base 0x300** (jumperable).
+  the 16-bit IDE data register two 8-bit transfers. **I/O base 0x300**, jumpered: **JP1**
+  re-straps to **0x320** (they differ only in A5; XTIDE UB supports both) and **JP2**
+  disables the port outright (lifts the decode '138's enable — every select, latch clock
+  and buffer goes inert, IRQ5 stays released), so an external XT-IDE on the sidecar chain
+  can coexist or take over.
 - **40-pin IDE header + CompactFlash** (True-IDE). 8-bit-capable CF can skip the latch; keep
   it for general IDE drives.
 - Boot ROM = **XTIDE Universal BIOS**, shadow-loaded @0xC8000. Poll or IRQ5.
@@ -618,7 +629,7 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | 0x2F8 / 0x3F8 | COM2 / COM1 (16C550) |
 | 0x3E8 | **COM3 — emulated serial mouse** (Bus MCU, IRQ4) |
 | 0x2E8 | COM4 (sidecar, **bus IRQ2 line → IRQ9**) |
-| 0x300–0x31F | XT-IDE |
+| 0x300–0x31F | XT-IDE (JP1 re-straps to 0x320; JP2 disables) |
 | 0x378 | LPT1 (JP1 re-straps to 0x278; JP2 disables) |
 | 0x3B0–0x3BF / 0x3D0–0x3DF | MDA-Hercules / CGA (video MCU) |
 
