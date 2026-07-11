@@ -78,3 +78,11 @@ R1-R5 (4.7k to +5V) added on P_ACK/P_BUSY/P_PE/P_SEL/P_ERR -- these DB25 inputs
 floated into HCT buffers with no printer attached (noise reads, phantom ~Ack
 IRQ7 pulses when IRQ_EN set). Decoupling grown to one 100nF per IC (C1-C13)
 plus a 10uF card bulk (C14).
+
+## Base/IRQ straps + enable (2026-07-11)
+JP1 selects 0x378 vs 0x278 (they differ only in A8; a spare U12 NAND makes
+~A8). JP2 grounds the '138's spare ~E1 -- open kills every register select,
+read enable and latch clock, disabling the port without touching the bus.
+JP3 picks IRQ7 or IRQ5 (open = polled); IRQ5 conflicts with the storage
+card's INTRQ if both are enabled -- both drivers are tri-state so nothing is
+damaged, but don't configure both. PINS now export IRQ5+IRQ7.

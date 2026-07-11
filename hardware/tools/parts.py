@@ -177,6 +177,7 @@ PART_MAP = {k: v for k, v in PART_MAP.items() if v is not None}
 # Fallbacks by lib_id alone (any value). Headers/jumpers are cut-to-length
 # 2.54 mm breakaway strips; modules get female-header sockets.
 LIBID_MAP = {
+    "Connector_Generic:Conn_01x02": E("C2337", "1x40 2.54mm header (break to 2)", "THT"),
     "Connector_Generic:Conn_01x03": E("C2337", "1x40 2.54mm header (break to 3)", "THT"),
     "Connector_Generic:Conn_01x04": E("C2337", "1x40 2.54mm header (break to 4)", "THT"),
     "Connector_Generic:Conn_01x08": E("C2337", "1x40 2.54mm header (break to 8)", "THT"),

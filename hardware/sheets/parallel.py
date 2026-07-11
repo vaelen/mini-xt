@@ -1,8 +1,11 @@
-"""parallel -- discrete 74HC parallel printer port (LPT1) @ I/O 0x378 + DB25.
+"""parallel -- discrete 74HC parallel printer port (LPT1) @ I/O 0x378/0x278 + DB25.
 
 Design doc S11.2. A *soft* card: it speaks ONLY the standard 8-bit XT/ISA bus
-(A0-A9, D0-D7, ~{IOR}/~{IOW}, AEN, RESET_DRV) plus power and exports IRQ7. No
-private motherboard nets cross this sheet.
+(A0-A9, D0-D7, ~{IOR}/~{IOW}, AEN, RESET_DRV) plus power and exports IRQ5/IRQ7
+(selectable by JP3 strap). No private motherboard nets cross this sheet.
+
+Straps: JP1 base address (A8 = 0x378 vs 0x278), JP2 enable/disable, JP3 IRQ
+selection (IRQ7/IRQ5/open=polled).
 
 Three classic registers in the 0x378 block (Centronics/SPP):
   * 0x378  Data    (R/W)  -- 74HCT574 output latch -> DB25 pins 2-9
@@ -28,7 +31,7 @@ PINS = (
     [pin(s, "bidirectional") for s in mxbus.DATA] +       # D0..D7
     [pin("~{IOR}", "input"), pin("~{IOW}", "input"),
      pin("AEN", "input"), pin("RESET_DRV", "input")] +
-    [pin("IRQ7", "output")]
+    [pin("IRQ5", "output"), pin("IRQ7", "output")]        # JP3 picks the line
 )
 
 
@@ -57,7 +60,7 @@ def build(sch, lib, expose=True):
     pwr(U7)
     L(U7, "P1", "A3", dx=-2.54); L(U7, "P2", "A4", dx=-2.54); L(U7, "P3", "AM_A")
     L(U7, "P4", "A5", dx=-2.54); L(U7, "P5", "A6", dx=-2.54); L(U7, "P6", "AM_B")
-    L(U7, "P9", "A8", dx=-2.54); L(U7, "P10", "A9", dx=-2.54); L(U7, "P8", "AM_C")
+    L(U7, "P9", "A8_SEL", dx=-2.54); L(U7, "P10", "A9", dx=-2.54); L(U7, "P8", "AM_C")
     L(U7, "P12", "AM_A", dx=-2.54); L(U7, "P13", "AM_B", dx=-2.54); L(U7, "P11", "AM1")
 
     U8 = sch.place("mini-xt:74HCT08", "U8", at=(76.2, 127.0))   # AND tree (2/2) + IRQ
@@ -79,10 +82,12 @@ def build(sch, lib, expose=True):
     L(U9, "P11", "CTRL3", dx=-2.54); L(U9, "P10", "P_SLIN")       # SelectIn (inv)
     L(U9, "P13", "P_BUSY", dx=-2.54); L(U9, "P12", "BUSY_N")      # Busy -> ~Busy (status bit 7)
 
-    # IRQ7 drive: tri-state, like a real LPT card -- asserted high only for
+    # IRQ drive: tri-state, like a real LPT card -- asserted high only for
     # the ~Ack pulse while IRQ_EN (control bit 4) is set, released (Z)
-    # otherwise so the line stays shareable.  U12 NAND makes the active-low
-    # enable for the U13 '125 buffer (input strapped high).
+    # otherwise so the line stays shareable.  U12 NAND gate 1 makes the
+    # active-low enable for the U13 '125 buffer (input strapped high); gate 2
+    # makes ~A8 for the base-address strap (JP1). Output drives LPT_IRQ into
+    # JP3 strap that selects IRQ7 or IRQ5.
     # NOTE the ISA ~Ack pulse is 1-12 us and is NOT latched here (real SPP
     # behaviour): the Bus MCU's '165 IRQ poll loop must run faster than the
     # shortest pulse, or sample IRQ7 via PIO.
@@ -90,14 +95,14 @@ def build(sch, lib, expose=True):
     pwr(U12)
     L(U12, "P1", "ACK_POS", dx=-2.54); L(U12, "P2", "IRQ_EN", dx=-2.54)
     L(U12, "P3", "~{IRQ7_OE}")
-    for ip in ("P4", "P5", "P9", "P10", "P12", "P13"):
+    L(U12, "P4", "A8", dx=-2.54); L(U12, "P5", "A8", dx=-2.54); L(U12, "P6", "NA8")   # spare NAND as ~A8 inverter (base strap)
+    for ip in ("P9", "P10", "P12", "P13"):
         L(U12, ip, "GND", dx=-2.54)
-    for op in ("P6", "P8", "P11"):
-        sch.no_connect(U12.pin_xy(op))
+    sch.no_connect(U12.pin_xy("P8")); sch.no_connect(U12.pin_xy("P11"))
     U13 = sch.place("mini-xt:74HCT125", "U13", at=(266.7, 127.0))
     pwr(U13)
     L(U13, "P1", "~{IRQ7_OE}", dx=-2.54); L(U13, "P2", "+5V", dx=-2.54)
-    L(U13, "P3", "IRQ7")
+    L(U13, "P3", "LPT_IRQ")
     for oe in ("P4", "P10", "P13"):
         L(U13, oe, "+5V", dx=-2.54)        # disable spare buffers
     for ip in ("P5", "P9", "P12"):
@@ -109,7 +114,7 @@ def build(sch, lib, expose=True):
     pwr(U6)
     L(U6, "A0", "A0", dx=-2.54); L(U6, "A1", "A1", dx=-2.54); L(U6, "A2", "A2", dx=-2.54)
     L(U6, "~{E0}", "AEN", dx=-2.54)      # enabled only when AEN low (CPU owns bus)
-    L(U6, "~{E1}", "GND", dx=-2.54)
+    L(U6, "~{E1}", "~{LPT_EN}", dx=-2.54)
     L(U6, "E2", "ADDR_MATCH", dx=-2.54)  # active-high block match
     L(U6, "~{Y0}", "~{SEL_DATA}")        # 0x378
     L(U6, "~{Y1}", "~{SEL_STAT}")        # 0x379
@@ -237,6 +242,38 @@ def build(sch, lib, expose=True):
         r = sch.place("Device:R", "R%d" % (1 + i), "4.7k", at=(314.96 + 15.24 * i, 45.72))
         sch.net(r, "1", "+5V", kind="label", dx=0, dy=-2.54)
         sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
+
+    # ============================================================
+    # Configuration straps
+    # ============================================================
+    # JP1: base address -- A8=1 -> 0x378 (LPT1), A8=0 -> 0x278 (LPT2)
+    JP1 = sch.place("Connector_Generic:Conn_01x03", "JP1", "BASE 378/278", at=(299.72, 195.58))
+    L(JP1, "Pin_1", "A8", dx=2.54)
+    L(JP1, "Pin_2", "A8_SEL", dx=2.54)
+    L(JP1, "Pin_3", "NA8", dx=2.54)
+
+    # JP2: port enable -- closed = ~{LPT_EN} grounded = enabled; open = R6 parks
+    # it high, the '138 never selects, so no register read/write/latch clock can
+    # fire. IRQ7 stays silent too: the DB25 pull-ups idle ~Ack high -> ACK_POS
+    # low -> U13 released.
+    JP2 = sch.place("Connector_Generic:Conn_01x02", "JP2", "LPT_EN", at=(314.96, 195.58))
+    L(JP2, "Pin_1", "~{LPT_EN}", dx=2.54)
+    L(JP2, "Pin_2", "GND", dx=2.54)
+    r6 = sch.place("Device:R", "R6", "10k", at=(345.44, 195.58))
+    sch.net(r6, "1", "+5V", kind="label", dx=0, dy=-2.54)
+    sch.net(r6, "2", "~{LPT_EN}", kind="label", dx=0, dy=2.54)
+
+    # JP3: IRQ strap -- 1-2 = IRQ7 (LPT1 convention), 2-3 = IRQ5 (NOTE: shared
+    # with the storage card's XT-IDE INTRQ -- don't enable both on IRQ5), open =
+    # polled-only. U13 is tri-state, so the unselected line is untouched.
+    JP3 = sch.place("Connector_Generic:Conn_01x03", "JP3", "IRQ strap", at=(330.2, 195.58))
+    L(JP3, "Pin_1", "IRQ7", dx=2.54)
+    L(JP3, "Pin_2", "LPT_IRQ", dx=2.54)
+    L(JP3, "Pin_3", "IRQ5", dx=2.54)
+
+    # Configuration note
+    sch.text("JP1: base 0x378/0x278; JP2: open=port disabled; JP3: IRQ7/IRQ5/open=polled",
+             at=(299.72, 187.96), size=2.5)
 
     # ============================================================
     # decoupling

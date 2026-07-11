@@ -1,9 +1,9 @@
 """COM port -- 16C550 UART + MAX3241 + DB9 (generic, instanced x2).
 
 Design doc S11.1. ONE serial port; the harness instantiates this sheet twice
-(COM1 0x3F8/IRQ4, COM2 0x2F8/IRQ3) via INSTANCES below. The two instances are
-electrically identical -- the only board difference is the base-address strap
-(J2) and the per-instance IRQ remap of the generic interrupt net COM_IRQ.
+(COM1 0x3F8, COM2 0x2F8) via INSTANCES below. Each instance is configurable
+via two on-sheet jumpers: J2 (base-address strap, A8/~A8), JP2 (IRQ select,
+IRQ3/IRQ4/polled), and JP3 (port enable/disable via CS1 gating).
 
 Structure:
   * U1  16C550 UART (Interface_UART:16550), 8-bit ISA slave
@@ -27,7 +27,7 @@ PINS = (
     [pin(s, "input") for s in mxbus.ADDR[:10]] +        # A0..A9 (A0-A2 regs, A3-A9 decode)
     [pin(s, "bidirectional") for s in mxbus.DATA] +     # D0..D7
     [pin(s, "input") for s in ["~{IOR}", "~{IOW}", "AEN", "RESET_DRV", "CLK"]] +
-    [pin("COM_IRQ", "output")]                          # generic IRQ; harness remaps per instance
+    [pin("IRQ3", "output"), pin("IRQ4", "output")]      # JP2 strap picks the active line
 )
 
 
@@ -61,9 +61,9 @@ def build(sch, lib, expose=True):
     L(U1, "RD", "GND", dx=-2.54)
     L(U1, "WR", "GND", dx=-2.54)
     L(U1, "~{ADS}", "GND", dx=-2.54)
-    # chip select: CS0/CS1 high, ~{CS2} = decoded address match (active low)
+    # chip select: CS0 high, CS1 gated by JP3, ~{CS2} = decoded address match (active low)
     L(U1, "CS0", "+5V", dx=2.54)
-    L(U1, "CS1", "+5V", dx=2.54)
+    L(U1, "CS1", "COM_EN", dx=2.54)
     L(U1, "~{CS2}", "~{UART_CS}", dx=-2.54)
     # reset
     L(U1, "MR", "RESET_DRV", dx=-2.54)
@@ -219,6 +219,25 @@ def build(sch, lib, expose=True):
     L(JP1, "Pin_2", "UART_RXD", dx=2.54)
     L(JP1, "Pin_3", "CONSOLE_RXI", dx=2.54)
 
+    # ---------------- JP3: port enable ----------------
+    # 16550 CS1 is a spare ACTIVE-HIGH select: jumper closed = port enabled,
+    # open = R1 parks CS1 low and the UART can never be selected. IRQ needs no
+    # extra gating -- MCR resets to 0, so ~OUT2 stays high and U6 stays Z.
+    JP3 = sch.place("Connector_Generic:Conn_01x02", "JP3", "COM_EN", at=(256.54, 254.0))
+    L(JP3, "Pin_1", "COM_EN", dx=2.54)
+    L(JP3, "Pin_2", "+5V", dx=2.54)
+    R1 = sch.place("Device:R", "R1", "10k", at=(271.78, 254.0))
+    L(R1, "1", "COM_EN", dx=0, dy=-2.54)
+    L(R1, "2", "GND", dx=0, dy=2.54)
+
+    # ---------------- JP2: IRQ strap ----------------
+    # 1-2 = IRQ4 (pairs with J2 at 0x3F8/COM1), 2-3 = IRQ3 (0x2F8/COM2),
+    # open = polled, no IRQ. U6 is tri-state, so the unselected line is untouched.
+    JP2 = sch.place("Connector_Generic:Conn_01x03", "JP2", "IRQ strap", at=(241.3, 254.0))
+    L(JP2, "Pin_1", "IRQ4", dx=2.54)
+    L(JP2, "Pin_2", "COM_IRQ", dx=2.54)
+    L(JP2, "Pin_3", "IRQ3", dx=2.54)
+
     # ---------------- decoupling ----------------
     decouple("C1", (109.22, 50.8))   # U1
     decouple("C2", (210.82, 50.8))   # U2
@@ -233,8 +252,10 @@ def build(sch, lib, expose=True):
     sch.text("Base-address strap J2: jumper A8 (0x3F8/COM1) or ~A8 (0x2F8/COM2)",
              (60.96, 233.68))
     sch.text("TTL console header J3 (5V levels!): populate on COM1 only;", (165.1, 248.92))
-    sch.text("JP1 selects UART RX source: 1-2 DB9, 2-3 console", (165.1, 246.38))
+    sch.text("JP1 selects UART RX source: 1-2 DB9, 2-3 console; JP2 IRQ strap: 1-2 IRQ4, 2-3 IRQ3, open = polled",
+             (165.1, 246.38))
+    sch.text("JP3: jumper closed = port enabled, open = port disabled via CS1 pulldown (R1)",
+             (165.1, 243.84))
 
 
-INSTANCES = [("COM1", "", {"COM_IRQ": "IRQ4"}),
-             ("COM2", "B", {"COM_IRQ": "IRQ3"})]
+INSTANCES = [("COM1", ""), ("COM2", "B")]   # IRQ picked by JP2 on each instance, not by remap

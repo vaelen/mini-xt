@@ -66,3 +66,13 @@ generic interrupt net `COM_IRQ` (-> IRQ4 on COM1, IRQ3 on COM2).
 All four pump caps were 100nF; the datasheet's 5V column wants C1=0.047uF and
 C2-C4=0.33uF. C3 (flying 1) is now 47nF, C4/C5/C6 330nF. Also added 100nF
 decoupling for U3-U6 (the decode/IRQ glue had none) and a 10uF bulk per card.
+
+## On-board enable + IRQ straps (2026-07-11)
+The motherboard COM instances previously had their IRQ hard-wired at build
+time (COM1->IRQ4, COM2->IRQ3 via the INSTANCES remap). The remap is gone: the
+sheet now exposes IRQ3+IRQ4 and JP2 picks one per instance (open = polled),
+matching real cards -- U6 is tri-state so the unselected line is untouched,
+and two instances sharing the pins is safe. JP3 gates the 16550's spare
+active-high CS1 (open = R1 parks it low -> port can never be selected; IRQ
+needs no extra gating since MCR resets to 0 -> ~OUT2 high -> U6 released).
+card_com's own JP2 was deleted (the sheet's strap comes along for free).
