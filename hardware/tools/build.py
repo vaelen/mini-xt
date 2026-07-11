@@ -75,7 +75,11 @@ def build_subsheet(modname, lib):
 
 
 # Standalone soft-card PCBs (each = logic + two chainable ISA headers, isa_conn).
-CARD_SHEETS = ["card_video", "card_com", "card_lpt", "card_rtc", "card_storage", "card_isatest"]
+# COM/LPT/RTC live on the motherboard only (their sheets carry enable +
+# base-addr/IRQ straps); the remaining standalone cards are the ones that
+# earn a separate PCB: video (HDMI/VGA bring-up), storage (drive bay), and
+# the isatest jig (the bus HOST -- opposite role, needs its own board).
+CARD_SHEETS = ["card_video", "card_storage", "card_isatest"]
 
 
 def build_cards(run_checks=True):

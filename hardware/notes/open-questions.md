@@ -284,3 +284,18 @@ ISA cards on the sidecar/chain stay refreshed.
   itself needed a pin.
 - Verified: `~{REFRESH}` ties sidecar(J1) <-> Bus MCU(GPIO47); passes through
   J_IN<->J_OUT on every dev card; zero structural ERC on motherboard + all cards.
+
+---
+
+## Change: COM/LPT/RTC standalone cards removed (your call, 2026-07-11)
+
+The card_com / card_lpt / card_rtc wrappers and their generated PCBs are
+deleted; those peripherals live on the motherboard only (still one isolated
+soft-card sheet each). In exchange the sheets gained the full jumper set a
+real card would have -- COM: J2 base 0x3F8/0x2F8, JP2 IRQ4/IRQ3/open=polled,
+JP3 enable; LPT: JP1 base 0x378/0x278, JP3 IRQ7/IRQ5/open=polled, JP2 enable
+-- so an on-board port can be disabled or re-strapped to make room for the
+same peripheral on the sidecar chain. Standalone cards that remain: video,
+storage, isatest (the ones that earn their own PCB). A card wrapper is ~25
+lines (see card_video.py), so any deleted card is trivially restorable from
+git history if needed.

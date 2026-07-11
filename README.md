@@ -42,7 +42,7 @@ inside the video MCU.
 | `hardware/`                       | KiCad 9 schematics (generated — see below) + `README.md`      |
 | `hardware/sheets/*.py`            | Declarative per-sheet schematic builders (the real sources)   |
 | `hardware/tools/`                 | The Python schematic generator (`mxsch.py`), signal contract (`mxbus.py`), build harness |
-| `hardware/cards/`                 | Standalone, chainable soft-card dev PCBs (video, COM, LPT, RTC, storage, ISA tester) |
+| `hardware/cards/`                 | Standalone, chainable dev PCBs (video, storage, ISA tester)   |
 | `hardware/notes/`                 | Design decisions + open questions logged during generation    |
 
 ## The schematics
@@ -59,9 +59,13 @@ kicad hardware/mini-xt.kicad_pro          # browse: root sheet = the ISA backpla
 python3 hardware/tools/build.py           # regenerate all sheets + root, run ERC + netlist
 ```
 
-Each soft card also builds as its own standalone PCB in `hardware/cards/`, with
-two chainable 60-pin ISA headers (standard 8-bit ISA pinout) so cards can be
-fabbed and daisy-chained for development before the motherboard exists.
+The video and storage cards also build as standalone PCBs in `hardware/cards/`,
+with two chainable 60-pin ISA headers (standard 8-bit ISA pinout) so they can be
+fabbed and daisy-chained against the ISA tester before the motherboard exists.
+The simpler peripherals (COM ×2, LPT, RTC) live on the motherboard only — still
+one isolated sheet each, jumper-configured like real cards (enable, base
+address, IRQ), so any of them can still be lifted onto a separate PCB later by
+re-adding a small `card_*` wrapper.
 
 See `hardware/README.md` for the sheet list and
 `hardware/tools/SHEET_AUTHORING_GUIDE.md` for how to author a sheet.
@@ -87,30 +91,6 @@ into the combined board.
   milestone. Its own 74LVC245A shifters and the module's LDO keep it a
   self-contained 3.3 V island on the 5 V bus.
 
-- **`card_com`** — one full RS-232 port: 16C550 UART + MAX3241 (3 drivers /
-  5 receivers = a complete DB9 DTE with all modem lines, no ±12 V thanks to
-  the charge pump). The UART sits in an SMD PLCC-44 socket that accepts new
-  TI silicon, NOS tubes, or period NS16550AFN pulls alike. Strap-configured,
-  not hard-wired: J2 picks the base address (0x3F8/0x2F8), JP2 picks the
-  matching IRQ (4/3), JP1 switches the UART's RX between the DB9 and a 5 V
-  TTL console header. Baud reference is a 1.8432 MHz crystal on the 16C550's
-  own oscillator, so the card needs nothing but the 5 V rail.
-
-- **`card_lpt`** — a period-correct SPP/Centronics printer port at 0x378
-  built from nothing but 74HCT logic: '574 latches for the data and control
-  registers, '244 buffers for status and read-back, discrete AND-tree
-  address decode. Register semantics match a real LPT card bit-for-bit
-  (Busy inverted on-card into status bit 7; Strobe/AutoFd/SelectIn inverted
-  on the way out) and IRQ7 is driven tri-state, only during an enabled ~Ack
-  pulse, so the line stays shareable. DB25 out.
-
-- **`card_rtc`** — the machine's clock and CMOS: a DS12C887 (integral
-  battery + crystal, in a machined DIP-24 socket) at the PC-standard
-  0x70/0x71. Strapped to Intel bus mode and glued to the demultiplexed ISA
-  bus by a discrete exact 10-bit decode ('138 + NOR/AND tree) that
-  synthesizes the multiplexed AS/DS/R~W cycle from ~IOW/~IOR; its
-  open-drain ~IRQ is pulled up and inverted to the bus's active-high IRQ8.
-
 - **`card_storage`** — mass storage as a true XT-IDE rev 2 ("Chuck-mod"):
   the A0↔A3 address-line swap puts the data register at 0x300 and the
   '573 high-byte latch at 0x301, exactly the layout XTIDE Universal BIOS's
@@ -132,8 +112,31 @@ into the combined board.
   device-under-test can't take the tester down.
 
 The **motherboard** proper (V20 + SRAM + the two-MCU chipset + power/audio,
-the `hardware/sheets/` hierarchy) is the seventh board: the one node allowed
-private side-channels, since it *is* the machine the cards plug into.
+the `hardware/sheets/` hierarchy) is the fourth board: the one node allowed
+private side-channels, since it *is* the machine the cards plug into. Its
+on-board peripherals keep the same soft-card discipline (own sheet, ISA
+signals + power only) and are jumper-configured like the period cards they
+replace:
+
+- **COM1/COM2** — one `com_port` sheet instanced twice: 16C550 (SMD PLCC-44
+  socket taking new TI silicon or period NS16550AFN pulls) + MAX3241 for a
+  full DB9 DTE, 1.8432 MHz crystal baud reference. Per port: J2 base address
+  (0x3F8/0x2F8), JP2 IRQ (4/3, open = polled), JP3 enable (open parks the
+  16550's CS1 — the port simply never decodes), JP1 RX source (DB9 vs 5 V
+  TTL console header, COM1).
+- **LPT** — period-correct SPP at JP1-strapped 0x378/0x278 in discrete 74HCT
+  ('574 latches, '244 buffers, AND-tree decode); Busy inverted on-card into
+  status bit 7, IRQ7/IRQ5 strap (JP3, tri-state driver, open = polled), JP2
+  enable gates the register-select '138. DB25 out.
+- **RTC** — DS12C887 (integral battery + crystal, machined DIP-24 socket) at
+  the PC-standard 0x70/0x71: Intel bus mode, discrete exact 10-bit decode
+  synthesizing the multiplexed AS/DS/R~W cycle from ~IOW/~IOR, open-drain
+  ~IRQ inverted onto IRQ8.
+
+Disabling an on-board port (or re-strapping its address/IRQ) frees the slot
+for the same peripheral on the sidecar chain — the drivers are tri-state, so
+an on-board port and a card can coexist as long as they don't claim the same
+address or IRQ.
 
 ## Fabrication
 
