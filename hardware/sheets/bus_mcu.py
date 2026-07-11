@@ -3,7 +3,7 @@
 This is the heaviest sheet: the RP2350B "fast hands" node sits on the buffered
 XT/ISA backplane as **slave and master**.  It carries:
 
-  * M1  Core2350B module (RP2350B) -- the Bus MCU; self-powers 3V3 from +5V.  Soft dual-8259 PIC, 8254 PIT, 8255/8042 KBC,
+  * M1  Core2350B module (RP2350B) -- the Bus MCU; self-powers 3V3 from +5V via D1 (SS34 Schottky diode-OR).  Soft dual-8259 PIC, 8254 PIT, 8255/8042 KBC,
         8237 DMA, NMI mask, POST snoop -- all in firmware on core0+PIO / core1.
   * Local 74LVC245A level shifters, powered from the module's own 3V3 (3V3_BUS):
         - U2  data group   D0-D7   (DIR = DATADIR, read/write of the cycle)
@@ -13,6 +13,8 @@ XT/ISA backplane as **slave and master**.  It carries:
           master-cycle addresses come from the counter, never MCU GPIO)
         - U13 AEN/TC, FIXED MCU->bus (the soft-8237 alone generates these;
           M_AEN is pulled down so AEN reads idle-low before firmware runs)
+        - R16-R18 park DATADIR/M_TC/HLDA low during MCU Hi-Z (BOOTSEL/reset) so
+          always-enabled shifters U2/U13 don't drive the 5V bus with garbage
   * External 20-bit loadable address counter (§5.1): U7..U11, 5x 74HCT163
         cascaded.  Loaded from D0-D7 (3 byte-lanes steered by CNT_LD0/1/2);
         advanced one byte per CNT_CLK pulse.  Cuts master-cycle address cost
@@ -140,10 +142,10 @@ def build(sch, lib):
     # =================================================================
     M1 = sch.place("mini-xt:Core2350B", "M1", "Core2350B (0MB PSRAM)",
                    at=(101.6, 152.4))
-    # Self-powered: +5V -> module VBUS; the module's onboard ME6217 LDO makes its
+    # Self-powered: +5V -> D1 -> module VBUS; the module's onboard ME6217 LDO makes its
     # own 3V3 (3V3_BUS), which also powers THIS card's level shifters. 3V3_BUS is a
     # sheet-local rail -- NOT tied to +3V3 or the other module's 3V3 (no paralleling).
-    N(M1, "VBUS", "+5V", length=2.54)
+    N(M1, "VBUS", "VBUS_MCU", length=2.54)
     N(M1, "3V3", "3V3_BUS", length=2.54)
     N(M1, "59", "GND", length=2.54)
     N(M1, "60", "GND", length=2.54)
@@ -159,6 +161,15 @@ def build(sch, lib):
             N(M1, key, net)
     sch.text("Core2350B module (RP2350B): soft PIC x2 / PIT / KBC / DMA / NMI / POST.", (50.8, 86.36))
     sch.text("Self-powers 3V3 from +5V (onboard ME6217 LDO); user LED on GPIO39 (=CNT_LD2).", (50.8, 88.9))
+
+    # VBUS diode-OR: the Core2350B has NO on-module diode between its USB
+    # connector and the VBUS pin (vendor schematic), so the board feeds the
+    # module through D1 -- a PC plugged into the module's USB for flashing
+    # powers the module but can never back-power the +5V rail, and a powered
+    # board never back-drives the PC port. ME6217 LDO is fine at ~4.7 V in.
+    d1 = sch.place("Device:D_Schottky", "D1", "SS34", at=(40.64, 116.84))
+    sch.net(d1, "2", "+5V", kind="label", dx=0, dy=-2.54)       # 2 = anode
+    sch.net(d1, "1", "VBUS_MCU", kind="label", dx=0, dy=2.54)   # 1 = cathode
 
     # =================================================================
     #  Level shifters (74LVC245A) -- value override on mini-xt:74LVC245A
@@ -344,6 +355,12 @@ def build(sch, lib):
     pull("R13", "~{DACK3}", "+5V", (254.0, 25.4))     # dropped): park deasserted
     pull("R14", "DRQ2", "GND", (269.24, 25.4))        # DRQ2/3 not wired to the MCU
     pull("R15", "DRQ3", "GND", (284.48, 25.4))        # (GPIO budget): idle low
+    # MCU-Hi-Z parking (BOOTSEL flashing / reset-to-init window): U2's CE is
+    # grounded (always on), so its DIR must default to B->A sense; U13's M_TC
+    # input must not float; U6's DIR (HLDA) floats when the V20 side is off.
+    pull("R16", "DATADIR", "GND", (299.72, 25.4))
+    pull("R17", "M_TC", "GND", (314.96, 25.4))
+    pull("R18", "HLDA", "GND", (330.2, 25.4))
     sch.text("DMA ch2/3 + raw ~WR/IO-M are NOT wired to the MCU (48-GPIO budget, "
              "S5.2): DACK2/3 parked high, DRQ2/3 low. First candidates for a "
              "second '165/'595 if sidecar DMA is ever needed.", (86.36, 15.24))

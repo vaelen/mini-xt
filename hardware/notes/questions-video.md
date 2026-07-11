@@ -71,5 +71,14 @@ tri-states, so a disabled card is electrically silent), and VID_BASE picks
 the default window set (closed = CGA 0x3D4/0xB8000, open = MDA 0x3B4/0xB0000)
 like a period card's MDA/CGA switch. Lets an on-board video coexist with a
 card_video on the sidecar chain (one CGA, one MDA, or one disabled).
+
+## 9. Module-USB flashing made safe (2026-07-11)
+Same fix as the Bus MCU: the Core2350B has no on-module VBUS diode, so D1
+(SS34) now feeds the module from +5V Pico-style -- flashing over the module's
+USB can't back-power the board and a running board can't back-drive the PC
+port. R32-R37 park the shifter controls while the MCU is Hi-Z (BOOTSEL /
+pre-init): DOE/AOE_LO/AOE_MID/AOE_HI/RDY_OE pulled to 3V3_VID (OEs are
+active-low -> buffers disabled), DDIR pulled low (bus->MCU sense). Before
+this, those enables floated whenever the MCU wasn't driving them.
 </content>
 </invoke>

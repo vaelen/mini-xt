@@ -11,7 +11,9 @@ VID_BASE selects the default window (CGA or MDA), letting an on-board video coex
 with a card_video on the sidecar chain.
 
 Structure:
-  * Core2350B module (M1, RP2350B) -- self-powers 3V3 from +5V (onboard LDO).
+  * Core2350B module (M1, RP2350B) -- self-powers 3V3 from +5V (onboard LDO);
+    D1 (SS34 Schottky) is the VBUS diode-OR so module-USB flashing never
+    back-powers the +5V rail.
   * Local 74LVC245A level shifters between the 3.3 V MCU and the 5 V bus:
       U2  data transceiver  D0-D7  (bidirectional, DIR=DDIR, OE=DOE)
       U3  address snoop     A0-A7  (B->A, OE=AOE_LO)
@@ -21,7 +23,8 @@ Structure:
       U7  IOCHRDY driver    one channel, A->B, OE=RDY_OE (tri-state when idle)
     The address+data shifters share one 8-bit MCU "snoop bus" SB0-SB7; the PIO
     enables one '245 at a time (see questions-video.md #2) -- this is what fits
-    the wide bus + two video stages onto 48 GPIO.
+    the wide bus + two video stages onto 48 GPIO. R32-R37 park the shifter
+    control nets while the MCU is Hi-Z (BOOTSEL flashing / reset-to-init).
   * HDMI (J1): RP2350 HSTX drives the 3 TMDS data pairs + clock pair straight out
     of GPIO12-19 through 270R series resistors -- no transmitter chip.
   * VGA  (J2): resistor-ladder DAC, 3R-3G-2B, from GPIO to an HD15 connector,
@@ -61,9 +64,11 @@ def build(sch, lib, expose=True):
     # Order the PSRAM variant (2/8MB): the module's onboard QSPI PSRAM IS the VGA
     # aperture (CS=GPIO47, internal to the module) -- no external PSRAM chip needed.
     M1 = sch.place("mini-xt:Core2350B", "M1", "Core2350B (8MB PSRAM)", at=(165.1, 139.7))
-    # self-powered: +5V -> VBUS; onboard LDO makes 3V3_VID (local rail) for the
+    # self-powered: +5V -> D1 -> VBUS; onboard LDO makes 3V3_VID (local rail) for the
     # shifters. 3V3_VID is sheet-local -- not tied to +3V3 or the Bus MCU's 3V3.
-    L(M1, "VBUS", "+5V", dx=0, dy=-2.54)
+    # D1 (SS34 Schottky) is the VBUS diode-OR: modules have no internal VBUS protection,
+    # so D1 prevents module-USB flashing from back-powering the +5V rail.
+    L(M1, "VBUS", "VBUS_VID", dx=0, dy=-2.54)
     L(M1, "3V3", "3V3_VID", dx=0, dy=-2.54)
     L(M1, "59", "GND", dx=0, dy=2.54); L(M1, "60", "GND", dx=0, dy=2.54)
     for nm in ("3V3_EN", "RUN", "ADC_VREF", "USB_DP", "USB_DM", "BOOTSEL",
@@ -97,6 +102,14 @@ def build(sch, lib, expose=True):
     L(M1, "GPIO43", "VID_BASE", dx=2.54)      # boot strap: low = CGA, high = MDA
     # GPIO47 = module's onboard PSRAM chip-select (internal) -- left unwired here.
 
+    # VBUS diode-OR: the Core2350B has NO on-module diode between its USB
+    # connector and the VBUS pin (vendor schematic) -- D1 feeds the module
+    # Pico-style so a PC plugged in for flashing powers the module but never
+    # back-powers the +5V rail, and a powered board never back-drives the PC.
+    d1 = sch.place("Device:D_Schottky", "D1", "SS34", at=(152.4, 40.64))
+    sch.net(d1, "2", "+5V", kind="label", dx=0, dy=-2.54)       # 2 = anode
+    sch.net(d1, "1", "VBUS_VID", kind="label", dx=0, dy=2.54)   # 1 = cathode
+
     # local 3V3_VID decoupling for the shifters (module itself is self-decoupled)
     decouple("C1", (44.45, 274.32), net="3V3_VID")
     decouple("C2", (69.85, 274.32), net="3V3_VID")
@@ -108,6 +121,19 @@ def build(sch, lib, expose=True):
     decouple("C5", (152.4, 274.32))
     decouple("C6", (177.8, 274.32))
     decouple("C7", (203.2, 274.32))
+
+    # MCU-Hi-Z parking (BOOTSEL flashing / reset-to-init window): every
+    # bus-facing '245 enable defaults OFF and the data direction defaults to
+    # bus->MCU sense, so an unconfigured MCU never drives the 5 V bus.
+    for ref, net, rail, x in [("R32", "DDIR", "GND", 33.02),
+                             ("R33", "DOE", "3V3_VID", 48.26),
+                             ("R34", "AOE_LO", "3V3_VID", 63.5),
+                             ("R35", "AOE_MID", "3V3_VID", 78.74),
+                             ("R36", "AOE_HI", "3V3_VID", 93.98),
+                             ("R37", "RDY_OE", "3V3_VID", 109.22)]:
+        r = sch.place("Device:R", ref, "10k", at=(x, 287.02))
+        sch.net(r, "1", rail, kind="label", dx=0, dy=-2.54)
+        sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
 
     # Boot straps (firmware-read; decode is firmware in this snoop design):
     # JP1 installed -> VID_EN low -> card enabled; open -> firmware keeps every

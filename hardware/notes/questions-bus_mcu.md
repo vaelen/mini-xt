@@ -72,5 +72,15 @@ C8 was decoupling +3V3, a rail this sheet doesn't use -- now 3V3_BUS (typo).
 Added C12-C17 (the +5V '244/'04 stage and the counter/xcvr banks had none or
 shared one). U17 spare inverter inputs tied to GND (no_connect left them
 floating on the real chip).
+
+## Module-USB flashing made safe (2026-07-11)
+The Core2350B's vendor schematic shows a single VBUS net -- no diode between
+its on-module USB connector and the VBUS pin -- so the old direct +5V tie
+meant plugging a PC in would back-power the whole board (board off) or
+parallel two hard 5V supplies (board on). D1 (SS34) now feeds the module
+Pico-style (+5V -> anode, VBUS_MCU -> cathode); the ME6217 LDO has ample
+headroom at ~4.7 V. R16-R18 park DATADIR (B->A), M_TC (low) and HLDA (low)
+while the MCU is Hi-Z in BOOTSEL/reset, so the always-enabled U2/U13
+shifters can't drive the 5 V bus with indeterminate levels during flashing.
 </content>
 </invoke>

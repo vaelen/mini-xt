@@ -594,6 +594,12 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
   testable **before** the Bus MCU's bus engine is working.
 - **Logic-analyzer header** on the demuxed bus.
 - Cold-start **reset/power supervisor**.
+- **Module-USB flashing is safe**: the Core2350B has *no* on-module diode between its USB
+  connector and its VBUS pin (vendor schematic), so each module site feeds VBUS through a
+  **Schottky (SS34), Pico-style** — a PC plugged into the Bus-MCU or video module for
+  firmware update powers only that module, never the +5 V rail, and a powered board never
+  back-drives the PC port. The modules' level-shifter enables/directions carry park
+  resistors, so an MCU in BOOTSEL (all GPIO Hi-Z) leaves every bus-facing buffer disabled.
 
 ---
 
