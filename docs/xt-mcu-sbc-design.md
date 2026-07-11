@@ -27,7 +27,7 @@ Design date: 2026-06-28.
 | Reset / power-good | Supervisor (TL7705A/MAX809) cold-start; **Bus MCU sequences reset** |
 | RAM | **2× AS6C4008-55** SRAM (640 KB conventional + UMB); video RAM lives in the video MCU |
 | ROM / BIOS | **None on board** — BIOS **shadow-loaded into SRAM** by the Bus MCU at boot |
-| Bus | Buffered **8-bit XT/ISA backplane**; expansion via a **2×32 IDC "sidecar" header** |
+| Bus | Buffered **8-bit XT/ISA backplane**; expansion via a **60-pin (2×30) "sidecar" header**, standard 8-bit ISA pinout |
 | Support chipset | **Two-MCU split**: **Bus MCU (RP2350B)** soft-emulates PIC (×2, 15 IRQ), PIT, KBC, **functional DMA**, NMI, POST as bus master/slave; **Supervisor (RP2040)** runs USB/config/storage off-bus (§5) |
 | Chipset link | **2-wire full-duplex UART** between Bus MCU ↔ Supervisor (boot image push + HID/menu/POST events) |
 | Video | **RP2350B** soft CGA/MDA/Hercules (snoop-and-mirror), **VGA + HDMI** out (config-selected) |
@@ -36,7 +36,7 @@ Design date: 2026-06-28.
 | Mouse | Emulated **virtual COM3 serial mouse** (default) or **PS/2 on IRQ12** (option) |
 | Storage | Discrete **XT-IDE** (8-bit, Chuck-mod) + CompactFlash; XTIDE Universal BIOS |
 | Serial | **2× 16C550** + **MAX3241** (full DB9); TTL console header on COM1 |
-| Parallel | Discrete **74HC** LPT @ 0x378 |
+| Parallel | Discrete **74HCT** LPT @ 0x378 (jumpers: 0x278 alt, IRQ7/5, enable) |
 | RTC | **DS12C887** (integral battery + crystal) @ 0x70/0x71 |
 | Config | **Pre-BIOS setup menu** (Supervisor MCU), shown on **video + MCU console**, entered by keypress |
 | BIOS | **Xi 8088** (Sergey Kiselev), expected to be **forked** for our chipset |
@@ -108,7 +108,7 @@ leave the board. Class-3 parts are fixed motherboard hardware and out of scope f
         │
   ┌─────┼───────┬──────────────┬──────────────┬───────────┬──────────────┐
 ┌─┴──┐┌─┴──┐ ┌──┴─────────┐ ┌──┴─────────┐ ┌───┴────┐ ┌────┴─────┐  ┌─────┴──────┐
-│SRAM││SRAM│ │  BUS MCU   │ │  VIDEO MCU │ │PicoGUS │ │ 2×16C550 │  │ 2×32 IDC   │
+│SRAM││SRAM│ │  BUS MCU   │ │  VIDEO MCU │ │PicoGUS │ │ 2×16C550 │  │ 60p (2×30) │
 │ #1 ││ #2 │ │  RP2350B   │ │  RP2350B   │ │ RP2040 │ │ +MAX3241 │  │ sidecar    │
 │512K││512K│ │ PIC/PIT/   │ │ CGA/MDA/   │ │ stock  │ │ COM1/2   │  │ (ISA bus   │
 │ ×8 ││ ×8 │ │ KBC/DMA/   │ │ Herc snoop │ │ AdLib/ │ └──────────┘  │  off-board)│
@@ -216,17 +216,29 @@ transceivers on the address and control groups with a **DIR line that flips with
 far the heaviest level-shifter consumer on the board).
 
 ### 4.3 Sidecar expansion header
-Instead of on-board slots, a **2×32 (64-pin) 2.54 mm IDC header** carries the **full
-buffered 8-bit ISA signal set** with interleaved grounds:
+Instead of on-board slots, a **60-pin (2×30) 2.54 mm header** carries the **full
+buffered 8-bit ISA signal set**, laid out as the **standard 8-bit ISA edge pinout**
+(the PicoGUS `Bus_ISA_8bit` arrangement) so the sidecar and the dev boards are
+pin-compatible with real 8-bit ISA cards:
 
 - A0–A19, D0–D7
 - MEMR̄/MEMW̄/IOR̄/IOW̄, BALE, AEN
 - CLK (7.16), OSC (14.318), RESET DRV
-- IOCHRDY, IOCHCK̄
-- IRQ2–7 (+ a few extended lines from the soft-PIC)
+- IOCHRDY; the unused analog rails are reclaimed: pin 7 (−5 V) → **IOCHCK̄**,
+  pin 11 (−12 V) → extra GND, pin 15 (+12 V) → **IRQ8**
+- IRQ2–7 (+ IRQ8 as above), REFRESH̄ on its standard pin (driven by the Bus MCU)
 - DRQ1–3 / DACK1–3̄ / TC (wired to the Bus MCU so its emulated 8237 can service a real
   DMA card)
-- +5 V and many grounds; a **key pin** prevents reversed insertion.
+- +5 V and grounds. The motherboard feeds the header's +5 V through a **2 A
+  polyfuse + SMBJ5.0A clamp** (net `+5V_ISA`), so a faulted expansion trips its
+  own fuse instead of dropping — or back-driving — the board rail.
+
+Development boards daisy-chain header-to-header on this pinout. Only three earn
+a **separate PCB** (`hardware/cards/`): **video**, **storage**, and the
+**isatest jig** (a Pico playing the bus *host* — the opposite role — so any card
+can be exercised with no motherboard present). **COM ×2, LPT and RTC are
+motherboard-only** (§11): each is still its own isolated soft-card sheet, and
+its enable/base-address/IRQ jumpers free the slot for a sidecar replacement.
 
 A future **backplane re-buffers** the bus to drive multiple slots, so the on-board
 245/573 only ever drive the cable + one re-buffer. At 7.16 MHz over a short ribbon this is
@@ -518,7 +530,13 @@ Discrete and period-correct (uses 74HCT on hand):
 ## 11. Serial / parallel / RTC / input
 
 ### 11.1 Serial (2× COM)
-- **2× 16C550**: **COM1 0x3F8/IRQ4**, **COM2 0x2F8/IRQ3**.
+- **2× 16C550** (one `com_port` sheet, instanced twice): **COM1 0x3F8/IRQ4**,
+  **COM2 0x2F8/IRQ3** as the default strapping. On-board only — no standalone
+  COM card — but jumper-configured exactly like a period card: **J2** base
+  address (0x3F8/0x2F8), **JP2** IRQ (4/3, open = polled), **JP3** enable
+  (open parks the 16550's spare active-high CS1, so the port never decodes;
+  the IRQ driver is tri-state and MCR resets to 0, so a disabled port is
+  silent on every line).
 - **MAX3241** per port — 3 drivers + 5 receivers = a **full DB9** (TXD/RTS/DTR out;
   RXD/CTS/DSR/DCD/RI in), internal charge pump (single-supply, no ±12 V).
 - **TTL console header** jumpered onto COM1 (ahead of the MAX3241) for headless bring-up.
@@ -532,11 +550,18 @@ Discrete and period-correct (uses 74HCT on hand):
   practice you use one or the other (most mouse use implies COM1 is free).
 
 ### 11.2 Parallel (LPT)
-Discrete **74HC** (374 data latch + 244/240 status/control) @ **0x378**, IRQ7 (usually polled).
+Discrete **74HCT** ('574 data/control latches + '244/'245 status & read-back) —
+on-board only, jumper-configured: **JP1** base address (**0x378/0x278** — they
+differ only in A8; a spare NAND inverts it), **JP3** IRQ (**7/5**, open =
+polled — note IRQ5 conflicts with storage §10 if both are enabled), **JP2**
+enable (open lifts the register-select '138's enable: no register can be read,
+written or latched). The IRQ driver is tri-state (asserted only for an enabled
+ACK̄ pulse), so the line stays shareable.
 
 ### 11.3 RTC
-**DS12C887** (integral battery + crystal) @ **0x70/0x71**. Holds CMOS config; pairs with
-Xi 8088's CMOS setup.
+**DS12C887** (integral battery + crystal, machined DIP-24 socket) @ **0x70/0x71** —
+on-board only; address and IRQ8 are fixed PC conventions, so it needs no straps.
+Holds CMOS config; pairs with Xi 8088's CMOS setup.
 
 ### 11.4 Input — USB HID, mouse emulation
 - **Single USB-A host jack** on the **Supervisor** MCU. Keyboard plugs straight in; a mouse
@@ -594,7 +619,7 @@ Xi 8088's CMOS setup.
 | 0x3E8 | **COM3 — emulated serial mouse** (Bus MCU, IRQ4) |
 | 0x2E8 | COM4 (sidecar, **bus IRQ2 line → IRQ9**) |
 | 0x300–0x31F | XT-IDE |
-| 0x378 | LPT1 |
+| 0x378 | LPT1 (JP1 re-straps to 0x278; JP2 disables) |
 | 0x3B0–0x3BF / 0x3D0–0x3DF | MDA-Hercules / CGA (video MCU) |
 
 ### IRQ (AT-style, 15 lines via cascaded soft-PIC)
