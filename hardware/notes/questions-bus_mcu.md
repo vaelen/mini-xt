@@ -82,5 +82,14 @@ Pico-style (+5V -> anode, VBUS_MCU -> cathode); the ME6217 LDO has ample
 headroom at ~4.7 V. R16-R18 park DATADIR (B->A), M_TC (low) and HLDA (low)
 while the MCU is Hi-Z in BOOTSEL/reset, so the always-enabled U2/U13
 shifters can't drive the 5 V bus with indeterminate levels during flashing.
+
+## IRQ collector extended to 16 bits (2026-07-11)
+U19 (74HCT165) cascades into U12's DS, sampling IRQ10-IRQ15 (R19-R24 idle
+pull-downs). Costs zero GPIO -- same IRQ_LOAD/IRQ_CLK/IRQ_SER, firmware
+shifts 16 bits instead of 8. Motivation: the on-board storage now straps to
+IRQ14 (AT primary-IDE convention) by default, which previously had no
+physical path into the soft-PIC; this also un-dangles the IRQ10-15 pins the
+sheet interface had declared all along. These lines are motherboard-internal
+(the 60-pin header carries only IRQ2-8).
 </content>
 </invoke>

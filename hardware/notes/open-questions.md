@@ -299,3 +299,17 @@ same peripheral on the sidecar chain. Standalone cards that remain: video,
 storage, isatest (the ones that earn their own PCB). A card wrapper is ~25
 lines (see card_video.py), so any deleted card is trivially restorable from
 git history if needed.
+
+---
+
+## Change: storage card removed; on-board XT-IDE gains IRQ14 default (your call, 2026-07-11)
+
+card_storage is deleted (same rationale as the COM/LPT/RTC removal -- the
+on-board sheet carries the full jumper set; restorable from git in ~25
+lines). The storage sheet gains JP3: IRQ14 (default, AT primary-IDE
+convention) / IRQ5 (XT fallback) / open = polled. IRQ14 required a physical
+path into the soft-PIC: the Bus MCU's IRQ collector is now a cascaded pair
+of 74HCT165s (U12 IRQ2-9 + U19 IRQ10-15, same 3 GPIO, 16-bit shift), which
+also un-dangles the IRQ10-15 interface pins the sheet had declared all
+along. IRQ10-15 are motherboard-internal -- the 60-pin header still carries
+only IRQ2-8. Standalone cards remaining: video, isatest.

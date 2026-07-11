@@ -82,3 +82,14 @@ so DEC2/DEC3, both high-byte latches and the low-byte '245 are all inert and
 IRQ5 stays released (INTRQ pull-down). Same pattern as the LPT sheet. This
 lets an on-board storage port coexist with a card_storage on the sidecar
 chain (strap one to 0x300, the other to 0x320, or disable one).
+
+---
+
+## IRQ strap: IRQ14 default (2026-07-11)
+JP3 selects IRQ14 (default, 1-2) or IRQ5 (2-3), open = polled. IRQ14 is the
+AT primary-IDE convention and is now physically collected by the Bus MCU's
+cascaded second '165; it is in the mxbus ISA contract but has NO pin on the
+60-pin sidecar header, so it only works for the on-board instance -- fine,
+since the standalone storage card was removed. IRQ5 remains the XT-style
+fallback (and frees the IRQ5/LPT-alt collision). XTIDE Universal BIOS takes
+the IRQ per-controller in its config, so either strap position is bootable.

@@ -42,7 +42,7 @@ inside the video MCU.
 | `hardware/`                       | KiCad 9 schematics (generated — see below) + `README.md`      |
 | `hardware/sheets/*.py`            | Declarative per-sheet schematic builders (the real sources)   |
 | `hardware/tools/`                 | The Python schematic generator (`mxsch.py`), signal contract (`mxbus.py`), build harness |
-| `hardware/cards/`                 | Standalone, chainable dev PCBs (video, storage, ISA tester)   |
+| `hardware/cards/`                 | Standalone, chainable dev PCBs (video, ISA tester)            |
 | `hardware/notes/`                 | Design decisions + open questions logged during generation    |
 
 ## The schematics
@@ -59,12 +59,12 @@ kicad hardware/mini-xt.kicad_pro          # browse: root sheet = the ISA backpla
 python3 hardware/tools/build.py           # regenerate all sheets + root, run ERC + netlist
 ```
 
-The video and storage sheets exist in both forms — on the motherboard *and* as
-standalone PCBs in `hardware/cards/`, with two chainable 60-pin ISA headers
-(standard 8-bit ISA pinout) so they can be fabbed and daisy-chained against the
-ISA tester before the motherboard exists.
-The simpler peripherals (COM ×2, LPT, RTC) live on the motherboard only — still
-one isolated sheet each, jumper-configured like real cards (enable, base
+The video sheet exists in both forms — on the motherboard *and* as a standalone
+PCB in `hardware/cards/`, with two chainable 60-pin ISA headers (standard 8-bit
+ISA pinout) so it can be fabbed and daisy-chained against the ISA tester before
+the motherboard exists.
+The other peripherals (COM ×2, LPT, RTC, storage) live on the motherboard only —
+still one isolated sheet each, jumper-configured like real cards (enable, base
 address, IRQ), so any of them can still be lifted onto a separate PCB later by
 re-adding a small `card_*` wrapper.
 
@@ -97,17 +97,6 @@ into the combined board.
   picks the default window set, closed = CGA (0x3D4/0xB8000), open =
   MDA/Hercules (0x3B4/0xB0000).
 
-- **`card_storage`** — mass storage as a true XT-IDE rev 2 ("Chuck-mod"):
-  the A0↔A3 address-line swap puts the data register at 0x300 and the
-  '573 high-byte latch at 0x301, exactly the layout XTIDE Universal BIOS's
-  "XT-IDE rev 2" type boots fastest, and the latch pair turns the 16-bit
-  IDE data register into two 8-bit transfers. Both a 40-pin IDE header and
-  a CompactFlash socket (True-IDE) hang off the same bus; IRQ5 out,
-  parked low so an empty card can't interrupt-storm. JP1 re-straps the base
-  to 0x320 (0x300/0x320 differ only in A5; XTIDE UB supports both) and JP2
-  disables the card outright — it lifts the decode '138's enable, so every
-  select, latch clock and buffer goes inert.
-
 - **`card_isatest`** — the development jig: a Raspberry Pi Pico acting as
   the *motherboard* side of the bus (the opposite role from every other
   card) so any card — or a real ISA card in its edge-connector slot — can
@@ -121,7 +110,7 @@ into the combined board.
   device-under-test can't take the tester down.
 
 The **motherboard** proper (V20 + SRAM + the two-MCU chipset + power/audio,
-the `hardware/sheets/` hierarchy) is the fourth board: the one node allowed
+the `hardware/sheets/` hierarchy) is the third board: the one node allowed
 private side-channels, since it *is* the machine the cards plug into. Its
 on-board peripherals keep the same soft-card discipline (own sheet, ISA
 signals + power only) and are jumper-configured like the period cards they
@@ -141,15 +130,25 @@ replace:
   the PC-standard 0x70/0x71: Intel bus mode, discrete exact 10-bit decode
   synthesizing the multiplexed AS/DS/R~W cycle from ~IOW/~IOR, open-drain
   ~IRQ inverted onto IRQ8.
+- **Storage** — a true XT-IDE rev 2 ("Chuck-mod"): the A0↔A3 address-line
+  swap puts the data register at 0x300 and the '573 high-byte latch at
+  0x301, exactly the layout XTIDE Universal BIOS's "XT-IDE rev 2" type
+  boots fastest; the latch pair turns the 16-bit IDE data register into
+  two 8-bit transfers. A 40-pin IDE header and a CompactFlash socket
+  (True-IDE) hang off the same bus. Straps: JP1 base 0x300/0x320, JP2
+  enable (lifts the decode '138 — every select, latch clock and buffer
+  goes inert), JP3 IRQ — **IRQ14 default** (AT primary-IDE convention,
+  collected by the Bus MCU's cascaded second '165; motherboard-internal
+  line), IRQ5 alternate, open = polled. No boot ROM on the interface: the
+  Bus MCU shadow-loads XTIDE Universal BIOS into SRAM at boot.
 
-The on-board video and storage instances carry the same straps as their
-standalone cards (video: VID_EN + CGA/MDA window strap; storage: 0x300/0x320
-+ enable). Disabling an on-board port (or re-strapping its address/IRQ) frees
-the slot for the same peripheral on the sidecar chain — the drivers are
-tri-state, so an on-board port and a card can coexist as long as they don't
-claim the same address or IRQ: run on-board storage at 0x300 beside a
-`card_storage` at 0x320, or on-board video as CGA beside an MDA-strapped
-`card_video`.
+The on-board video instance carries the same straps as its standalone card
+(VID_EN + CGA/MDA window strap). Disabling an on-board port (or re-strapping
+its address/IRQ) frees the slot for the same peripheral on the sidecar chain —
+the drivers are tri-state, so an on-board port and a card can coexist as long
+as they don't claim the same address or IRQ: run the on-board XT-IDE at 0x300
+beside a real 8-bit ISA IDE card at 0x320, or on-board video as CGA beside an
+MDA-strapped `card_video`.
 
 ## Fabrication
 

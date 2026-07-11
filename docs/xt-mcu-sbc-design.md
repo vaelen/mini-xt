@@ -233,12 +233,13 @@ pin-compatible with real 8-bit ISA cards:
   polyfuse + SMBJ5.0A clamp** (net `+5V_ISA`), so a faulted expansion trips its
   own fuse instead of dropping — or back-driving — the board rail.
 
-Development boards daisy-chain header-to-header on this pinout. Only three earn
-a **separate PCB** (`hardware/cards/`): **video**, **storage**, and the
-**isatest jig** (a Pico playing the bus *host* — the opposite role — so any card
-can be exercised with no motherboard present). **COM ×2, LPT and RTC are
-motherboard-only** (§11): each is still its own isolated soft-card sheet, and
-its enable/base-address/IRQ jumpers free the slot for a sidecar replacement.
+Development boards daisy-chain header-to-header on this pinout. Only two earn
+a **separate PCB** (`hardware/cards/`): **video** and the **isatest jig** (a
+Pico playing the bus *host* — the opposite role — so any card can be exercised
+with no motherboard present). **COM ×2, LPT, RTC and storage are
+motherboard-only** (§10/§11): each is still its own isolated soft-card sheet,
+and its enable/base-address/IRQ jumpers free the slot for a sidecar
+replacement.
 
 A future **backplane re-buffers** the bus to drive multiple slots, so the on-board
 245/573 only ever drive the cable + one re-buffer. At 7.16 MHz over a short ribbon this is
@@ -337,7 +338,7 @@ beyond the 2-wire link (§5.3).
 | Ready / check | IOCHRDY (bidir), IOCHCK̄ (in) | 2 | |
 | Bus grant | HOLD (out), HLDA (in) | 2 | V20 min-mode handshake |
 | Interrupt deliver | INTR (out), INTĀ (in), NMI (out) | 3 | vector goes out on D0–D7 |
-| IRQ inputs | 74HC165: LOAD, CLK, SER | 3 | collects ~10–12 IRQ lines; µs-poll is fine (ISA holds IRQ until serviced) |
+| IRQ inputs | 2× 74HCT165: LOAD, CLK, SER | 3 | collects IRQ2–15 (16-bit shift; IRQ10–15 internal-only, IRQ14 = on-board XT-IDE); µs-poll is fine (ISA holds IRQ until serviced) |
 | DMA handshake | DRQ1 (in), DACK1̄ (out), TC (out) | 3 | on-board PicoGUS channel; sidecar DMA via '165/'595 or deferred |
 | Counter control | COUNT + load-steer ×3 | 3–4 | drives the external 20-bit address counter |
 | Speaker | PWM → op-amp (GPIO22) | 1 | PIT ch2 direct output; bus-CLK sense dropped (PIO tracks via BALE/strobes) |
@@ -528,11 +529,15 @@ Discrete and period-correct (uses 74HCT on hand):
   the 16-bit IDE data register two 8-bit transfers. **I/O base 0x300**, jumpered: **JP1**
   re-straps to **0x320** (they differ only in A5; XTIDE UB supports both) and **JP2**
   disables the port outright (lifts the decode '138's enable — every select, latch clock
-  and buffer goes inert, IRQ5 stays released), so an external XT-IDE on the sidecar chain
-  can coexist or take over.
+  and buffer goes inert, the IRQ stays released), so an external XT-IDE on the sidecar
+  chain can coexist or take over. **JP3 picks the IRQ: 14 (default — the AT primary-IDE
+  convention, collected by the Bus MCU's cascaded second '165; a motherboard-internal
+  line, not on the 60-pin header), 5 (XT convention), or open = polled.**
 - **40-pin IDE header + CompactFlash** (True-IDE). 8-bit-capable CF can skip the latch; keep
   it for general IDE drives.
-- Boot ROM = **XTIDE Universal BIOS**, shadow-loaded @0xC8000. Poll or IRQ5.
+- Boot ROM = **XTIDE Universal BIOS**, shadow-loaded @0xC8000. Polled or interrupt-driven
+  per the JP3 strap (IRQ14 default / IRQ5); XTIDE UB takes the IRQ per-controller in its
+  config, so the strap and the BIOS build just need to agree.
 - *(Alternative not taken: an SD-card-backed virtual IDE on a small MCU. Discrete XT-IDE+CF
   is simpler and rock-solid.)*
 
@@ -647,8 +652,8 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | 2 | cascade → slave | | 10 | spare (no line on 8-bit header) |
 | 3 | COM2 | | 11 | spare (no line on 8-bit header) |
 | 4 | COM1 (+ COM3 mouse, shared) | | 12 | PS/2 mouse (if used) |
-| 5 | XT-IDE / sound | | 13 | (FPU — unused) |
-| 6 | Floppy (opt) / spare | | 14 | spare (no line on 8-bit header) |
+| 5 | XT-IDE alt (JP3) / LPT alt / sound | | 13 | (FPU — unused) |
+| 6 | Floppy (opt) / spare | | 14 | **XT-IDE (on-board, JP3 default)** — internal line |
 | 7 | LPT1 | | 15 | spare (no line on 8-bit header) |
 
 ### DMA
@@ -678,7 +683,7 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | PIC / PIT / KBC / DMA | 8259 / 8253 / 8042 / 8237 | **Bus MCU: RP2350B (soft-emulated)** |
 | Chipset Supervisor | (part of the chipset) | **RP2040** — USB host, setup UI, config + BIOS-image flash, console, POST |
 | Bus-master address | (8237 internal + 74LS612 page) | **5× 74HC163** loadable counter (Bus MCU drives load/count) |
-| IRQ collector | (8259 internal) | **74HC165** shift register (~12 IRQ → 3 pins) |
+| IRQ collector | (8259 internal) | **2× 74HCT165** shift chain (IRQ2–15 → 3 pins) |
 | Chipset link | — | **2-wire UART** (Bus MCU ↔ Supervisor) |
 | RAM | 9× 4164 + parity | **2× AS6C4008-55 SRAM** |
 | ROM / BIOS | mask ROM / 2764 | **none — shadow-loaded into SRAM by the Bus MCU (image from Supervisor flash)** |
