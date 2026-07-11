@@ -72,6 +72,11 @@ PRIV_SPEED = ["SPEED_SEL"]
 PRIV_AUDIO = ["SPKR"]
 # CH224K power-good (open-drain, 3V3 pull-up): power sheet -> Supervisor GPIO16
 PRIV_PWR = ["PD_PG"]
+# Shared programming port (Supervisor J6/SW2 -> PicoGUS RP2040 USB). A
+# DOCUMENTED isolation exception: the on-board PicoGUS is otherwise a pure
+# soft card; to lift it onto a standalone ISA card, delete these two nets
+# and fit a local USB connector (as the reference chip-down design has).
+PRIV_PROG = ["PGUS_USB_DP", "PGUS_USB_DM"]
 # cross-MCU UART link (Bus MCU <-> Supervisor), full-duplex
 PRIV_LINK = ["LINK_B2S", "LINK_S2B"]   # Bus->Super TX, Super->Bus TX
 # Supervisor -> POST display + console

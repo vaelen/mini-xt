@@ -51,3 +51,12 @@ USBLC6-2SC6 ESD array at the jack, and 100uF bulk on VBUS_KBD (USB hosts must su
 >=120uF-class bulk for downstream inrush; the polyfuse alone would brown-out on keyboard
 hot-plug). GPIO16 now reads PD_PG from the power sheet (CH224K power-good) so setup can
 warn when only default-USB current is available.
+
+## 7. PicoGUS-derived improvements + shared programming port (2026-07-11)
+**Decision:** Crystal caps corrected 15pF -> 30pF (CL=20pF part) with 1k series on XOUT
+(R4), per the RP2040 minimal design / PicoGUS chip-down. BOOTSEL button added
+(SW1 + R5 on QSPI_CS) since the chip is now USB-flashable. J6 (USB-C) + SW2
+(DPDT slide) form ONE programming port for both bare RP2040s: A = Supervisor
+(shares the PHY with the USB-A host jack -- unplug the keyboard to flash),
+B = PicoGUS via PGUS_USB_DP/DM. J6's VBUS is deliberately unconnected: the
+board must be powered to flash, eliminating back-power paths entirely.

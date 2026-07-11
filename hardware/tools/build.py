@@ -51,7 +51,7 @@ STD_LIBS = ["Device", "power", "Connector", "Connector_Generic", "74xx",
             "Transistor_BJT", "Power_Protection"]
 
 SHEETS = ["cpu_core", "bus_mcu", "supervisor", "video", "com_port",
-          "parallel", "rtc", "power", "storage", "audio", "sidecar"]
+          "parallel", "rtc", "power", "storage", "audio", "sidecar", "picogus"]
 
 
 def load_lib():
@@ -182,10 +182,13 @@ def assemble(write=True, run_checks=True):
                        justify="left" if not on_left else "right")
 
     # ---- power flags so power nets are 'driven' for ERC ----
+    # Placed in the margin ABOVE the sheet-symbol grid (which starts at
+    # row_y=25.4 and only grows downward) so they can never collide with a
+    # tall sheet's pin-stub column, whatever height any column grows to.
     fx = 25.4
     for net in mxbus.POWER:
         pf = root.place("power:PWR_FLAG", "#FLG", value="PWR_FLAG",
-                        at=(fx, 215.9))
+                        at=(fx, 12.7))
         root.net(pf, "1", net, dx=0, dy=-2.54)
         fx += 15.24
 

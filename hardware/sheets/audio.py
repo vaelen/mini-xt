@@ -1,15 +1,14 @@
-"""audio -- PC-speaker + op-amp summer -> line-out (PicoGUS line-in stub).
+"""audio -- PC-speaker + PicoGUS line-out op-amp summer -> line-out.
 
-Design doc S9. The PicoGUS card itself is OUT OF SCOPE for this board: this sheet
-is only the simple analog back end that doc S9 calls for -- "PicoGUS line-out is
-summed with the PC-speaker signal in a simple op-amp summer -> line-out jack".
+Design doc S9. The PicoGUS is now on-board (picogus.py sheet), driving PG_L
+and PG_R directly (its jack-node mix, post-M62429 volume control).
 
 Signal path (single +5V supply, so a Vref = +2.5V virtual ground is used):
-  * SPKR (PIT ch2 tone as a PWM square wave from the Bus MCU) arrives as the one
+  * SPKR (PIT ch2 tone as a PWM square wave from the Bus MCU) arrives as an
     interface net. It is reconstructed with an RC low-pass (R_PWM / C_PWM) and
     AC-coupled (C_SPKR) before mixing.
-  * The (absent) PicoGUS analog line-out enters on J1, a 1x3 header stub
-    (L / R / GND). Each channel is AC-coupled (C_PGL / C_PGR).
+  * PG_L and PG_R (PicoGUS post-mix, post-volume) arrive as interface nets from
+    the picogus sheet. Each channel is AC-coupled (C4 / C5).
   * An MCP6002 (unit A) forms one inverting unity summer. (RRIO part chosen
     because the supply is a single +5 V with a +2.5 V virtual ground: a TL072
     needs >= +-5 V and its JFET input CM range excludes (V-)+4 V, i.e. it is out
@@ -24,8 +23,8 @@ Signal path (single +5V supply, so a Vref = +2.5V virtual ground is used):
   * The mono output is AC-coupled (C_OUT) and driven to both tip and ring of J2,
     the stereo line-out jack (TRS: tip=L, ring=R, sleeve=GND).
 
-Interface is intentionally minimal: SPKR (in) + GND. Everything else (the PicoGUS
-header, the line-out jack, Vref) is local to this sheet. No ISA or private nets
+Interface: SPKR (in), PG_L (in), PG_R (in), + GND (power_in). The line-out jack
+and virtual-ground bias network are local to this sheet. No ISA or private nets
 are touched, so the isolation contract is trivially satisfied.
 
 Substitutions (no exact KiCad symbol available -- see notes/questions-audio.md):
@@ -39,7 +38,8 @@ from mxbus import pin
 NAME = "audio"
 TITLE = "Audio -- PC-speaker + op-amp summer -> line-out (PicoGUS line-in stub)"
 
-PINS = [pin("SPKR", "input"), pin("GND", "power_in")]
+PINS = [pin("SPKR", "input"), pin("PG_L", "input"), pin("PG_R", "input"),
+        pin("GND", "power_in")]
 
 
 def build(sch, lib):
@@ -73,14 +73,7 @@ def build(sch, lib):
     cap("C2", "10nF", (76.2, 198.12), "SPKR_F", "GND")  # RC low-pass shunt C
     cap("C3", "1uF",  (101.6, 165.1), "SPKR_F", "SPKR_AC")  # AC-couple into summer
 
-    # ---------------- PicoGUS line-in header stub (J1: L / R / GND) ----------------
-    # NOTE: PicoGUS card is NOT on this board -- this is just the input header it
-    # would drive. Pin 1 = Left, pin 2 = Right, pin 3 = GND.
-    J1 = sch.place("Connector_Generic:Conn_01x03", "J1", "PicoGUS_LineIn", at=(50.8, 228.6))
-    L(J1, "1", "PG_L", dx=-2.54)
-    L(J1, "2", "PG_R", dx=-2.54)
-    L(J1, "3", "GND",  dx=-2.54)
-    sch.text("J1: PicoGUS line-out (card not on board)", (38.1, 246.38))
+    # ------------- PicoGUS line-level inputs (AC-coupled from picogus sheet) ----------
     cap("C4", "1uF", (101.6, 215.9), "PG_L", "PG_L_AC")  # AC-couple L
     cap("C5", "1uF", (101.6, 241.3), "PG_R", "PG_R_AC")  # AC-couple R
 

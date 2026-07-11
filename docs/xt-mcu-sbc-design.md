@@ -31,7 +31,7 @@ Design date: 2026-06-28.
 | Support chipset | **Two-MCU split**: **Bus MCU (RP2350B)** soft-emulates PIC (×2, 15 IRQ), PIT, KBC, **functional DMA**, NMI, POST as bus master/slave; **Supervisor (RP2040)** runs USB/config/storage off-bus (§5) |
 | Chipset link | **2-wire full-duplex UART** between Bus MCU ↔ Supervisor (boot image push + HID/menu/POST events) |
 | Video | **RP2350B** soft CGA/MDA/Hercules (snoop-and-mirror), **VGA + HDMI** out (config-selected) |
-| Audio | **On-board PicoGUS (RP2040, stock firmware)** — AdLib/SB/GUS/MPU/etc. + joystick |
+| Audio | **On-board PicoGUS (bare RP2040 "chip-down" copy, stock firmware)** — AdLib/SB/GUS/MPU/etc.; no gameport (USB HID instead) |
 | Input | **USB-A HID host** on the **Supervisor** MCU (keyboard; mouse via user's hub) |
 | Mouse | Emulated **virtual COM3 serial mouse** (default) or **PS/2 on IRQ12** (option) |
 | Storage | Discrete **XT-IDE** (8-bit, Chuck-mod) + CompactFlash; XTIDE Universal BIOS |
@@ -113,7 +113,7 @@ leave the board. Class-3 parts are fixed motherboard hardware and out of scope f
 │512K││512K│ │ PIC/PIT/   │ │ CGA/MDA/   │ │ stock  │ │ COM1/2   │  │ (ISA bus   │
 │ ×8 ││ ×8 │ │ KBC/DMA/   │ │ Herc snoop │ │ AdLib/ │ └──────────┘  │  off-board)│
 └────┘└────┘ │ NMI/POST/  │ │ +mirror →  │ │ SB/GUS │ ┌──────────┐  └────────────┘
-   ▲         │ boot-master│ │ VGA + HDMI │ │ +joy   │ │ XT-IDE   │
+   ▲         │ boot-master│ │ VGA + HDMI │ │chip-dwn│ │ XT-IDE   │
    │         └──┬──────┬──┘ └────────────┘ └───┬────┘ │ + CF     │
  74HC138        │      │ ▲  (owns video RAM)   │I2S   └──────────┘
  +NAND          │ glue:│ │UART link          PCM5102A  ┌──────────┐
@@ -502,23 +502,34 @@ The hardware is specified **VGA-capable** from the start; scope is a firmware mi
 
 ---
 
-## 9. Audio — on-board PicoGUS (RP2040)
+## 9. Audio — on-board PicoGUS (RP2040, chip-down)
 
-Treated as a **drop-in copy of the upstream open-hardware PicoGUS 2.0** (RP2040 + its own
-level shifters + **PCM5102A I²S** audio output + joystick), wired to the local ISA bus and
-running **stock, unmodified firmware** so upstream updates keep working. PicoGUS provides
-(one personality at a time, re-selectable): **AdLib/OPL2, Sound Blaster, Gravis UltraSound,
-MPU-401, CMS/Game Blaster, Tandy/PCjr**, plus the **analog joystick/gameport** (and MIDI on
-the gameport).
+A **faithful copy of the upstream PicoGUS 2.0 "chip-down" design** (CERN-OHL-P;
+`picogus/hw-chipdown/` sources): a **bare RP2040** + W25Q128 flash + 12 MHz crystal (the
+same three parts as the Supervisor — one assembly line item each), the signature
+**ADS-muxed shared AD0–AD7** bus interface through SN74CB3T FET switches, the BUSOE
+power-up latch, AEN·DACK IOR̄/IOW̄ masking, open-drain IOCHRDY, **APS6404L-3SQR** sample
+PSRAM, and a **PCM5102A I²S DAC** — running **stock, unmodified firmware** (GPIO29
+grounded is the stock board-detect strap). Personalities (one at a time): **AdLib/OPL2,
+Sound Blaster, Gravis UltraSound, MPU-401, CMS/Game Blaster, Tandy/PCjr**.
 
-- **Why RP2040, not RP2350B:** stock PicoGUS emulation firmware is RP2040-only; RP2350
-  support in the project is limited to a developer analyzer tool. Forcing RP2350B would mean
-  porting/maintaining PicoGUS ourselves — discarding the reason to use a real PicoGUS. So
-  the board carries **two part numbers** (2× RP2350B + 2× RP2040); PicoGUS is the stock RP2040
-  and the Supervisor is the other.
+- **Why RP2040, not RP2350B:** stock PicoGUS emulation firmware is RP2040-only. The board
+  still carries two part numbers (2× RP2350B + 2× RP2040) — but both RP2040s are now the
+  same bare-chip design, sharing flash/crystal parts.
 - **Requires functional DMA** in the Bus MCU (§5) — SB/GUS digital audio is DMA-driven.
-- **Mixing:** PicoGUS line-out is summed with the **PC-speaker** signal in a simple op-amp
-  summer → **line-out jack** (optionally an LM386 + small speaker).
+  **DMA must be jumpered to channel 1** (the only MCU-serviced channel); the reference
+  IRQ/DMA jumper block is kept (IRQ 2/3/4/5/7 — IRQ5 is free now that storage defaults
+  to IRQ14).
+- **Deviations from the reference card** (logged in `notes/questions-picogus.md`): no USB-A
+  joystick port (the Supervisor owns HID, so **no gameport** — 0x201 unused); **no
+  wavetable header and no MIDI-out jack** (build simplification — and with the wavetable
+  gone, the reference's M62429 volume chip and passive mix node go too; stock firmware
+  still drives the volume/MIDI GPIOs, which are documented no-connects); **no local audio
+  jack** — the RC-filtered DAC output leaves the sheet as PG_L/PG_R into the op-amp summer
+  with the PC speaker → the board's one line-out jack; **no local programming USB** — the
+  Supervisor's shared programming port reaches this RP2040 via the SW2 selector (§12), a
+  documented soft-card isolation exception. All removed blocks remain in the reference
+  sources if ever wanted back.
 
 ---
 
@@ -605,6 +616,13 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
   firmware update powers only that module, never the +5 V rail, and a powered board never
   back-drives the PC port. The modules' level-shifter enables/directions carry park
   resistors, so an MCU in BOOTSEL (all GPIO Hi-Z) leaves every bus-facing buffer disabled.
+- **One programming port for both bare RP2040s**: a USB-C device port (J6, Supervisor
+  sheet) reaches either the Supervisor or the PicoGUS RP2040 via a **DPDT slide selector
+  (SW2)**; each chip has its own **BOOTSEL button**. The port's **VBUS is deliberately
+  unconnected** — the board must be powered to flash, which removes every back-power path
+  by construction. Flashing the Supervisor: unplug the keyboard (the host jack shares the
+  PHY). The PicoGUS's BUSOE latch keeps its bus switches off until firmware runs, so
+  flashing it never disturbs the ISA bus.
 
 ---
 
@@ -635,7 +653,7 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | 0x060–0x064 | keyboard controller (Bus MCU; 8255 or 8042 mode); **0x061 bit 4 = refresh toggle** |
 | 0x070–0x071 | DS12C887 RTC; **0x070 bit 7 = NMI mask** (AT-style) |
 | 0x080–0x083 | DMA page regs; **0x080 POST latch** (snooped → hex display) |
-| 0x201 | game/joystick port (PicoGUS) |
+| 0x201 | (unused — no gameport; HID via the Supervisor, §11.4) |
 | 0x220.../0x240.../0x330/0x388 | PicoGUS (SB / GUS / MPU / OPL) |
 | 0x2F8 / 0x3F8 | COM2 / COM1 (16C550) |
 | 0x3E8 | **COM3 — emulated serial mouse** (Bus MCU, IRQ4) |
@@ -689,7 +707,7 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | ROM / BIOS | mask ROM / 2764 | **none — shadow-loaded into SRAM by the Bus MCU (image from Supervisor flash)** |
 | Video | MC6845 + discrete + RGBI | **RP2350B (soft CGA/MDA/Herc) → VGA + HDMI** |
 | FM / digital audio | AdLib / Sound Blaster | **on-board PicoGUS (RP2040, stock fw)** |
-| Game port | discrete 558 | **PicoGUS joystick** |
+| Game port | discrete 558 | **(none — USB HID on the Supervisor)** |
 | UART | 8250 | **2× 16C550** |
 | RS-232 | 1488/1489 | **MAX3241 (full DB9)** |
 | LPT | discrete TTL | 74HC374 + 244 |

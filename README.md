@@ -130,6 +130,18 @@ replace:
   the PC-standard 0x70/0x71: Intel bus mode, discrete exact 10-bit decode
   synthesizing the multiplexed AS/DS/R~W cycle from ~IOW/~IOR, open-drain
   ~IRQ inverted onto IRQ8.
+- **PicoGUS** — a faithful on-board copy of polpo's PicoGUS 2.0 "chip-down"
+  design (CERN-OHL-P): a bare RP2040 running **stock PicoGUS firmware**
+  (AdLib/SB/GUS/MPU-401/CMS/Tandy), with the reference's ADS-muxed shared
+  AD bus through CB3T FET switches, BUSOE power-up latch, APS6404L sample
+  PSRAM, PCM5102A I²S DAC, and the IRQ/DMA jumper block (jumper DMA to
+  **channel 1** — the only MCU-serviced channel; IRQ5 is free now that
+  storage defaults to IRQ14). Deviations, all logged: no gameport (USB HID
+  instead), no wavetable header or MIDI-out jack (build simplification —
+  the volume chip and mix node went with them; the firmware's volume/MIDI
+  GPIOs are documented no-connects), audio feeds the board's one line-out
+  jack via the summer, and programming arrives over the Supervisor's shared
+  USB-C port (SW2 selector) instead of a local connector.
 - **Storage** — a true XT-IDE rev 2 ("Chuck-mod"): the A0↔A3 address-line
   swap puts the data register at 0x300 and the '573 high-byte latch at
   0x301, exactly the layout XTIDE Universal BIOS's "XT-IDE rev 2" type

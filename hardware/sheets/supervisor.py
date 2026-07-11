@@ -14,10 +14,21 @@ USBLC6-2SC6 ESD array at the jack, and 100uF bulk on VBUS_KBD (USB hosts must su
 >=120uF-class bulk for downstream inrush). GPIO16 reads PD_PG from the power sheet
 (CH224K power-good) so setup can warn when only default-USB current is available.
 
+Crystal drive per RP2040 minimal design (PicoGUS/RPi pattern): 30pF load caps
+(crystal CL=20pF) + 1k series on XOUT (R4) for damping. BOOTSEL button (SW1 + R5
+pull-up on QSPI_CS) enables USB bootloader entry at power-up (Supervisor is now
+USB-flashable). Shared programming port (J6 USB-C) + DPDT selector (SW2) allows
+one device-mode USB port to flash either the Supervisor RP2040 or the PicoGUS
+RP2040: position A selects this chip (shares PHY with host jack -- unplug keyboard
+to flash), position B selects PicoGUS via isolated PGUS_USB_DP/DM. J6 VBUS is
+deliberately unconnected so the board must be powered to flash (no back-power paths).
+
 Cross-sheet interface (PINS):
-  * LINK_B2S  (in)  -- Bus MCU -> Supervisor UART (POST codes, CMOS-write acks)
-  * LINK_S2B  (out) -- Supervisor -> Bus MCU UART (HID events, menu draw, image push)
-  * PD_PG     (in)  -- Power sheet CH224K power-good (open-drain, 3V3 pull-up)
+  * LINK_B2S       (in)  -- Bus MCU -> Supervisor UART (POST codes, CMOS-write acks)
+  * LINK_S2B       (out) -- Supervisor -> Bus MCU UART (HID events, menu draw, image push)
+  * PD_PG          (in)  -- Power sheet CH224K power-good (open-drain, 3V3 pull-up)
+  * PGUS_USB_DP    (bidi) -- Shared programming port selector -> PicoGUS DP (SW2 pos B)
+  * PGUS_USB_DM    (bidi) -- Shared programming port selector -> PicoGUS DM (SW2 pos B)
   * +5V is a GLOBAL power net (USB VBUS source); it arrives via the power symbol, not
     a hier pin.
 """
@@ -25,14 +36,17 @@ import mxbus
 from mxbus import pin
 
 NAME = "supervisor"
-TITLE = "Supervisor MCU (RP2040) -- USB host, setup UI, config/flash, POST, console"
+TITLE = "Supervisor MCU (RP2040) -- USB host, setup UI, config/flash, POST, console, shared prog port"
 
 # Small, deliberate interface: only the 2-wire UART link crosses the sheet
 # boundary. USB / POST / console are local (terminate at connectors here).
+# PGUS_USB_DP/DM cross to the picogus sheet (shared programming port selector).
 PINS = [
     pin("LINK_B2S", "input"),
     pin("LINK_S2B", "output"),
     pin("PD_PG", "input"),
+    pin("PGUS_USB_DP", "bidirectional"),
+    pin("PGUS_USB_DM", "bidirectional"),
 ]
 
 
@@ -64,15 +78,21 @@ def build(sch, lib):
     L(U1, "19", "GND", dx=-2.54)                         # TESTEN -> GND (factory test)
 
     # crystal oscillator (12 MHz, RP2040 reference clock)
+    # Crystal drive per RP2040 minimal design: 30pF load caps (crystal CL=20pF)
+    # + 1k series on XOUT (R4) for damping (PicoGUS/RPi pattern)
     L(U1, "XIN", "XTAL_IN", dx=-2.54)
-    L(U1, "XOUT", "XTAL_OUT", dx=-2.54)
+    L(U1, "XOUT", "XOUT_R", dx=-2.54)
     Y1 = sch.place("Device:Crystal", "Y1", "12MHz", at=(127.0, 190.5))
     L(Y1, "1", "XTAL_IN", dx=-2.54)
-    L(Y1, "2", "XTAL_OUT", dx=2.54)
-    cx1 = sch.place("Device:C", "C1", "15pF", at=(116.84, 203.2))
+    L(Y1, "2", "XOUT_R", dx=2.54)
+    cx1 = sch.place("Device:C", "C1", "30pF", at=(116.84, 203.2))
     L(cx1, "1", "XTAL_IN", dx=0, dy=-2.54); L(cx1, "2", "GND", dx=0, dy=2.54)
-    cx2 = sch.place("Device:C", "C2", "15pF", at=(137.16, 203.2))
-    L(cx2, "1", "XTAL_OUT", dx=0, dy=-2.54); L(cx2, "2", "GND", dx=0, dy=2.54)
+    cx2 = sch.place("Device:C", "C2", "30pF", at=(137.16, 203.2))
+    L(cx2, "1", "XOUT_R", dx=0, dy=-2.54); L(cx2, "2", "GND", dx=0, dy=2.54)
+    # 1k series on XOUT (damping, RP2040 required minimum)
+    rx = sch.place("Device:R", "R4", "1k", at=(147.32, 190.5))
+    L(rx, "1", "XOUT_R", dx=0, dy=-2.54)
+    L(rx, "2", "XTAL_OUT", dx=0, dy=2.54)
 
     # RUN (reset): pull-up + delay cap
     L(U1, "26", "RUN", dx=2.54)
@@ -100,6 +120,15 @@ def build(sch, lib):
     L(UF, "VCC", "+3V3", dx=0, dy=-2.54)
     L(UF, "GND", "GND", dx=0, dy=2.54)
     decouple("C4", (279.4, 50.8))   # flash decoupling
+
+    # BOOTSEL button: hold at power-up to enter the USB bootloader (PicoGUS/RPi pattern)
+    # The Supervisor is now USB-flashable via the shared programming port.
+    rb = sch.place("Device:R", "R5", "1k", at=(304.8, 76.2))
+    L(rb, "1", "QSPI_CS", dx=0, dy=-2.54)
+    L(rb, "2", "~{USB_BOOT}", dx=0, dy=2.54)
+    SW1 = sch.place("Switch:SW_Push", "SW1", "BOOTSEL", at=(304.8, 96.52))
+    L(SW1, "1", "~{USB_BOOT}", dx=-2.54)
+    L(SW1, "2", "GND", dx=2.54)
 
     # ---------------- USB-A host jack (keyboard / hub) ----------------
     # VBUS through a polyfuse: the board 5V rail sources the downstream USB
@@ -165,6 +194,44 @@ def build(sch, lib):
 
     # PD contract status from the power sheet (CH224K PG, open-drain + 3V3 pull-up)
     L(U1, "GPIO16", "PD_PG", dx=2.54)
+
+    # ----------- shared RP2040 programming port (USB-C, device mode) --------
+    # SW2 selects which RP2040 the port reaches: position A = this Supervisor
+    # (via the jack-side USB_DP_J/USB_DM_J nets -- unplug the keyboard while
+    # flashing), position B = the PicoGUS RP2040 (PGUS_USB_DP/DM, a documented
+    # isolation exception -- see notes). VBUS is NOT connected: the board must
+    # be powered to flash, so no back-power path exists at all. Each chip has
+    # its own BOOTSEL button (SW1 here, SW1 on the picogus sheet).
+    J6 = sch.place("Connector:USB_C_Receptacle", "J6", "USB_PROG", at=(38.1, 43.18))
+    L(J6, "A6", "PROG_DP"); L(J6, "B6", "PROG_DP")
+    L(J6, "A7", "PROG_DM"); L(J6, "B7", "PROG_DM")
+    L(J6, "A1", "GND", dx=0, dy=2.54); L(J6, "S1", "GND", dx=0, dy=2.54)
+    rcc1 = sch.place("Device:R", "R6", "5.1k", at=(88.9, 43.18))
+    L(rcc1, "1", "PROG_CC1", dx=0, dy=-2.54); L(rcc1, "2", "GND", dx=0, dy=2.54)
+    rcc2 = sch.place("Device:R", "R7", "5.1k", at=(101.6, 43.18))
+    L(rcc2, "1", "PROG_CC2", dx=0, dy=-2.54); L(rcc2, "2", "GND", dx=0, dy=2.54)
+    L(J6, "A5", "PROG_CC1"); L(J6, "B5", "PROG_CC2")
+    # NC the stacked VBUS pins (A4 covers the stack; if error, try A9/B4/B9 separately)
+    for vbus_pin in ["A4", "A9", "B4", "B9"]:
+        try:
+            sch.no_connect(J6.pin_xy(vbus_pin))
+        except KeyError:
+            pass  # Pin not available in this symbol version
+    # NC the USB 3.1 and auxiliary pins (not used for 2.0 device-mode operation)
+    for nc in ["RX1-", "RX1+", "TX1-", "TX1+", "RX2-", "RX2+",
+               "TX2-", "TX2+", "SBU1", "SBU2"]:
+        sch.no_connect(J6.pin_xy(nc))
+    SW2 = sch.place("Switch:SW_Slide_DPDT", "SW2", "PROG SEL", at=(137.16, 43.18))
+    # KiCad SW_Slide_DPDT geometry: the MIDDLE pin of each pole (B = pins 2/5)
+    # is the common; A (1/4) and C (3/6) are the two slide positions. Pair the
+    # throws BY NAME so one slide position selects the same target on both
+    # poles: A = Supervisor (jack-side nets), C = PicoGUS.
+    L(SW2, "2", "PROG_DP", dx=-2.54, dy=0)         # pole 1 common
+    L(SW2, "1", "USB_DP_J", dx=-2.54, dy=0)        # position A -> Supervisor
+    L(SW2, "3", "PGUS_USB_DP", dx=-2.54, dy=0)     # position C -> PicoGUS
+    L(SW2, "5", "PROG_DM", dx=2.54, dy=0)          # pole 2 common
+    L(SW2, "4", "USB_DM_J", dx=2.54, dy=0)         # position A -> Supervisor
+    L(SW2, "6", "PGUS_USB_DM", dx=2.54, dy=0)      # position C -> PicoGUS
 
     # ---------------- speed-select latch (static, set before reset release) ----------
     # speed-select moved to the Bus MCU: the Supervisor now sends the chosen

@@ -61,3 +61,10 @@ ground) via a value override on the pin-identical TL072 dual-op-amp body.
 R7 (100R) added between the MCP6002 output and C7/line-out: an op-amp driving
 an unbuffered cable/capacitive load directly is an oscillation risk; the series
 R isolates it. Mono-to-both-channels drive is unchanged.
+
+## PicoGUS line-in stub replaced by real nets (2026-07-11)
+The on-board PicoGUS sheet now drives PG_L/PG_R directly (its jack-node mix,
+post M62429 volume), so J1 is gone and PG_L/PG_R are interface pins. The
+summer and AC-coupling are unchanged -- the chipdown mix network's 2.2uF
+couplers in series with our 1uF give ~0.7uF into the 10k summing input,
+a ~23 Hz corner, fine for line audio.

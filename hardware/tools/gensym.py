@@ -286,8 +286,109 @@ pico = make_ic(
     description="Raspberry Pi Pico module (RP2040; Pico 2/RP2350A pin-compatible): 26 usable GPIO, onboard 3V3 SMPS, USB",
     datasheet="https://datasheets.raspberrypi.com/pico/pico-datasheet.pdf")
 
+# ---- audio/support parts added for the audio card + storage PSRAM ----
+# Pin numbers below were VERIFIED against the official PicoGUS chip-down
+# KiCad netlist (picogus/hw-chipdown/chipdown.net) on 2026-07-11, whose
+# pinfunctions come from the real vendor symbols (cross-checked via its
+# `nets`/`node` entries, not just the `libparts` table, for CB3T3245 since
+# that netlist reuses a generic 74HC244 libsource for it).
+
+# ---- CB3T3257: SN74CB3T3257 quad 2:1 FET bus switch (TSSOP-16) ----
+cb3t3257 = make_ic(
+    "CB3T3257",
+    left=[
+        ("4", "1A", "passive"), ("7", "2A", "passive"),
+        ("9", "3A", "passive"), ("12", "4A", "passive"),
+        ("1", "S", "input"), ("15", "~{OE}", "input"),
+    ],
+    right=[
+        ("2", "1B1", "passive"), ("3", "1B2", "passive"),
+        ("5", "2B1", "passive"), ("6", "2B2", "passive"),
+        ("11", "3B1", "passive"), ("10", "3B2", "passive"),
+        ("14", "4B1", "passive"), ("13", "4B2", "passive"),
+    ],
+    top=[("16", "VCC", "power_in")],
+    bottom=[("8", "GND", "power_in")],
+    description="SN74CB3T3257 quad 2:1 FET bus switch, TSSOP-16",
+    datasheet="https://www.ti.com/lit/ds/symlink/sn74cb3t3257.pdf")
+
+# ---- CB3T3245: SN74CB3T3245 8-bit FET bus switch (TSSOP-20) ----
+cb3t3245 = make_ic(
+    "CB3T3245",
+    left=[
+        ("2", "1A0", "passive"), ("4", "1A1", "passive"),
+        ("6", "1A2", "passive"), ("8", "1A3", "passive"),
+        ("17", "2A0", "passive"), ("15", "2A1", "passive"),
+        ("13", "2A2", "passive"), ("11", "2A3", "passive"),
+        ("1", "1OE", "input"), ("19", "2OE", "input"),
+    ],
+    right=[
+        ("18", "1Y0", "passive"), ("16", "1Y1", "passive"),
+        ("14", "1Y2", "passive"), ("12", "1Y3", "passive"),
+        ("3", "2Y0", "passive"), ("5", "2Y1", "passive"),
+        ("7", "2Y2", "passive"), ("9", "2Y3", "passive"),
+    ],
+    top=[("20", "VCC", "power_in")],
+    bottom=[("10", "GND", "power_in")],
+    description="SN74CB3T3245 8-bit FET bus switch, TSSOP-20",
+    datasheet="https://assets.nexperia.com/documents/data-sheet/74LVC_LVCH244A.pdf")
+
+# ---- 74LVC2G06: dual open-drain inverter (SOT-23-6) ----
+lvc2g06 = make_ic(
+    "74LVC2G06",
+    left=[("1", "1A", "input"), ("3", "2A", "input")],
+    right=[("6", "1Y", "open_collector"), ("4", "2Y", "open_collector")],
+    top=[("5", "VCC", "power_in")],
+    bottom=[("2", "GND", "power_in")],
+    description="Dual open-drain inverter, SOT-23-6",
+    datasheet="http://www.ti.com/lit/sg/scyt129e/scyt129e.pdf")
+
+# ---- PCM5102A: I2S stereo DAC (TSSOP-20; 5100A/5101A/5102A pin-identical) ----
+pcm5102a = make_ic(
+    "PCM5102A",
+    left=[
+        ("13", "BCK", "input"), ("14", "DIN", "input"), ("15", "LRCK", "input"),
+        ("12", "SCK", "input"), ("16", "FMT", "input"), ("11", "FLT", "input"),
+        ("10", "DEMP", "input"), ("17", "XSMT", "input"),
+    ],
+    right=[
+        ("6", "OUTL", "output"), ("7", "OUTR", "output"),
+        ("2", "CAPP", "passive"), ("4", "CAPM", "passive"),
+        ("5", "VNEG", "passive"), ("18", "LDOO", "passive"),
+    ],
+    top=[("1", "CPVDD", "power_in"), ("20", "DVDD", "power_in"),
+         ("8", "AVDD", "power_in")],
+    bottom=[("3", "CPGND", "power_in"), ("19", "DGND", "power_in"),
+            ("9", "AGND", "power_in")],
+    description="PCM5102A I2S stereo DAC, TSSOP-20 (PCM5100A/5101A/5102A pin-identical)",
+    datasheet="https://www.ti.com/lit/ds/symlink/pcm5102a.pdf")
+
+# ---- M62429: I2C-ish 2-channel volume control (SOP-8, M62429L 3-5.5V grade) ----
+m62429 = make_ic(
+    "M62429",
+    left=[("1", "1ch_IN", "input"), ("8", "2ch_IN", "input"),
+          ("4", "DATA", "input"), ("5", "CLK", "input")],
+    right=[("2", "1ch_OUT", "output"), ("7", "2ch_OUT", "output")],
+    top=[("6", "Vcc", "power_in")],
+    bottom=[("3", "GND", "power_in")],
+    ref="U",
+    description="M62429L 2-channel electronic volume control, SOP-8",
+    datasheet="https://www.mitsubishielectric.com/semiconductors/php/psearch2.php?FOLDER_ID=1495")
+
+# ---- APS6404L: 64Mbit QSPI PSRAM (SOP-8) ----
+aps6404l = make_ic(
+    "APS6404L",
+    left=[("1", "~{CE}", "input"), ("6", "SCLK", "input")],
+    right=[("2", "SO/SIO1", "bidirectional"), ("5", "SI/SIO0", "bidirectional"),
+           ("3", "SIO2", "bidirectional"), ("7", "SIO3", "bidirectional")],
+    top=[("8", "VCC", "power_in")],
+    bottom=[("4", "VSS", "power_in")],
+    description="APS6404L 64Mbit QSPI PSRAM, SOP-8",
+    datasheet="https://www.espressif.com/sites/default/files/documentation/esp-psram32_datasheet_en.pdf")
+
 lib = ["kicad_symbol_lib", ["version", 20241209], ["generator", "mxsch"],
-       ["generator_version", "9.0"], v20, max3241, ds12c887, core2350b, pico] + glue_syms
+       ["generator_version", "9.0"], v20, max3241, ds12c887, core2350b, pico,
+       cb3t3257, cb3t3245, lvc2g06, pcm5102a, m62429, aps6404l] + glue_syms
 
 out = os.path.join(HW, "mini-xt.kicad_sym")
 open(out, "w").write(dump(lib) + "\n")

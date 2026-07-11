@@ -59,6 +59,15 @@ PART_MAP = {
     ("mini-xt:74HCT245", "74HCT245"): E("C5979", "74HCT245D,653", "SOIC-20"),
     ("mini-xt:74HCT573", "74HCT573"): E("C5209384", "74HCT573D,653", "SOIC-20"),
     ("mini-xt:74HCT574", "74HCT574"): E("C6001", "74HCT574D,653", "SOIC-20"),
+    # ---- PicoGUS (on-board, chip-down copy) 2026-07-11 ----
+    ("mini-xt:CB3T3257", "SN74CB3T3257"):  E("C544573", "SN74CB3T3257PWR", "TSSOP-16", "addr/data mux (FET switch)"),
+    ("mini-xt:CB3T3245", "SN74CB3T3245"):  E("C15298", "SN74CB3T3245PWR", "TSSOP-20", "misc level shift (FET switch)"),
+    ("mini-xt:74HCT04", "74AHC14"):        E("C54561786", "74AHC14PW-TP", "TSSOP-14", "3.3V hex Schmitt inverter, 5V-tolerant in"),
+    ("mini-xt:74HCT00", "74LVC00"):        E("C526338", "74LVC00AS14-13", "SO-14", "3.3V NAND, 5V-tolerant in; THIN stock (~125)"),
+    ("mini-xt:74LVC2G06", "74LVC2G06"):    E("C52145914", "74LVC2G06DW-TP", "SOT-23-6", "open-drain: IOCHRDY + MIDI"),
+    ("mini-xt:PCM5102A", "PCM5102A"):      E("C107671", "PCM5102APWR", "TSSOP-20", "I2S DAC (PCM5100A-compatible)"),
+    ("mini-xt:APS6404L", "APS6404L-3SQR"): E("C5333729", "APS6404L-3SQR-SN", "SOP-8", "GUS sample RAM; MUST be -3 (3.0-3.6V) -- the SQN is a 1.8V part"),
+    ("Regulator_Linear:AMS1117-3.3", "AMS1117-3.3"): E("C6186", "AMS1117-3.3", "SOT-223", "PicoGUS local 3V3 island"),
     # ---- HC-grade substitutions (see module docstring for why each is safe)
     ("mini-xt:74HCT02", "74HC02"):    E("C5588", "74HC02D,653", "SOIC-14"),
     ("mini-xt:74HCT157", "74HC157"):  E("C5609", "74HC157D,653", "SOIC-16"),
@@ -123,6 +132,7 @@ PART_MAP = {
     # ---- passives (0603 basic unless noted) ----
     ("Device:R", "27"):    E("C25190", "0603WAF270JT5E", "0603", "RP2040 USB series termination"),
     ("Device:R", "100"):   E("C22775", "0603WAF1000T5E", "0603"),
+    ("Device:R", "15k"):   E("C22809", "0603WAF1502T5E", "0603"),
     ("Device:R", "10k"):   E("C25804", "0603WAF1002T5E", "0603"),
     ("Device:R", "1k"):    E("C21190", "0603WAF1001T5E", "0603"),
     ("Device:R", "270"):   E("C22966", "0603WAF2700T5E", "0603"),
@@ -136,9 +146,11 @@ PART_MAP = {
     ("Device:C", "330nF"): E("C1615", "0603B334K250NT", "0603", "MAX3241 C2-C4 at 5V"),
     ("Device:C", "10nF"):  E("C57112", "0603B103K500NT", "0603"),
     ("Device:C", "1uF"):   E("C15849", "CL10A105KB8NNNC", "0603"),
-    ("Device:C", "15pF"):  E("C1644", "CL10C150JB8NNNC", "0603",
-                             "verify against 12 MHz crystal CL at layout"),
+    ("Device:C", "30pF"):  E("C1658", "0603CG300J500NT", "0603", "12MHz crystal load (CL=20pF)"),
     ("Device:C", "22pF"):  E("C1653", "CL10C220JB8NNNC", "0603"),
+    ("Device:C", "2.2nF"): E("C1604", "0603B222K500NT", "0603"),
+    ("Device:C", "2.2uF"): E("C23630", "CL10A225KO8NNNC", "0603"),
+    ("Device:C", "47uF"):  E("C16780", "CL21A476MQYNNNE", "0805"),
     ("Device:C", "10uF"):  E("C15850", "CL21A106KAYNNNE", "0805"),
     ("Device:C_Polarized", "22uF"): E("C12891", "CL31A226KAHNNNE", "1206",
                                       "MLCC replaces the polarized symbol"),
@@ -148,6 +160,7 @@ PART_MAP = {
                              "4.8 A rated for the TPS563200 buck"),
     ("Device:LED", "5V"):  E("C2286", "KT-0603R", "0603"),
     ("Device:LED", "3V3"): E("C2286", "KT-0603R", "0603"),
+    ("Device:FerriteBead", "100R@100MHz"): E("C160981", "BLM18KG101TN1D", "0603"),
     ("Device:Polyfuse", "500mA"): E("C46641014", "SMD1206-050-16", "1206"),
     # ---- connectors ----
     ("Connector:USB_C_Receptacle", "USB_C_Receptacle"): E("C2765186",
@@ -182,8 +195,11 @@ LIBID_MAP = {
     "Connector_Generic:Conn_01x04": E("C2337", "1x40 2.54mm header (break to 4)", "THT"),
     "Connector_Generic:Conn_01x08": E("C2337", "1x40 2.54mm header (break to 8)", "THT"),
     "Connector_Generic:Conn_01x10": E("C2337", "1x40 2.54mm header (break to 10)", "THT"),
+    "Connector_Generic:Conn_02x09_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x9)", "THT"),
     "Connector_Generic:Conn_02x20_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x20)", "THT"),
     "Connector_Generic:Conn_02x30_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x30)", "THT"),
+    "Switch:SW_Push": E("C318884", "TS-1187A-B-A-B", "SMD 5.1x5.1", "BOOTSEL buttons"),
+    "Switch:SW_Slide_DPDT": E("C431544", "MST22D18G2", "SMD 9.1x3.6", "programming-port selector"),
     "mini-xt:Core2350B": E("C2897411", "PM254 2.54mm female headers", "THT",
                            "module is a DOUBLE-RING PGA (25.4mm sq, no "
                            "castellations): dual-row 2xN female strips per "
