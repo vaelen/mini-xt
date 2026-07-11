@@ -35,7 +35,8 @@ NOT available at JLC (flagged, no LCSC number):
   * VGA HD15 (DE15) connector             -> other distributor (THT)
 
 Thin stock (check before ordering): TL16C550DPTR (~18), DB25 (~10),
-MAX3241EEAI+T (~175), DS12C887+ (~573), TPS563200DDCR (~256).
+MAX3241EEAI+T (~175), DS12C887+ (~573), TPS563200DDCR (4!! -- re-verify before
+ordering or switch to a TPS5632xx sibling).
 """
 
 # (lib_id, value) -> entry; or lib_id -> entry as a fallback for all values.
@@ -90,6 +91,12 @@ PART_MAP = {
     ("Transistor_BJT:2N3904", "2N3904"): E("C20526", "MMBT3904", "SOT-23"),
     ("Device:Q_PMOS", "Q_PMOS"):      E("C15127", "AO3401A", "SOT-23"),
     ("Device:D_Schottky", "D_Schottky"): E("C8678", "SS34", "SMA"),
+    # ---- protection (design review 2026-07-11) ----
+    ("Device:Polyfuse", "2A"):    E("C883156", "BSMD1812-200-16V", "1812", "ISA sidecar +5V feed"),
+    ("Device:Polyfuse", "3A"):    E("C7500481", "BSMD1812-300-24V", "1812", "USB-C VBUS input"),
+    ("Device:D_Zener", "SMBJ5.0A"): E("C19077558", "SMBJ5.0A", "SMB", "unidirectional 5V-rail clamp TVS"),
+    ("Power_Protection:USBLC6-2SC6", "USBLC6-2SC6"): E("C2687116", "USBLC6-2SC6", "SOT-23-6", "USB host-port ESD array"),
+    ("Device:Q_NMOS", "2N7002"):  E("C8545", "2N7002", "SOT-23", "storage IRQ5 tri-state inverter"),
     # ---- socketed vintage / user-stock parts: LCSC number = the SOCKET ----
     # Machined-pin (round-hole) sockets, all 600 mil row spacing: better grip,
     # repeated-insertion tolerant, gentler on 40-year-old pins than stamped tin.
@@ -114,6 +121,8 @@ PART_MAP = {
     ("Device:Crystal", "1.8432MHz"):  E("C47345430", "6A01843AG20UCD", "HC-49U THT",
                                         "CL=20pF; on 16C550 XIN/XOUT"),
     # ---- passives (0603 basic unless noted) ----
+    ("Device:R", "27"):    E("C25190", "0603WAF270JT5E", "0603", "RP2040 USB series termination"),
+    ("Device:R", "100"):   E("C22775", "0603WAF1000T5E", "0603"),
     ("Device:R", "10k"):   E("C25804", "0603WAF1002T5E", "0603"),
     ("Device:R", "1k"):    E("C21190", "0603WAF1001T5E", "0603"),
     ("Device:R", "270"):   E("C22966", "0603WAF2700T5E", "0603"),
@@ -123,6 +132,8 @@ PART_MAP = {
     ("Device:R", "5.1k"):  E("C23186", "0603WAF5101T5E", "0603"),
     ("Device:R", "510"):   E("C23193", "0603WAF5100T5E", "0603"),
     ("Device:C", "100nF"): E("C14663", "CC0603KRX7R9BB104", "0603"),
+    ("Device:C", "47nF"):  E("C1622", "CL10B473KB8NNNC", "0603", "MAX3241 C1 at 5V"),
+    ("Device:C", "330nF"): E("C1615", "0603B334K250NT", "0603", "MAX3241 C2-C4 at 5V"),
     ("Device:C", "10nF"):  E("C57112", "0603B103K500NT", "0603"),
     ("Device:C", "1uF"):   E("C15849", "CL10A105KB8NNNC", "0603"),
     ("Device:C", "15pF"):  E("C1644", "CL10C150JB8NNNC", "0603",
@@ -131,6 +142,8 @@ PART_MAP = {
     ("Device:C", "10uF"):  E("C15850", "CL21A106KAYNNNE", "0805"),
     ("Device:C_Polarized", "22uF"): E("C12891", "CL31A226KAHNNNE", "1206",
                                       "MLCC replaces the polarized symbol"),
+    ("Device:C_Polarized", "100uF"): E("C2887276", "RVT100UF16V67RV0016", "SMD D6.3xL5.4",
+                                       "alu electrolytic; USB host VBUS bulk"),
     ("Device:L", "2.2uH"): E("C602029", "FHD4020S-2R2MT", "SMD 4x4",
                              "4.8 A rated for the TPS563200 buck"),
     ("Device:LED", "5V"):  E("C2286", "KT-0603R", "0603"),

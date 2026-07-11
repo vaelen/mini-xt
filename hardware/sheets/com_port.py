@@ -177,15 +177,16 @@ def build(sch, lib, expose=True):
     L(U2, "C2+", "C2P", dx=0, dy=-2.54); L(U2, "C2-", "C2N", dx=0, dy=2.54)
     L(U2, "V+", "MAX_VP", dx=0, dy=-2.54); L(U2, "V-", "MAX_VN", dx=0, dy=2.54)
 
-    def cap(ref, at, na, nb):
-        c = sch.place("Device:C", ref, "100nF", at=at)
+    def cap(ref, val, at, na, nb):
+        c = sch.place("Device:C", ref, val, at=at)
         sch.net(c, "1", na, kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", nb, kind="label", dx=0, dy=2.54)
 
-    cap("C3", (251.46, 152.4), "C1P", "C1N")     # flying cap 1
-    cap("C4", (266.7, 152.4), "C2P", "C2N")      # flying cap 2
-    cap("C5", (281.94, 152.4), "MAX_VP", "GND")  # V+ reservoir
-    cap("C6", (297.18, 152.4), "MAX_VN", "GND")  # V- reservoir
+    # MAX3241 at 5V: C1=47nF, C2-C4=330nF (datasheet table); 100nF-everywhere was undersized
+    cap("C3", "47nF", (251.46, 152.4), "C1P", "C1N")     # flying cap 1
+    cap("C4", "330nF", (266.7, 152.4), "C2P", "C2N")      # flying cap 2
+    cap("C5", "330nF", (281.94, 152.4), "MAX_VP", "GND")  # V+ reservoir
+    cap("C6", "330nF", (297.18, 152.4), "MAX_VN", "GND")  # V- reservoir
 
     # ---------------- J1: DE9 male, full DTE ----------------
     J1 = sch.place("Connector:DE9_Pins", "J1", at=(330.2, 101.6))
@@ -221,6 +222,13 @@ def build(sch, lib, expose=True):
     # ---------------- decoupling ----------------
     decouple("C1", (109.22, 50.8))   # U1
     decouple("C2", (210.82, 50.8))   # U2
+    decouple("C9", (60.96, 271.78))    # U3
+    decouple("C10", (76.2, 271.78))    # U4
+    decouple("C11", (91.44, 271.78))   # U5
+    decouple("C12", (106.68, 271.78))  # U6
+    C13 = sch.place("Device:C", "C13", "10uF", at=(121.92, 271.78))   # card bulk
+    sch.net(C13, "1", "+5V", kind="label", dx=0, dy=-2.54)
+    sch.net(C13, "2", "GND", kind="label", dx=0, dy=2.54)
 
     sch.text("Base-address strap J2: jumper A8 (0x3F8/COM1) or ~A8 (0x2F8/COM2)",
              (60.96, 233.68))

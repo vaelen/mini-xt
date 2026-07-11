@@ -9,9 +9,15 @@ line it sets before reset release. Everything else (USB jack, POST display, cons
 terminates at on-sheet connectors and stays LOCAL -- that small interface is the whole
 point of the two-MCU split, so only the link + speed-select are hierarchical pins.
 
+USB host port hardened with RP2040-required 27R series termination on D+/D-, a
+USBLC6-2SC6 ESD array at the jack, and 100uF bulk on VBUS_KBD (USB hosts must supply
+>=120uF-class bulk for downstream inrush). GPIO16 reads PD_PG from the power sheet
+(CH224K power-good) so setup can warn when only default-USB current is available.
+
 Cross-sheet interface (PINS):
   * LINK_B2S  (in)  -- Bus MCU -> Supervisor UART (POST codes, CMOS-write acks)
   * LINK_S2B  (out) -- Supervisor -> Bus MCU UART (HID events, menu draw, image push)
+  * PD_PG     (in)  -- Power sheet CH224K power-good (open-drain, 3V3 pull-up)
   * +5V is a GLOBAL power net (USB VBUS source); it arrives via the power symbol, not
     a hier pin.
 """
@@ -26,6 +32,7 @@ TITLE = "Supervisor MCU (RP2040) -- USB host, setup UI, config/flash, POST, cons
 PINS = [
     pin("LINK_B2S", "input"),
     pin("LINK_S2B", "output"),
+    pin("PD_PG", "input"),
 ]
 
 
@@ -103,13 +110,30 @@ def build(sch, lib):
     L(F1, "1", "+5V", dx=0, dy=-2.54)
     L(F1, "2", "VBUS_KBD", dx=0, dy=2.54)
     L(JU, "VBUS", "VBUS_KBD", dx=-2.54)     # fused 5V to the downstream device
-    L(JU, "D+", "USB_DP", dx=-2.54)
-    L(JU, "D-", "USB_DM", dx=-2.54)
+    L(JU, "D+", "USB_DP_J", dx=-2.54)
+    L(JU, "D-", "USB_DM_J", dx=-2.54)
     L(JU, "GND", "GND", dx=-2.54)
     L(JU, "Shield", "GND", dx=-2.54)
     # native USB PHY pins
     L(U1, "USB_DP", "USB_DP", dx=-2.54)
     L(U1, "USB_DM", "USB_DM", dx=-2.54)
+
+    # 27R series termination (RP2040 datasheet minimal design -- required)
+    R2 = sch.place("Device:R", "R2", "27", at=(63.5, 134.62))
+    L(R2, "1", "USB_DP", dx=0, dy=-2.54); L(R2, "2", "USB_DP_J", dx=0, dy=2.54)
+    R3 = sch.place("Device:R", "R3", "27", at=(76.2, 134.62))
+    L(R3, "1", "USB_DM", dx=0, dy=-2.54); L(R3, "2", "USB_DM_J", dx=0, dy=2.54)
+
+    # ESD array on the outward-facing host port (jack side of the 27R)
+    U3 = sch.place("Power_Protection:USBLC6-2SC6", "U3", "USBLC6-2SC6", at=(88.9, 134.62))
+    L(U3, "1", "USB_DM_J", dx=-2.54); L(U3, "6", "USB_DM_J", dx=2.54)
+    L(U3, "3", "USB_DP_J", dx=-2.54); L(U3, "4", "USB_DP_J", dx=2.54)
+    L(U3, "5", "VBUS_KBD", dx=2.54)
+    L(U3, "2", "GND", dx=-2.54)
+
+    # Host-port VBUS bulk (USB spec requires >=120uF for downstream inrush)
+    C13 = sch.place("Device:C_Polarized", "C13", "100uF", at=(50.8, 134.62))
+    L(C13, "1", "VBUS_KBD", dx=0, dy=-2.54); L(C13, "2", "GND", dx=0, dy=2.54)
 
     # ---------------- 2-digit hex POST display ----------------
     # POST_A..G + DP segment lines and two digit-select lines, driven from GPIO.
@@ -139,6 +163,9 @@ def build(sch, lib):
     L(U1, "GPIO4", "LINK_S2B", dx=-2.54)     # UART1 TX -> Bus MCU (out)
     L(U1, "GPIO5", "LINK_B2S", dx=-2.54)     # UART1 RX <- Bus MCU (in)
 
+    # PD contract status from the power sheet (CH224K PG, open-drain + 3V3 pull-up)
+    L(U1, "GPIO16", "PD_PG", dx=2.54)
+
     # ---------------- speed-select latch (static, set before reset release) ----------
     # speed-select moved to the Bus MCU: the Supervisor now sends the chosen
     # CPU divisor to the Bus MCU over the UART link (no SPEED_SEL pin here).
@@ -156,5 +183,5 @@ def build(sch, lib):
     cbulk = sch.place("Device:C", "C6", "10uF", at=(127.0, 248.92))  # VCORE bulk
     sch.net(cbulk, "1", "VCORE", kind="label", dx=0, dy=-2.54)
     sch.net(cbulk, "2", "GND", kind="label", dx=0, dy=2.54)
-    for i, x in enumerate(range(60, 300, 40)):
-        decouple("C%d" % (7 + i), (float(x), 270.0))     # 3V3 rail decoupling
+    for i, x in enumerate(range(60, 340, 40)):
+        decouple("C%d" % (14 + i), (float(x), 270.0))     # 3V3 rail decoupling

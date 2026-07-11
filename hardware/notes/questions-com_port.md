@@ -61,3 +61,8 @@ generic interrupt net `COM_IRQ` (-> IRQ4 on COM1, IRQ3 on COM2).
 - The 1.8432 MHz canned oscillator became a crystal on the 16C550's own
   XIN/XOUT amp: JLC stocks that frequency only as 3.3 V oscillators and a
   soft card has no 3.3 V rail.
+
+## MAX3241 charge-pump caps resized (design review 2026-07-11)
+All four pump caps were 100nF; the datasheet's 5V column wants C1=0.047uF and
+C2-C4=0.33uF. C3 (flying 1) is now 47nF, C4/C5/C6 330nF. Also added 100nF
+decoupling for U3-U6 (the decode/IRQ glue had none) and a 10uF bulk per card.

@@ -228,7 +228,22 @@ def build(sch, lib, expose=True):
         L(J1, str(num), "GND", dx=-2.54)
 
     # ============================================================
+    # Pull-ups on the printer status inputs
+    # ============================================================
+    # 4.7k pull-ups on the printer status inputs: with no printer attached these
+    # float into HCT inputs (oscillation + phantom ~Ack IRQs). Real SPP cards
+    # shipped exactly this network.
+    for i, net in enumerate(["P_ACK", "P_BUSY", "P_PE", "P_SEL", "P_ERR"]):
+        r = sch.place("Device:R", "R%d" % (1 + i), "4.7k", at=(314.96 + 15.24 * i, 45.72))
+        sch.net(r, "1", "+5V", kind="label", dx=0, dy=-2.54)
+        sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
+
+    # ============================================================
     # decoupling
     # ============================================================
-    for i, x in enumerate([76.2, 116.84, 157.48, 198.12, 238.76, 279.4]):
+    for i, x in enumerate([30.48, 60.96, 91.44, 121.92, 152.4, 182.88, 213.36, 243.84, 274.32, 304.8, 335.28, 365.76, 396.24]):
         decouple("C%d" % (i + 1), (x, 264.16))
+
+    cb = sch.place("Device:C", "C14", "10uF", at=(30.48, 238.76))
+    sch.net(cb, "1", "+5V", kind="label", dx=0, dy=-2.54)
+    sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)

@@ -61,3 +61,13 @@ Universal BIOS device type. The decode is now the TRUE rev-2 / Chuck-mod map
 (bus A0<->A3 swap): data 0x300, latch 0x301, CS1 regs 0x307/0x30F, drive DA0 =
 bus A3, 16-byte window. See design-review-2026-07-03.md batch 3 for the
 DEC1/DEC2/DEC3 split.
+
+---
+
+## IRQ5 made tri-state + decoupling (design review 2026-07-11)
+U5 '125 OE was grounded -> IRQ5 push-pull, permanently driven low when idle
+(unshareable; asymmetric with the LPT IRQ7 fix). Now Q1 (2N7002) inverts INTRQ
+into the '125 ~OE with R4 10k release pull-up: INTRQ high -> IRQ5 driven high,
+else Z. ~200ns enable delay through R4 is fine for interrupt latency. Spare
+'125 sections tied per com_port U6 pattern. Decoupling grown to one 100nF per
+IC (C1-C11) + 10uF bulk (C12).

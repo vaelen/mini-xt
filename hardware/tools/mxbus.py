@@ -68,6 +68,10 @@ PRIV_COUNTER = ["CNT_CLK", "CNT_LD0", "CNT_LD1", "CNT_LD2"]
 PRIV_DECODE = []
 # speed select (Bus MCU -> clock mux), set while it holds the V20 in reset
 PRIV_SPEED = ["SPEED_SEL"]
+# PC-speaker PWM: Bus MCU (soft-PIT ch2 / port-61h gate) -> audio sheet
+PRIV_AUDIO = ["SPKR"]
+# CH224K power-good (open-drain, 3V3 pull-up): power sheet -> Supervisor GPIO16
+PRIV_PWR = ["PD_PG"]
 # cross-MCU UART link (Bus MCU <-> Supervisor), full-duplex
 PRIV_LINK = ["LINK_B2S", "LINK_S2B"]   # Bus->Super TX, Super->Bus TX
 # Supervisor -> POST display + console

@@ -223,6 +223,10 @@ def build(sch, lib):
     N(ff, "VCC", "V5RAW", dx=0, dy=-2.54); N(ff, "GND", "GND", dx=0, dy=2.54)
     N(ff, "C", "OSC"); N(ff, "D", "CLK_QN"); N(ff, "~{Q}", "CLK_QN"); N(ff, "Q", "CLK7")
     N(ff, "~{S}", "V5RAW"); N(ff, "~{R}", "V5RAW")
+    # FF2 unused: inputs tied (pin numbers due to duplicate names across units)
+    N(ff, "12", "GND"); N(ff, "11", "GND")        # FF2 D and CP
+    N(ff, "10", "V5RAW"); N(ff, "13", "V5RAW")   # FF2 ~S and ~R
+    sch.no_connect(ff.pin_xy("9")); sch.no_connect(ff.pin_xy("8"))   # FF2 Q and ~Q
     d3 = sch.place("mini-xt:74HCT163", "U16", "74HC161", at=(213.36, 45.72))  # /3 (preset-to-3)
     N(d3, "VCC", "V5RAW", dx=0, dy=-2.54); N(d3, "GND", "GND", dx=0, dy=2.54)
     N(d3, "CP", "OSC")
@@ -234,10 +238,20 @@ def build(sch, lib):
     N(m1, "VCC", "V5RAW", dx=0, dy=-2.54); N(m1, "GND", "GND", dx=0, dy=2.54)
     N(m1, "I0a", "CLK4"); N(m1, "I1a", "CLK7"); N(m1, "S", "SPEED_INV")
     N(m1, "E", "GND"); N(m1, "Za", "CLK_HW")
+    # Unused mux sections tied
+    for p in ("I0b", "I1b", "I0c", "I1c", "I0d", "I1d"):
+        N(m1, p, "GND")
+    for p in ("Zb", "Zc", "Zd"):
+        sch.no_connect(m1.pin_xy(p))
     m2 = sch.place("mini-xt:74HCT157", "U18", "74HC157", at=(137.16, 106.68)) # source mux
     N(m2, "VCC", "V5RAW", dx=0, dy=-2.54); N(m2, "GND", "GND", dx=0, dy=2.54)
     N(m2, "I0a", "PIO_CLK_5V"); N(m2, "I1a", "CLK_HW"); N(m2, "S", "CLKSRC_INV")
     N(m2, "E", "GND"); N(m2, "Za", "CLK_PRE")
+    # Unused mux sections tied
+    for p in ("I0b", "I1b", "I0c", "I1c", "I0d", "I1d"):
+        N(m2, p, "GND")
+    for p in ("Zb", "Zc", "Zd"):
+        sch.no_connect(m2.pin_xy(p))
     buf = sch.place("mini-xt:74HCT04", "U19", at=(213.36, 106.68))   # HCT: reads 3.3V, drives 5V
     N(buf, "VCC", "V5RAW", dx=0, dy=-2.54); N(buf, "GND", "GND", dx=0, dy=2.54)
     N(buf, "P1", "CLK_PRE"); N(buf, "P2", "CLK")
@@ -275,6 +289,17 @@ def build(sch, lib):
     sch.net(r4, "1", "DUT_PWR_EN", kind="label", dx=0, dy=-2.54)
     sch.net(r4, "2", "PFET_B", kind="label", dx=0, dy=2.54)
     N(q2, "B", "PFET_B")
+    # Bulk + soft-start on DUT power path
+    cb = sch.place("Device:C_Polarized", "C9", "22uF", at=(508.0, 91.44))   # V5RAW bulk
+    sch.net(cb, "1", "V5RAW", kind="label", dx=0, dy=-2.54)
+    sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)
+    cg = sch.place("Device:C", "C10", "100nF", at=(533.4, 45.72))   # Q1 gate-source: soft-start ramp
+    sch.net(cg, "1", "V5RAW", kind="label", dx=0, dy=-2.54)
+    sch.net(cg, "2", "PFET_G", kind="label", dx=0, dy=2.54)
+    # TVS clamp on the switched DUT rail
+    dt = sch.place("Device:D_Zener", "D3", "SMBJ5.0A", at=(571.5, 91.44))   # DUT rail clamp
+    sch.net(dt, "K", "+5V", kind="label", dx=0, dy=-2.54)
+    sch.net(dt, "A", "GND", kind="label", dx=0, dy=2.54)
     # idle network (tester = motherboard): buffers default OFF; ready idle high.
     pull("R1", (152.4, 96.52), "~{BUF_EN}", "+3V3")   # buffers default disabled
     pull("R2", (571.5, 45.72), "IOCHRDY", "+5V")      # IOCHRDY idle high (ready)
@@ -286,8 +311,18 @@ def build(sch, lib):
         pull("R%d" % (6 + i), (38.1 + 15.24 * i, 370.84), net, "GND")
     decouple("C8", (490.22, 91.44), "+5V")            # bus rail bulk/decoupling
     sch.text("Power: USB 5V (logic) + external jack (bus/DUT) OR-ed via D1/D2 to "
-             "V5RAW; Q1 P-FET switches bus +5V. Gate pulled to V5RAW (off), pulled "
+             "V5RAW; Q1 P-FET switches bus +5V. Soft-start: C10 ramps Q1 gate. "
+             "DUT rail protected by bulk C9 + TVS clamp D3. Gate pulled to V5RAW (off), pulled "
              "low by Q2 NPN when DUT_PWR_EN=1.", (470.0, 30.48))
+
+    # ---- extra decoupling: ~1 cap per 1-2 ICs ---------------------------
+    decouple("C11", (241.3, 40.64), "+3V3")     # xcvr bank
+    decouple("C12", (302.26, 40.64), "+3V3")    # xcvr bank
+    decouple("C13", (419.1, 40.64), "+3V3")     # xcvr bank
+    decouple("C14", (137.16, 274.32), "+3V3")   # '595 chain
+    decouple("C15", (213.36, 274.32), "+3V3")   # '595 chain
+    decouple("C16", (441.96, 274.32), "+3V3")   # '165 chain
+    decouple("C17", (167.64, 76.2), "V5RAW")    # clock tree
 
     # ---- DUT connectors -------------------------------------------------
     # J1: real 8-bit ISA card-edge slot (Connector:Bus_ISA_8bit, true pinout).

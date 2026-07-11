@@ -89,6 +89,7 @@ def build(sch, lib, expose=True):
     L(M1, "GPIO38", "CLK_M", dx=2.54)
     L(M1, "GPIO39", "RST_M", dx=2.54)               # module user LED on GPIO39 (still usable)
     L(M1, "GPIO40", "RDY_OE", dx=2.54)
+    L(M1, "GPIO41", "HDMI_HPD", dx=2.54)      # 5V-level from sink; RP2350 IO is 5V-tolerant
     # GPIO47 = module's onboard PSRAM chip-select (internal) -- left unwired here.
 
     # local 3V3_VID decoupling for the shifters (module itself is self-decoupled)
@@ -97,6 +98,11 @@ def build(sch, lib, expose=True):
     bulk = sch.place("Device:C", "C3", "10uF", at=(95.25, 274.32))
     sch.net(bulk, "1", "3V3_VID", kind="label", dx=0, dy=-2.54)
     sch.net(bulk, "2", "GND", kind="label", dx=0, dy=2.54)
+    # More 3V3_VID decoupling for the 6 video output shifters
+    decouple("C4", (127.0, 274.32))
+    decouple("C5", (152.4, 274.32))
+    decouple("C6", (177.8, 274.32))
+    decouple("C7", (203.2, 274.32))
 
     # ================= level shifters (74LVC245A) =================
     def shifter(ref, at):
@@ -155,6 +161,11 @@ def build(sch, lib, expose=True):
     # On the Core2350B module (8MB QSPI PSRAM, CS=GPIO47) -- no external part.
 
     # ================= HDMI out (HSTX direct TMDS) =================
+    # +5V fused to protect against shorted HDMI cable
+    F1 = sch.place("Device:Polyfuse", "F1", "500mA", at=(297.18, 170.18))
+    L(F1, "1", "+5V", dx=0, dy=-2.54)
+    L(F1, "2", "HDMI_5V", dx=0, dy=2.54)
+
     J1 = sch.place("Connector:HDMI_A", "J1", at=(322.58, 88.9))
     hdmi = [("TMDS_D2P", "HDMI_D2P", "D2+"), ("TMDS_D2M", "HDMI_D2M", "D2-"),
             ("TMDS_D1P", "HDMI_D1P", "D1+"), ("TMDS_D1M", "HDMI_D1M", "D1-"),
@@ -167,8 +178,9 @@ def build(sch, lib, expose=True):
         L(J1, cpin, conn, dx=2.54)
     for cpin in ("D2S", "D1S", "D0S", "CKS", "GND", "SH"):
         L(J1, cpin, "GND", dx=2.54)
-    L(J1, "+5V", "+5V", dx=2.54)
-    for cpin in ("CEC", "UTILITY", "SCL", "SDA", "HPD"):
+    L(J1, "+5V", "HDMI_5V", dx=2.54)
+    L(J1, "HPD", "HDMI_HPD", dx=2.54)      # 5V-level from sink; RP2350 IO is 5V-tolerant
+    for cpin in ("CEC", "UTILITY", "SCL", "SDA"):
         sch.no_connect(J1.pin_xy(cpin))
 
     # ================= VGA out (resistor-ladder DAC) =================
@@ -181,12 +193,20 @@ def build(sch, lib, expose=True):
         sch.net(r, "1", src, kind="label", dx=0, dy=-2.54)
         sch.net(r, "2", out, kind="label", dx=0, dy=2.54)
 
+    # VGA sync series resistors (protect RP2350 from monitor-side faults)
+    r = sch.place("Device:R", "R28", "100", at=(266.7, 287.02))
+    sch.net(r, "1", "HSYNC", kind="label", dx=0, dy=-2.54)
+    sch.net(r, "2", "HSYNC_J", kind="label", dx=0, dy=2.54)
+    r = sch.place("Device:R", "R29", "100", at=(281.94, 287.02))
+    sch.net(r, "1", "VSYNC", kind="label", dx=0, dy=-2.54)
+    sch.net(r, "2", "VSYNC_J", kind="label", dx=0, dy=2.54)
+
     J2 = sch.place("Connector_Generic:Conn_01x15", "J2", "VGA HD15", at=(322.58, 215.9))
     L(J2, "Pin_1", "VGA_R", dx=2.54)
     L(J2, "Pin_2", "VGA_G", dx=2.54)
     L(J2, "Pin_3", "VGA_B", dx=2.54)
-    L(J2, "Pin_13", "HSYNC", dx=2.54)
-    L(J2, "Pin_14", "VSYNC", dx=2.54)
+    L(J2, "Pin_13", "HSYNC_J", dx=2.54)
+    L(J2, "Pin_14", "VSYNC_J", dx=2.54)
     for p in ("Pin_5", "Pin_6", "Pin_7", "Pin_8", "Pin_10"):
         L(J2, p, "GND", dx=2.54)
     for p in ("Pin_4", "Pin_9", "Pin_11", "Pin_12", "Pin_15"):
@@ -195,3 +215,4 @@ def build(sch, lib, expose=True):
     sch.text("SOFT CARD: ISA bus + power ONLY. Self-decodes 0xA0000-0xBFFFF and "
              "3B4/3B5/3B8/3BA/3BF + 3D4/3D5/3D8/3D9/3DA from snooped A17-A19/A0-A9. "
              "No Y5, no link, no host RAM (design S8).", (38.1, 20.32))
+    sch.text("HDMI: +5V fused (F1); HPD sensed on GPIO41. Add TMDS ESD array (TPD4E05U06-class, <=0.15pF) at layout -- no KiCad symbol yet.", (266.7, 33.02))

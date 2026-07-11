@@ -166,6 +166,10 @@ def build(sch, lib):
     L(U7, "VCC", "+5V", dx=0, dy=-2.54); L(U7, "GND", "GND", dx=0, dy=2.54)
     # SRAM#2 /CE = NAND(A19, Y5): low only when A19=1 and not video block
     L(U7, "P1", "A19"); L(U7, "P2", "Y5_INT"); L(U7, "P3", "RAM2_CE")
+    # Spare NAND gates tied (no floating CMOS inputs)
+    L(U7, "P12", "GND", dx=-2.54)
+    L(U7, "P13", "GND", dx=-2.54)
+    sch.no_connect(U7.pin_xy("P11"))
 
     # ---------------- SRAM (2x AS6C4008-55) ----------------
     for n, at, ce in [(1, (302.26, 76.2), "A19"), (2, (302.26, 175.26), "RAM2_CE")]:
@@ -194,6 +198,10 @@ def build(sch, lib):
     L(ff, "VCC", "+5V", dx=0, dy=-2.54); L(ff, "GND", "GND", dx=0, dy=2.54)
     L(ff, "C", "OSC"); L(ff, "D", "CLK_QN"); L(ff, "~{Q}", "CLK_QN")
     L(ff, "Q", "CLK7"); L(ff, "~{S}", "+5V"); L(ff, "~{R}", "+5V")
+    # FF2 unused: park it (wire by pin number -- names duplicate across units)
+    L(ff, "12", "GND", dx=-2.54); L(ff, "11", "GND", dx=-2.54)
+    L(ff, "10", "+5V", dx=-2.54); L(ff, "13", "+5V", dx=-2.54)
+    sch.no_connect(ff.pin_xy("9")); sch.no_connect(ff.pin_xy("8"))
 
     # /3 via '161 preset-to-3: preload 13 (1101), the TC at count 15 reloads
     # the preset through ~PE -> a 3-state cycle. (74HC161: same pinout as the
@@ -220,6 +228,11 @@ def build(sch, lib):
     L(mux, "I0a", "CLK4"); L(mux, "I1a", "CLK7")
     L(mux, "S", "SPEED_INV"); L(mux, "E", "GND")
     L(mux, "Za", "CLK_MUX")
+    # Unused mux sections: inputs tied (no floating CMOS)
+    for p in ("I0b", "I1b", "I0c", "I1c", "I0d", "I1d"):
+        L(mux, p, "GND", dx=-2.54)
+    for p in ("Zb", "Zc", "Zd"):
+        sch.no_connect(mux.pin_xy(p))
 
     # NOTE: U13 must stay an INVERTING buffer ('04) -- it is what turns the /3
     # divider's 67%-high Q0 into the 33%-high clock the V20's clock-low-time
@@ -264,5 +277,11 @@ def build(sch, lib):
         pullup("R%d" % (1 + i), net, (40.64 + 15.24 * i, 243.84))
 
     # decoupling
-    for i, x in enumerate(range(40, 320, 40)):
+    for i, x in enumerate(range(20, 340, 20)):
         decouple("C%d" % (10 + i), (float(x), 270.0))
+    c = sch.place("Device:C", "C26", "100nF", at=(55.88, 20.32))   # OSC1 3V3 decouple
+    sch.net(c, "1", "+3V3", kind="label", dx=0, dy=-2.54)
+    sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
+    c = sch.place("Device:C", "C27", "10uF", at=(340.36, 270.0))   # +5V bulk
+    sch.net(c, "1", "+5V", kind="label", dx=0, dy=-2.54)
+    sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)

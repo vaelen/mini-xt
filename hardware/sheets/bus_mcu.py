@@ -33,6 +33,8 @@ XT/ISA backplane as **slave and master**.  It carries:
     bus get refreshed. A refresh cycle reuses the bus-master engine -- it walks the
     refresh row address on A0-A7 via the §5.1 counter and pulses MEMR# -- so only
     the REFRESH# strobe itself needs a GPIO (reclaimed from the raw ~WR sense).
+  * SPKR (out) -> audio sheet: PIT ch2 tone / port-61h speaker gate PWM (GPIO22; the bus-CLK
+    sense was dropped for it -- PIO tracks bus timing from BALE/strobes).
 
 Strobe xcvr DIR = HLDA (master/slave role, §5.2); DATADIR is the data
 read/write direction; address group is fixed sense; AEN/TC fixed drive.
@@ -50,7 +52,7 @@ _DIR = {
     "~{MEMR}": "bidirectional", "~{MEMW}": "bidirectional",
     "~{IOR}": "bidirectional", "~{IOW}": "bidirectional",
     "BALE": "input", "AEN": "output", "IOCHRDY": "bidirectional",
-    "~{IOCHCK}": "input", "CLK": "input", "TC": "output",
+    "~{IOCHCK}": "input", "TC": "output",
     "DRQ1": "input", "DRQ2": "input", "DRQ3": "input",
     "~{DACK1}": "output", "~{DACK2}": "output", "~{DACK3}": "output",
     # private V20 <-> Bus MCU
@@ -62,7 +64,7 @@ _DIR = {
     "LINK_B2S": "output", "LINK_S2B": "input",
 }
 _CTRL = ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}", "BALE", "AEN", "IOCHRDY",
-         "~{IOCHCK}", "CLK", "TC", "DRQ1", "DRQ2", "DRQ3",
+         "~{IOCHCK}", "TC", "DRQ1", "DRQ2", "DRQ3",
          "~{DACK1}", "~{DACK2}", "~{DACK3}"]
 
 PINS = (
@@ -75,7 +77,7 @@ PINS = (
     [pin(s, _DIR[s]) for s in mxbus.PRIV_CPU] +
     [pin(s, _DIR[s]) for s in mxbus.PRIV_COUNTER] +
     [pin("LINK_B2S", "output"), pin("LINK_S2B", "input"),
-     pin("SPEED_SEL", "output"), pin("~{REFRESH}", "output")]
+     pin("SPEED_SEL", "output"), pin("~{REFRESH}", "output"), pin("SPKR", "output")]
 )
 
 # RP2350B GPIO -> internal/interface net (MCU-side names).  ~48 GPIO budget (§5.2).
@@ -86,7 +88,7 @@ for i in range(8):
     GPIO_NET[8 + i] = "MA%d" % i        # low address sense (slave I/O decode)
 GPIO_NET.update({
     16: "M_IOR", 17: "M_IOW", 18: "M_MEMR", 19: "M_MEMW",
-    20: "M_BALE", 21: "M_AEN", 22: "CLK",     # CLK: direct bus-clock sense (5V-tol)
+    20: "M_BALE", 21: "M_AEN", 22: "SPKR",     # SPKR: PIT ch2 / port-61h speaker out (CLK sense dropped -- GPIO reclaimed)
     23: "IOCHRDY", 24: "~{IOCHCK}",                 # direct input sense
     25: "HOLD", 26: "HLDA",
     27: "INTR", 28: "~{INTA}", 29: "NMI",
@@ -107,7 +109,7 @@ _NET_SHAPE = {"IOCHRDY": "bidirectional", "~{IOCHCK}": "input",
               "DRQ1": "input", "~{DACK1}": "output",
               "CNT_CLK": "output", "CNT_LD0": "output", "CNT_LD1": "output",
               "CNT_LD2": "output", "LINK_B2S": "output", "LINK_S2B": "input",
-              "SPEED_SEL": "output", "~{REFRESH}": "output"}
+              "SPEED_SEL": "output", "~{REFRESH}": "output", "SPKR": "output"}
 _HIER = set(_NET_SHAPE) | {"IRQ_LOAD", "IRQ_CLK", "IRQ_SER"}  # IRQ_* are internal labels
 
 
@@ -283,7 +285,9 @@ def build(sch, lib):
     N(inv, "GND", "GND", length=2.54)
     N(inv, "P1", "HLDA")
     N(inv, "P2", "~{HLDA}")
-    for p in ("P3", "P5", "P9", "P11", "P13", "P4", "P6", "P8", "P10", "P12"):
+    for p in ("P3", "P5", "P9", "P11", "P13"):   # spare inputs: tie low
+        N(inv, p, "GND")
+    for p in ("P4", "P6", "P8", "P10", "P12"):   # spare outputs: open
         sch.no_connect(inv.pin_xy(p))
     buf_cfg = [("U14", 281.94, [0, 1, 2, 3], [4, 5, 6, 7]),
                ("U15", 327.66, [8, 9, 10, 11], [12, 13, 14, 15]),
@@ -361,6 +365,12 @@ def build(sch, lib):
     sch.net(bulk, "2", "GND", kind="label", dx=0, dy=2.54)
     decouple("C6", (190.5, 40.64), "3V3_BUS")      # data xcvr
     decouple("C7", (271.78, 40.64), "3V3_BUS")     # addr xcvrs
-    decouple("C8", (350.52, 40.64), "+3V3")
+    decouple("C8", (350.52, 40.64), "3V3_BUS")     # AEN/TC xcvr
     decouple("C9", (50.8, 220.98), "3V3_BUS")      # counters (3.3 V domain)
     decouple("C10", (190.5, 198.12), "+5V")        # '165
+    decouple("C12", (281.94, 213.36), "+5V")       # U14 '244
+    decouple("C13", (327.66, 213.36), "+5V")       # U15 '244
+    decouple("C14", (373.38, 213.36), "+5V")       # U16 '244
+    decouple("C15", (251.46, 213.36), "+5V")       # U17 '04
+    decouple("C16", (35.56, 220.98), "3V3_BUS")    # counter bank
+    decouple("C17", (20.32, 220.98), "3V3_BUS")    # addr xcvr bank

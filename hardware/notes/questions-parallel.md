@@ -72,3 +72,9 @@ proceeded.
 call was wrong for status bit 7 — on a real SPP the card inverts Busy (bit7 =
 NOT-Busy; INT 17h spins on bit7=1 = ready). DB25 Busy now passes through the
 spare U9 inverter (P13->P12, net BUSY_N) into the status buffer's D7.
+
+## Status-input pull-ups + decoupling (design review 2026-07-11)
+R1-R5 (4.7k to +5V) added on P_ACK/P_BUSY/P_PE/P_SEL/P_ERR -- these DB25 inputs
+floated into HCT buffers with no printer attached (noise reads, phantom ~Ack
+IRQ7 pulses when IRQ_EN set). Decoupling grown to one 100nF per IC (C1-C13)
+plus a 10uF card bulk (C14).

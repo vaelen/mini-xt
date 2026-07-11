@@ -56,3 +56,8 @@ Pick: single-supply topology -- VREF = +2.5V virtual ground on the +in;
 but the TL072 cannot run it (needs >=+-5 V; JFET input CM excludes V-+4 V, so
 2.5 V Vref is out of spec on both counts). U1 is now an MCP6002 (RRIO, CM to
 ground) via a value override on the pin-identical TL072 dual-op-amp body.
+
+## Output series resistor (design review 2026-07-11)
+R7 (100R) added between the MCP6002 output and C7/line-out: an op-amp driving
+an unbuffered cable/capacitive load directly is an oscillation risk; the series
+R isolates it. Mono-to-both-channels drive is unchanged.

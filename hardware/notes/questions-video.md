@@ -52,5 +52,14 @@ transmitter chip)".
 - XIN/XOUT left as labelled stubs (off-sheet 12 MHz crystal); RUN tied to +3V3
   (card runs whenever powered; could instead be gated by RESET_DRV). USB and SWD
   brought out as labels only.
+
+## 7. Connector hardening (design review 2026-07-11)
+HDMI +5V now goes through a 500mA polyfuse (F1) and HPD is sensed on GPIO41
+(5V-tolerant IO, no divider). HSYNC/VSYNC get 100R series resistors (R28/R29)
+before the HD15. Deferred to layout: a TMDS-rated ESD array (TPD4E05U06-class,
+<=0.15pF/line) on the HDMI pairs -- no KiCad symbol available in the installed
+libs, and the 270R+CML trick needs the array footprint picked with the
+connector placement. VGA DAC note: 510/1k/2k weights assume the monitor's 75R
+termination (~0.7V full scale).
 </content>
 </invoke>

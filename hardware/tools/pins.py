@@ -14,7 +14,7 @@ LIBS = ["Device", "power", "Connector", "Connector_Generic", "74xx", "4xxx",
         "Interface_UART", "Interface_USB", "Interface_LineDriver", "Memory_RAM",
         "MCU_RaspberryPi", "Oscillator", "Regulator_Switching", "Regulator_Linear",
         "Power_Supervisor", "Switch", "Audio", "Amplifier_Operational", "Timer_RTC",
-        "Diode", "Transistor_BJT", "Connector_Specific"]
+        "Diode", "Transistor_BJT", "Connector_Specific", "Power_Protection"]
 
 
 def load():

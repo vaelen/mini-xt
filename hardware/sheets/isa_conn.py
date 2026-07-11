@@ -24,6 +24,12 @@ tapping IRQ4 as COM_IRQ); apply the same remap to both headers on that card.
 
 Dropped vs. our previous 64-pin header: the non-standard IRQ10/11/14 (they were
 spare/unused, and on a real AT live on the 16-bit extension connector, not here).
+
+Power budget: the header carries +5V on just two pins (3 and 55, ~3 A each at
+2.54 mm header ratings) and chain current is cumulative -- keep daisy-chains to
+2-3 cards. On the motherboard the sidecar feeds this rail through a 2 A
+polyfuse + SMBJ5.0A clamp (net +5V_ISA), so a faulted card trips its own fuse
+instead of dropping the board.
 """
 import mxbus  # noqa: F401  (kept for callers; net names are spelled out below)
 from mxbus import pin

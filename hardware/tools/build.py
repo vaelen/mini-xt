@@ -48,7 +48,7 @@ STD_LIBS = ["Device", "power", "Connector", "Connector_Generic", "74xx",
             "Memory_RAM", "Memory_Flash", "MCU_RaspberryPi", "Oscillator",
             "Regulator_Switching", "Regulator_Linear", "Power_Supervisor",
             "Switch", "Audio", "Amplifier_Operational", "Timer_RTC", "Diode",
-            "Transistor_BJT"]
+            "Transistor_BJT", "Power_Protection"]
 
 SHEETS = ["cpu_core", "bus_mcu", "supervisor", "video", "com_port",
           "parallel", "rtc", "power", "storage", "audio", "sidecar"]

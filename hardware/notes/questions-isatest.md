@@ -47,3 +47,15 @@ Spec: docs/superpowers/specs/2026-07-01-isa-test-card-design.md
 - The /3 divider's TC->~PE reload was two dangling nets ('163 free-ran /16, so
   "4.77 MHz" was 0.895 MHz). TC now inverts through a spare U19 gate into ~PE,
   same as cpu_core.
+
+---
+**DUT-rail hardening + spare-input cleanup (2026-07-11, design review):**
+- Added C9 22uF bulk on V5RAW, C10 100nF Q1 gate-source (soft-start: DUT power
+  ramps instead of stepping into the card's input capacitance), and D3 SMBJ5.0A
+  on the switched +5V (a faulty DUT back-driving the rail is the tester's
+  expected failure mode).
+- U15 FF2 and the U17/U18 unused mux sections now have their inputs tied to
+  GND/V5RAW (were floating CMOS, risk of spurious current draw).
+- Decoupling grown from 2 caps (C3/C4 on xcvr, C5/C6 on chain, C7 on clock, C8
+  on bus) to ~9 total: added C11-C13 for xcvr banks, C14-C15 for '595 chain,
+  C16 for '165 chain, C17 for clock tree (roughly 1 cap per 1-2 ICs).

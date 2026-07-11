@@ -43,3 +43,13 @@ output caps once the budget is fixed.
 wrong — CH224K CFG1 must be left OPEN for 5 V (internal pull-up); ANY resistor
 to GND selects the 9/12/15/20 V rows and would put >=9 V on the +5V rail. R3
 has been removed from power.py; CFG1 is no-connect with a warning note.
+
+## 5. Input/rail protection added (design review 2026-07-11)
+VBUS now enters through F1 (3A-hold 1812 polyfuse) with an SMBJ5.0A TVS on +5V;
+the sidecar +5V feed gets its own 2A polyfuse + SMBJ5.0A + 22uF bulk on the
++5V_ISA side (a misbehaving ISA card trips its own fuse instead of dropping the
+board, and a back-fed voltage is clamped). Reverse polarity needs no diode --
+USB-C connector geometry excludes it. CH224K gains a local 1uF VDD cap; its PG
+(open-drain, pulled to +3V3) is now routed to the Supervisor as PD_PG (GPIO16)
+so firmware can tell whether the 5V/3A contract succeeded. Buck output doubled
+to 2x22uF per TPS563200 datasheet; 10uF added at VIN; one extra 22uF bulk on +5V.

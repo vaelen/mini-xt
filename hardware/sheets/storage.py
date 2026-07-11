@@ -27,7 +27,7 @@ Design doc S10. A discrete, period-correct mass-storage soft card:
   * 40-pin IDE header (Conn_02x20) and a CompactFlash True-IDE socket
     (Conn_02x25, 50-pin -- no CF symbol in lib, see questions-storage.md) wired
     in parallel.
-  * Drive INTRQ -> 74HCT125 buffer -> IRQ5.
+  * Drive INTRQ -> 2N7002-gated 74HCT125 -> IRQ5 (asserted high, released when idle).
 
 Soft card: exposes ONLY ISA signals + power. The IDE/CF connectors are local.
 See hardware/notes/questions-storage.md for the register-map / topology picks.
@@ -106,12 +106,23 @@ def build(sch, lib, expose=True):
     L(OR, "P9", "~{HB_SEL}", dx=-2.54);  L(OR, "P10", "~{IOR}", dx=-2.54); L(OR, "P8", "~{HBRD_N}")  # HB read
     L(OR, "P12", "~{HB_SEL}", dx=-2.54); L(OR, "P13", "~{IOW}", dx=-2.54); L(OR, "P11", "HBW_N")      # HB write
 
-    # ---- 74HCT125: INTRQ -> IRQ5 (OE tied low, always enabled) ----
+    # ---- 74HCT125: INTRQ -> IRQ5, tri-state (drive-high-else-release) ----
+    # Q1 (2N7002) inverts INTRQ into the '125 ~OE: INTRQ=1 -> ~OE=0 -> buffer
+    # drives IRQ5 high (input strapped high); INTRQ=0 -> ~OE=1 (R4) -> Z, so the
+    # line stays shareable -- same convention as the LPT card's IRQ7 stage.
     IRQ = sch.place("mini-xt:74HCT125", "U5", at=(38.1, 256.54))
     pwr(IRQ, "VCC", "GND")
-    L(IRQ, "P1", "GND", dx=-2.54); L(IRQ, "P2", "IDE_IRQ", dx=-2.54); L(IRQ, "P3", "IRQ5")
-    for u in ("P4", "P5", "P9", "P10", "P12", "P13", "P6", "P8", "P11"):
+    L(IRQ, "P1", "~{IRQ5_OE}", dx=-2.54); L(IRQ, "P2", "+5V", dx=-2.54); L(IRQ, "P3", "IRQ5")
+    for oe in ("P4", "P10", "P13"):
+        L(IRQ, oe, "+5V", dx=-2.54)
+    for ip in ("P5", "P9", "P12"):
+        L(IRQ, ip, "GND", dx=-2.54)
+    for u in ("P6", "P8", "P11"):
         sch.no_connect(IRQ.pin_xy(u))
+    Q1 = sch.place("Device:Q_NMOS", "Q1", "2N7002", at=(76.2, 256.54))
+    L(Q1, "G", "IDE_IRQ", dx=-2.54)
+    L(Q1, "D", "~{IRQ5_OE}", dx=0, dy=-2.54)
+    L(Q1, "S", "GND", dx=0, dy=2.54)
 
     # ============================================================== decode ====
     # Rev-2 = A0<->A3 swap: A0 splits even (drive command block) vs odd (latch
@@ -217,5 +228,9 @@ def build(sch, lib, expose=True):
     sch.net(r2, "1", "IDE_IRQ", kind="label", dx=0, dy=-2.54)
     sch.net(r2, "2", "GND", kind="label", dx=0, dy=2.54)
     pullup("R3", "~{IDE_RST}", (259.08, 25.4))
-    for i, x in enumerate(range(50, 250, 50)):
+    pullup("R4", "~{IRQ5_OE}", (91.44, 243.84))  # buffer released (Z) when INTRQ low
+    for i, x in enumerate(range(30, 250, 20)):
         decouple("C%d" % (1 + i), (float(x), 276.86))
+    cb = sch.place("Device:C", "C12", "10uF", at=(256.54, 276.86))   # card bulk
+    sch.net(cb, "1", "+5V", kind="label", dx=0, dy=-2.54)
+    sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)

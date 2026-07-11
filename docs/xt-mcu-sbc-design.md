@@ -328,10 +328,10 @@ beyond the 2-wire link (§5.3).
 | IRQ inputs | 74HC165: LOAD, CLK, SER | 3 | collects ~10–12 IRQ lines; µs-poll is fine (ISA holds IRQ until serviced) |
 | DMA handshake | DRQ1 (in), DACK1̄ (out), TC (out) | 3 | on-board PicoGUS channel; sidecar DMA via '165/'595 or deferred |
 | Counter control | COUNT + load-steer ×3 | 3–4 | drives the external 20-bit address counter |
-| Speaker | PWM → op-amp | 1 | |
+| Speaker | PWM → op-amp (GPIO22) | 1 | PIT ch2 direct output; bus-CLK sense dropped (PIO tracks via BALE/strobes) |
 | Transceiver DIR | master/slave | 0–1 | can be HLDA-derived externally |
 | **Link to Supervisor** | **UART TX/RX** | **2** | §5.3 |
-| **Total** | | **≈ 44–46 / 48** | fits with margin **because** the link is UART (2 pins). SPI (+3) would push to ~47–49 — at/over the edge. **As built: 48/48** — the margin was spent on a direct bus-CLK sense, ~{REFRESH}, and READY; the raw ~WR and IO/M̄ senses and DMA ch2/3 (DRQ/DACK) were dropped (DACK2/3 parked deasserted by pull-ups; first candidates for a '165/'595 expansion). |
+| **Total** | | **≈ 44–46 / 48** | fits with margin **because** the link is UART (2 pins). SPI (+3) would push to ~47–49 — at/over the edge. **As built: 48/48** — the margin was spent on SPKR (PIT ch2), ~{REFRESH}, and READY; the raw ~WR and IO/M̄ senses and DMA ch2/3 (DRQ/DACK) were dropped (DACK2/3 parked deasserted by pull-ups; first candidates for a '165/'595 expansion). |
 
 Speed-select moves to the Supervisor (a static latch it sets before reset release), and the
 POST display is Supervisor-driven — both off the Bus MCU. The link choice is worth ~3 pins

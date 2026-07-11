@@ -103,7 +103,8 @@ def build(sch, lib):
     res("R5",  "10k", (152.4, 127), "PG_L_AC", "SUM")  # picogus L -> summer
     res("R10", "10k", (152.4, 177.8), "PG_R_AC", "SUM")  # picogus R -> summer
     res("R6",  "10k", (203.2, 127), "SUM",     "OUT")  # feedback
-    cap("C7", "10uF", (228.6, 127), "OUT",     "LINE") # output AC-couple
+    res("R7",  "100", (241.3, 127),   "OUT",     "OUT_R")  # series isolation into the cable
+    cap("C7", "10uF", (228.6, 127), "OUT_R",   "LINE") # output AC-couple
     # (unit B -- pins 5/6/7 -- intentionally unused: see module docstring.)
 
     # ---------------- stereo line-out jack (J2: tip=L, ring=R, sleeve=GND) ----------------

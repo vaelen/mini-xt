@@ -58,5 +58,19 @@
   buffering for them. IO/~{M} exceeds the 48-GPIO budget so it is exported as a
   hier pin only (not bonded to a GPIO here); the MCU infers cycle type from the
   buffered ~{MEMR}/~{IOR} strobes instead.
+
+## GPIO22: CLK sense -> SPKR (design review 2026-07-11)
+The audio sheet's SPKR net had NO driver anywhere (netlist: 1 node) -- the
+soft-PIT ch2 speaker output was never brought out and the GPIO budget was
+48/48. GPIO22 (bus-CLK sense, a diagnostics bonus from the C3 fix round, not
+load-bearing: PIO tracks cycles from BALE/strobes) is reassigned as the SPKR
+output, giving full port-61h direct-toggle fidelity from the PIT owner.
+bus_mcu no longer lists CLK in its interface.
+
+## Decoupling + spare-input cleanup (2026-07-11)
+C8 was decoupling +3V3, a rail this sheet doesn't use -- now 3V3_BUS (typo).
+Added C12-C17 (the +5V '244/'04 stage and the counter/xcvr banks had none or
+shared one). U17 spare inverter inputs tied to GND (no_connect left them
+floating on the real chip).
 </content>
 </invoke>

@@ -144,6 +144,17 @@ def build(sch, lib, expose=True):
     # spare NOR gate (U3 gate D) unused
     sch.no_connect(U3.pin_xy("P13"))
 
+    # spare NOR inputs (CMOS must not float)
+    L(U3, "P11", "GND", dx=-2.54)
+    L(U3, "P12", "GND", dx=-2.54)
+
     # ---------------- decoupling ----------------
     decouple("C1", (228.6, 175.26))
     decouple("C2", (152.4, 96.52))
+    decouple("C3", (88.9, 254.0))
+    decouple("C4", (114.3, 254.0))
+    decouple("C5", (139.7, 254.0))
+    decouple("C6", (165.1, 254.0))
+    cb = sch.place("Device:C", "C7", "10uF", at=(190.5, 254.0))
+    sch.net(cb, "1", "+5V", kind="label", dx=0, dy=-2.54)
+    sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)

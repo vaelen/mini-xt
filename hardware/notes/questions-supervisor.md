@@ -44,3 +44,10 @@ this fidelity; add ESD diodes on a real layout.
 downstream USB). `+5V` arrives as a global power net, so it is NOT exposed as a hier pin;
 only LINK_B2S / LINK_S2B / SPEED_SEL cross the sheet boundary -- keeping the two-MCU
 interface minimal as the design intends.
+
+## 6. USB host port hardening (design review 2026-07-11)
+**Decision:** Added the RP2040-required 27R series resistors on USB D+/D- (R2/R3), a
+USBLC6-2SC6 ESD array at the jack, and 100uF bulk on VBUS_KBD (USB hosts must supply
+>=120uF-class bulk for downstream inrush; the polyfuse alone would brown-out on keyboard
+hot-plug). GPIO16 now reads PD_PG from the power sheet (CH224K power-good) so setup can
+warn when only default-USB current is available.

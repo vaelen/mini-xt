@@ -120,3 +120,28 @@ and TI's tube-packed CFN is obsolete — the reel CFNR is the active leg.
   (C2337 1×40, C2333 2×40); the CF socket is a real SMD CompactFlash
   connector (C2962036) whose footprint replaces the generic 2×25 header at
   layout.
+
+## Design-review additions (2026-07-11)
+
+Protection + best-practice parts added by the 2026-07-11 review:
+
+| Part                       | LCSC      | Where                                        |
+|----------------------------|-----------|----------------------------------------------|
+| BSMD1812-200-16V 2A hold   | C883156   | sidecar +5V_ISA feed fuse                    |
+| BSMD1812-300-24V 3A hold   | C7500481  | power USB-C VBUS input fuse                  |
+| SMBJ5.0A TVS (SMB)         | C19077558 | +5V clamps: power input, sidecar, isatest    |
+| USBLC6-2SC6 (SOT-23-6)     | C2687116  | supervisor USB-A ESD array                   |
+| 2N7002 (SOT-23)            | C8545     | storage IRQ5 tri-state inverter              |
+| 27R 0603 (0603WAF270JT5E)  | C25190    | supervisor USB series termination            |
+| 100R 0603                  | C22775    | VGA sync series, audio output series         |
+| 47nF 0603                  | C1622     | MAX3241 C1 (5V values)                       |
+| 330nF 0603                 | C1615     | MAX3241 C2-C4 (5V values)                    |
+| 100uF alu SMD 16V          | C2887276  | supervisor USB host VBUS bulk                |
+
+STOCK ALERT: TPS563200DDCR is down to 4 pcs at JLC (was ~256 on 2026-07-03).
+Re-verify before any order; TPS563201DDCR (D-CAP2, different feedback network)
+or another 3A 5->3.3V buck is the fallback -- re-check the divider/compensation
+against whichever datasheet applies.
+
+No JLC-stocked/KiCad-symboled TMDS ESD array was picked for the video card's
+HDMI pairs (TPD4E05U06-class, <=0.15pF/line) -- choose at layout time.

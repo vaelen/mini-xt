@@ -52,3 +52,7 @@
 ## 6. SQW pin
 - Pick: square-wave output unused -> no-connect (not part of the ISA
   soft-card interface).
+
+## Spare-gate + decoupling cleanup (design review 2026-07-11)
+U3 gate-4 inputs (P11/P12) tied to GND -- they floated (CMOS). Decoupling grown
+to one 100nF per IC (C1-C6) plus a 10uF card bulk (C7).
