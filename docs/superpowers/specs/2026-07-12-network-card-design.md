@@ -47,10 +47,10 @@ analog front end is transcribed verbatim, not redesigned.
 
 ## 3. Hardwired configuration (replaces jumpers J4–J9)
 
-All straps are 10 k to +5V or GND, sampled by the RTL8019AS at reset.
-**Every strap-pin polarity must be re-verified against the RTL8019AS
-datasheet during implementation** (the config pins 64–85 are shared
-BD/EE/BS/IOS/IRQS functions; same rule as any hand-authored symbol).
+Verified against the Realtek datasheet 2026-07-12 (config pins have
+internal 100 kΩ pull-downs, latched at the RSTDRV falling edge): a strap
+of 0 = leave the pin open; only strap-1 pins get a 10 k pull-up. Only two
+pull-ups exist: JP (65) and IOS1 (82).
 
 | Function   | Strap                 | Value hardwired                                  |
 |------------|-----------------------|--------------------------------------------------|
@@ -58,7 +58,7 @@ BD/EE/BS/IOS/IRQS functions; same rule as any hand-authored symbol).
 | PNP        | PNP = 0               | PNP disabled                                      |
 | I/O base   | IOS[3:0] = 0010       | **0x340–0x35F** (0x300/0x320 = XT-IDE, 0x360 hits LPT 0x378, 0x2E0 hits COM window) |
 | IRQ        | IRQS[2:0] = 000       | INT0 pin → **IRQ2** (delivered as IRQ9 by the soft PIC's AT redirect) |
-| Medium     | PL[1:0] = 01          | 10BaseT with link test                            |
+| Medium     | PL[1:0] = 00          | 10BaseT with link test (datasheet: PL=00 auto-detect = "10BaseT link test is enabled"; PL=01 would *disable* link test) |
 | Boot ROM   | BS[4:0] = 00000       | disabled                                          |
 | Slot width | IOCS16B: 27 k to GND  | 8-bit slot (SLOT16 strap, as upstream)            |
 | AUI        | AUI: 10 k to GND      | twisted pair                                      |
