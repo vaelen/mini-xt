@@ -313,3 +313,42 @@ of 74HCT165s (U12 IRQ2-9 + U19 IRQ10-15, same 3 GPIO, 16-bit shift), which
 also un-dangles the IRQ10-15 interface pins the sheet had declared all
 along. IRQ10-15 are motherboard-internal -- the 60-pin header still carries
 only IRQ2-8. Standalone cards remaining: video, isatest.
+
+---
+
+## Change: design-review fixes, IRQ8 off the expansion header (2026-07-12)
+
+Review sweep of the whole motherboard netlist + all sheets. Fixes applied:
+
+- **IRQ8 removed from the 60-pin ISA header** (isa_conn pin 15 -> second GND
+  return, like pin 11). The RTC is on-board, so IRQ8 is now exclusively the
+  RTC sheet's push-pull '04 output into the Bus MCU's '165 collector -- no
+  card can ever share it, which also retires the driver-vs-driver concern
+  with the RTC's non-tri-state IRQ8 drive. card_isatest keeps its IRQ8 '165
+  lane for bit-map stability; the lane reads 0 via its local pull-down.
+- **Bus CLK is fixed at 7.16 MHz** (cpu_core U13 buffers CLK7 to the ISA CLK
+  pin; the speed mux retimes only CPUCLK). A real turbo XT often did the
+  same; nothing in this design times off CLK -- cards are strobe-timed. If a
+  picky card ever needs CLK = CPU clock, buffer CLK_MUX instead of CLK7.
+- **MCU-Hi-Z parking completed** (bus_mcu R25-R28): ~{CPURESET} pulled low
+  (V20 + RESET_DRV held in reset while the Bus MCU is unprogrammed/BOOTSEL/
+  pre-init -- previously the V20 came out of reset with floating HOLD/READY/
+  INTR after the TCM809 timeout), ~{DACK1}/~{REFRESH} parked deasserted
+  (3V3_BUS -- both sit directly on RP2350B pins), DRQ1 idled low.
+- **Supervisor 12 MHz crystal**: the 1k damping R4 was wired in parallel with
+  nothing (XOUT, crystal and load cap all on one net, R4's far end dangling).
+  Now XOUT -> R4 -> crystal + C2, per the RP2040 minimal design.
+- Floating spare CMOS inputs grounded everywhere (cpu_core U4 D4-D7, rtc U5
+  gates 3/4 + U6 P13, storage U3 gates 3/4); NC-marking an input doesn't
+  stop it floating -- GND is now the uniform convention.
+- VGA blue ladder 1k/510 -> 820/470 (full-scale was ~12% below R/G).
+- Audio: PG summing 10k -> 20k (headroom), 100k LINE bleed, MCP6002 unit B
+  parked as follower (see questions-audio.md).
+- Power: CH224K VDD now fed through 1k (R9) with C6 at the pin (WCH ref design).
+- com_port: 10k pull-up on UART_RXD (SIN idles at mark with JP1 open); CLK
+  dropped from PINS (never used -- the UART has its own crystal). parallel:
+  RESET_DRV dropped from PINS (never used; '574s have no reset). storage: R3
+  deleted (pull-up on a push-pull node); "populate ONE of J1/J2" note added
+  (both CSELs grounded = both master).
+- Supervisor: second USBLC6 (U4) on PROG_DP/DM at J6, so the programming port
+  is ESD-protected in BOTH SW2 positions (U3 only covers the jack-side nets).

@@ -126,6 +126,9 @@ def build(sch, lib, expose=True):
     L(U5, "P3", "RTC_DS", dx=2.54)                             # ~{IOR} | nA0 (A0=1)
     L(U5, "P4", "~{IOW}", dx=-2.54); L(U5, "P5", "NA0", dx=-2.54)
     L(U5, "P6", "RTC_RW", dx=2.54)                             # ~{IOW} | nA0 (A0=1)
+    for ip in ("P9", "P10", "P12", "P13"):                     # spare gates: tie inputs
+        L(U5, ip, "GND", dx=-2.54)
+    sch.no_connect(U5.pin_xy("P8")); sch.no_connect(U5.pin_xy("P11"))
 
     # ---------------- inverters: 74HCT04 ----------------
     # NA0 = ~A0 ; NIOW = ~(~{IOW}) ; NRTCSEL = ~(~{RTC_SEL}) ;
@@ -138,7 +141,7 @@ def build(sch, lib, expose=True):
     L(U6, "P5", "~{RTC_SEL}", dx=-2.54);  L(U6, "P6", "NRTCSEL", dx=2.54)
     L(U6, "P9", "RESET_DRV", dx=-2.54);   L(U6, "P8", "RTC_RST_L", dx=2.54)
     L(U6, "P11", "RTC_IRQ_L", dx=-2.54);  L(U6, "P10", "IRQ8", dx=2.54)
-    sch.no_connect(U6.pin_xy("P13"))      # spare inverter
+    L(U6, "P13", "GND", dx=-2.54)         # spare inverter: input tied, output open
     sch.no_connect(U6.pin_xy("P12"))
 
     # spare NOR gate (U3 gate D) unused

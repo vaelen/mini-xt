@@ -69,7 +69,12 @@ def build(sch, lib):
     # ---------------- optional PD sink controller (CH224K, ~5V/3A) ----------------
     U1 = sch.place("Interface_USB:CH224K", "U1", at=(139.7, 165.1))
     L(U1, "VBUS", "+5V", dx=0, dy=-2.54)
-    L(U1, "VDD", "+5V", dx=0, dy=-2.54)
+    # VDD through 1k per the WCH reference design: current-limits the pin's
+    # internal clamp if a confused PD source ever puts >5V on VBUS (the same
+    # fault the TVS above guards the rail against).
+    L(U1, "VDD", "CH224_VDD", dx=0, dy=-2.54)
+    R9 = sch.place("Device:R", "R9", "1k", at=(152.4, 203.2))
+    L(R9, "1", "+5V", dx=0, dy=-2.54); L(R9, "2", "CH224_VDD", dx=0, dy=2.54)
     L(U1, "GND", "GND", dx=0, dy=2.54)
     L(U1, "CC1", "CC1", dx=-2.54)
     L(U1, "CC2", "CC2", dx=-2.54)
@@ -90,7 +95,7 @@ def build(sch, lib):
 
     # CH224K local decoupling
     C6 = sch.place("Device:C", "C6", "1uF", at=(165.1, 190.5))
-    L(C6, "1", "+5V", dx=0, dy=-2.54); L(C6, "2", "GND", dx=0, dy=2.54)   # U1 VDD decouple
+    L(C6, "1", "CH224_VDD", dx=0, dy=-2.54); L(C6, "2", "GND", dx=0, dy=2.54)   # U1 VDD decouple (at the pin)
 
     # ---------------- bulk input capacitors on +5V ----------------
     C1 = sch.place("Device:C_Polarized", "C1", "22uF", at=(203.2, 177.8))

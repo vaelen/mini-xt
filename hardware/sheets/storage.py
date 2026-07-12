@@ -102,8 +102,9 @@ def build(sch, lib, expose=True):
     # the two active-low DEC2 outputs -- low when either decodes.
     L(AND2, "P4", "~{CS1_A}", dx=-2.54); L(AND2, "P5", "~{CS1_B}", dx=-2.54)
     L(AND2, "P6", "~{IDE_CS1}")
-    for u in ("P9", "P10", "P12", "P13"):
-        sch.no_connect(AND2.pin_xy(u))
+    for u in ("P9", "P10", "P12", "P13"):        # spare gates: tie inputs
+        L(AND2, u, "GND", dx=-2.54)
+    sch.no_connect(AND2.pin_xy("P8")); sch.no_connect(AND2.pin_xy("P11"))
 
     # ---- 74HCT32: strobe combiners (active-low pins -> active-low strobe) ----
     OR = sch.place("mini-xt:74HCT32", "U4", at=(114.3, 210.82))
@@ -234,7 +235,6 @@ def build(sch, lib, expose=True):
     r2 = sch.place("Device:R", "R2", "10k", at=(243.84, 25.4))
     sch.net(r2, "1", "IDE_IRQ", kind="label", dx=0, dy=-2.54)
     sch.net(r2, "2", "GND", kind="label", dx=0, dy=2.54)
-    pullup("R3", "~{IDE_RST}", (259.08, 25.4))
     pullup("R4", "~{IRQ5_OE}", (91.44, 243.84))  # buffer released (Z) when INTRQ low
     # JP1: base address -- 1-2 = 0x300 (A5 must be 0), 2-3 = 0x320 (A5 must be 1).
     # 0x300/0x320 differ only in A5; the U1 inverter already provides nA5.
@@ -267,3 +267,5 @@ def build(sch, lib, expose=True):
 
     # =============== strapping notes ==
     sch.text("JP1 base 0x300/0x320 (XTIDE UB); JP2 open = card disabled; JP3 1-2=IRQ14(default)/2-3=IRQ5/open=polled.", at=(266.7, 17.78))
+    sch.text("Populate ONE of J1 (IDE) / J2 (CF): both CSELs are grounded, so both "
+             "devices ID as master on the shared cable.", at=(266.7, 12.7))

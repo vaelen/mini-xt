@@ -84,12 +84,12 @@ def build(sch, lib):
     L(U1, "XOUT", "XOUT_R", dx=-2.54)
     Y1 = sch.place("Device:Crystal", "Y1", "12MHz", at=(127.0, 190.5))
     L(Y1, "1", "XTAL_IN", dx=-2.54)
-    L(Y1, "2", "XOUT_R", dx=2.54)
+    L(Y1, "2", "XTAL_OUT", dx=2.54)
     cx1 = sch.place("Device:C", "C1", "30pF", at=(116.84, 203.2))
     L(cx1, "1", "XTAL_IN", dx=0, dy=-2.54); L(cx1, "2", "GND", dx=0, dy=2.54)
     cx2 = sch.place("Device:C", "C2", "30pF", at=(137.16, 203.2))
-    L(cx2, "1", "XOUT_R", dx=0, dy=-2.54); L(cx2, "2", "GND", dx=0, dy=2.54)
-    # 1k series on XOUT (damping, RP2040 required minimum)
+    L(cx2, "1", "XTAL_OUT", dx=0, dy=-2.54); L(cx2, "2", "GND", dx=0, dy=2.54)
+    # 1k series on XOUT (damping, RP2040 required minimum): XOUT -> R4 -> crystal
     rx = sch.place("Device:R", "R4", "1k", at=(147.32, 190.5))
     L(rx, "1", "XOUT_R", dx=0, dy=-2.54)
     L(rx, "2", "XTAL_OUT", dx=0, dy=2.54)
@@ -221,6 +221,14 @@ def build(sch, lib):
     for nc in ["RX1-", "RX1+", "TX1-", "TX1+", "RX2-", "RX2+",
                "TX2-", "TX2+", "SBU1", "SBU2"]:
         sch.no_connect(J6.pin_xy(nc))
+    # ESD array at the prog jack (common PROG_DP/DM side, so BOTH SW2 positions
+    # are protected -- the U3 array only covers the Supervisor jack-side nets).
+    # Clamp rail is +3V3: J6 VBUS is unconnected and the signaling is 3.3 V USB.
+    U4 = sch.place("Power_Protection:USBLC6-2SC6", "U4", "USBLC6-2SC6", at=(63.5, 66.04))
+    L(U4, "1", "PROG_DM", dx=-2.54); L(U4, "6", "PROG_DM", dx=2.54)
+    L(U4, "3", "PROG_DP", dx=-2.54); L(U4, "4", "PROG_DP", dx=2.54)
+    L(U4, "5", "+3V3", dx=2.54)
+    L(U4, "2", "GND", dx=-2.54)
     SW2 = sch.place("Switch:SW_Slide_DPDT", "SW2", "PROG SEL", at=(137.16, 43.18))
     # KiCad SW_Slide_DPDT geometry: the MIDDLE pin of each pole (B = pins 2/5)
     # is the common; A (1/4) and C (3/6) are the two slide positions. Pair the

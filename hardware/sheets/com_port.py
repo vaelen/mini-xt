@@ -26,7 +26,7 @@ TITLE = "COM port -- 16C550 UART + MAX3241 + DB9 (instanced x2)"
 PINS = (
     [pin(s, "input") for s in mxbus.ADDR[:10]] +        # A0..A9 (A0-A2 regs, A3-A9 decode)
     [pin(s, "bidirectional") for s in mxbus.DATA] +     # D0..D7
-    [pin(s, "input") for s in ["~{IOR}", "~{IOW}", "AEN", "RESET_DRV", "CLK"]] +
+    [pin(s, "input") for s in ["~{IOR}", "~{IOW}", "AEN", "RESET_DRV"]] +
     [pin("IRQ3", "output"), pin("IRQ4", "output")]      # JP2 strap picks the active line
 )
 
@@ -218,6 +218,11 @@ def build(sch, lib, expose=True):
     L(JP1, "Pin_1", "RXD_RS232", dx=2.54)
     L(JP1, "Pin_2", "UART_RXD", dx=2.54)
     L(JP1, "Pin_3", "CONSOLE_RXI", dx=2.54)
+    # SIN idles at mark if JP1 is left open (floating HCT-class input otherwise)
+    R2 = sch.place("Device:R", "R2", "10k", at=(215.9, 236.22))
+    L(R2, "1", "+5V", dx=0, dy=-2.54); L(R2, "2", "UART_RXD", dx=0, dy=2.54)
+    sch.text("J2 (base strap) has no default: it must ALWAYS be jumpered, or "
+             "A8_SEL floats and the decode is undefined.", (203.2, 265.43))
 
     # ---------------- JP3: port enable ----------------
     # 16550 CS1 is a spare ACTIVE-HIGH select: jumper closed = port enabled,

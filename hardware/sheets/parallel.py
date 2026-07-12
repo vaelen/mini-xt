@@ -1,7 +1,7 @@
 """parallel -- discrete 74HC parallel printer port (LPT1) @ I/O 0x378/0x278 + DB25.
 
 Design doc S11.2. A *soft* card: it speaks ONLY the standard 8-bit XT/ISA bus
-(A0-A9, D0-D7, ~{IOR}/~{IOW}, AEN, RESET_DRV) plus power and exports IRQ5/IRQ7
+(A0-A9, D0-D7, ~{IOR}/~{IOW}, AEN) plus power and exports IRQ5/IRQ7
 (selectable by JP3 strap). No private motherboard nets cross this sheet.
 
 Straps: JP1 base address (A8 = 0x378 vs 0x278), JP2 enable/disable, JP3 IRQ
@@ -30,7 +30,8 @@ PINS = (
     [pin(s, "input") for s in mxbus.ADDR[:10]] +          # A0..A9 (I/O decode)
     [pin(s, "bidirectional") for s in mxbus.DATA] +       # D0..D7
     [pin("~{IOR}", "input"), pin("~{IOW}", "input"),
-     pin("AEN", "input"), pin("RESET_DRV", "input")] +
+     pin("AEN", "input")] +      # no RESET_DRV: the '574s have no reset pin;
+                                 # BIOS initializes 0x378/0x37A at POST
     [pin("IRQ5", "output"), pin("IRQ7", "output")]        # JP3 picks the line
 )
 

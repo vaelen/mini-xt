@@ -146,6 +146,9 @@ def build(sch, lib):
     for i, a in enumerate([16, 17, 18, 19]):
         L(lat[2], "D%d" % i, "MA%d" % a, dx=-2.54)
         P(lat[2], "Q%d" % i, "A%d" % a, shape="output")
+    for i in range(4, 8):                     # unused U4 half: no floating inputs
+        L(lat[2], "D%d" % i, "GND", dx=-2.54)
+        sch.no_connect(lat[2].pin_xy("Q%d" % i))
 
     # ---------------- data transceiver (74HCT245) ----------------
     U5 = sch.place("mini-xt:74HCT245", "U5", at=(165.1, 226.06))
@@ -241,6 +244,9 @@ def build(sch, lib):
     buf = sch.place("mini-xt:74HCT04", "U13", at=(147.32, 76.2))  # 5V buffer to CPU CLK
     L(buf, "VCC", "+5V", dx=0, dy=-2.54); L(buf, "GND", "GND", dx=0, dy=2.54)
     L(buf, "P1", "CLK_MUX"); L(buf, "P2", "CPUCLK")
+    # Bus CLK is FIXED at 7.16 MHz: the speed mux only retimes CPUCLK, so ISA
+    # CLK does not drop to 4.77 MHz in turbo-down mode (cards are strobe-timed;
+    # nothing on this bus times off CLK -- logged in notes/open-questions.md).
     L(buf, "P3", "CLK7"); L(buf, "P4", "CLK")    # also buffer bus CLK
     P(buf, "P4", "CLK", shape="output")
     L(buf, "P5", "DIV3_TC"); L(buf, "P6", "DIV3_LD")  # spare gate inverts TC -> ~PE

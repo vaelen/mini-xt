@@ -18,6 +18,8 @@ no flash library is installed, only `Memory_RAM` (SRAM/PSRAM/SDRAM) and EEPROM-l
 +3V3 / GND, matching a standard 8-pin SPI-flash (W25Qxx-class, e.g. W25Q128, ~16 MB:
 firmware + ~128 KB BIOS/option-ROM images with room to spare). Swap for a real flash
 symbol when a `Memory_Flash` library is available.
+**STALE (2026-07-12):** the sheet now places a real W25Q128JVS (U2) on the
+QSPI pins; the placeholder header J1 is gone.
 
 ## 2. No 7-segment display symbol
 **Question:** The 2-digit hex POST display -- two 7-seg digits or a header?
@@ -60,3 +62,9 @@ warn when only default-USB current is available.
 (shares the PHY with the USB-A host jack -- unplug the keyboard to flash),
 B = PicoGUS via PGUS_USB_DP/DM. J6's VBUS is deliberately unconnected: the
 board must be powered to flash, eliminating back-power paths entirely.
+
+## Programming-port ESD (2026-07-12)
+U3 (USBLC6) sits on the jack-side USB_DP_J/DM_J nets, which only cover SW2
+position A -- in position B (PicoGUS flashing) J6's pins had no ESD path.
+Added U4 (second USBLC6) on PROG_DP/DM at J6 so both positions are protected;
+clamp rail is +3V3 (J6 VBUS is unconnected and signaling is 3.3 V USB).

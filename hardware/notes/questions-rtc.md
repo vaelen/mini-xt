@@ -56,3 +56,11 @@
 ## Spare-gate + decoupling cleanup (design review 2026-07-11)
 U3 gate-4 inputs (P11/P12) tied to GND -- they floated (CMOS). Decoupling grown
 to one 100nF per IC (C1-C6) plus a 10uF card bulk (C7).
+
+## IRQ8 exclusivity (2026-07-12)
+Q: U6's IRQ8 drive is push-pull ('04 inverter), permanently driven -- on a
+   shared line that would fight any card driving IRQ8.
+Pick: IRQ8 removed from the 60-pin expansion header entirely (isa_conn pin 15
+   is a GND return again); IRQ8 exists only between this sheet and the Bus
+   MCU's '165 collector, so push-pull drive is correct and the '125 tri-state
+   stage other cards use is unnecessary here.

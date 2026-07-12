@@ -15,11 +15,11 @@ Signal path (single +5V supply, so a Vref = +2.5V virtual ground is used):
     of spec on both counts here. The MCP6002 pinout is identical to the TL072
     dual-op-amp body, so the mini-xt:TL072 symbol is reused with a value
     override -- same pattern as the 74LVC245A.)
-      OUT = -(SPKR + PicoGUS_L + PicoGUS_R)
-    Non-inverting input sits on VREF; feedback = 10k, summing resistors = 10k.
-    (Mono mix -- the build harness instantiates only unit 1 of a multi-unit
-    symbol, so the second op-amp half cannot be placed independently; see
-    notes/questions-audio.md. Unit B is left unused.)
+      OUT = -(SPKR + 0.5*PicoGUS_L + 0.5*PicoGUS_R)
+    Non-inverting input sits on VREF; feedback = 10k; SPKR sums at 10k (1x),
+    PG_L/PG_R at 20k (0.5x each, headroom: a unity L+R sum of correlated
+    content would exceed the MCP6002's swing on the +5V rail).
+    (Mono mix -- unit B is unused and parked as a follower on VREF.)
   * The mono output is AC-coupled (C_OUT) and driven to both tip and ring of J2,
     the stereo line-out jack (TRS: tip=L, ring=R, sleeve=GND).
 
@@ -90,15 +90,28 @@ def build(sch, lib):
     cap("C6", "100nF", (203.2, 101.6), "+5V", "GND")  # supply decoupling
     # unit A: pin 1 = out, pin 2 = -in (summing junction), pin 3 = +in
     L(U1, "3", "VREF", dx=-2.54)                       # +in -> virtual ground
-    L(U1, "2", "SUM",  dx=-2.54, dy=2.54)             # summing junction (-in)
+    # SUM stub stays on pin 2's own row (a dy bend would land on pin 5's stub
+    # endpoint now that unit B is wired, silently merging SUM with VREF)
+    L(U1, "2", "SUM",  dx=-5.08)                       # summing junction (-in)
     L(U1, "1", "OUT",  dx=2.54)                        # output
-    res("R4",  "10k", (127, 127),   "SPKR_AC", "SUM")  # spkr -> summer
-    res("R5",  "10k", (152.4, 127), "PG_L_AC", "SUM")  # picogus L -> summer
-    res("R10", "10k", (152.4, 177.8), "PG_R_AC", "SUM")  # picogus R -> summer
+    # PG_L/PG_R at 20k = 0.5x each: the PCM5102A is 2.1 Vrms/channel full-scale,
+    # and a unity L+R sum of correlated (mono-ish) content would demand ~+-6 Vpk
+    # from an op-amp with ~+-2.5 V of swing around VREF. 0.5x keeps the worst
+    # case inside the rails; SPKR stays 1x (small square wave after the RC).
+    res("R4",  "10k", (127, 127),   "SPKR_AC", "SUM")  # spkr -> summer (1x)
+    res("R5",  "20k", (152.4, 127), "PG_L_AC", "SUM")  # picogus L -> summer (0.5x)
+    res("R10", "20k", (152.4, 177.8), "PG_R_AC", "SUM")  # picogus R -> summer (0.5x)
     res("R6",  "10k", (203.2, 127), "SUM",     "OUT")  # feedback
     res("R7",  "100", (241.3, 127),   "OUT",     "OUT_R")  # series isolation into the cable
     cap("C7", "10uF", (228.6, 127), "OUT_R",   "LINE") # output AC-couple
-    # (unit B -- pins 5/6/7 -- intentionally unused: see module docstring.)
+    # bleed on the jack side of C7: without a DC path the LINE node floats and
+    # C7 charges through whatever gets plugged in -- an audible pop every time.
+    res("R8", "100k", (254.0, 101.6), "LINE", "GND")
+    # unit B (pins 5/6/7) is unused: park it as a follower on VREF -- floating
+    # CMOS op-amp inputs can oscillate and pollute the shared +5V supply.
+    L(U1, "5", "VREF", dx=-2.54)                       # +in B -> virtual ground
+    L(U1, "6", "UB_FB", dx=-2.54, dy=2.54)             # -in B ...
+    L(U1, "7", "UB_FB", dx=2.54)                       # ... = out B (follower)
 
     # ---------------- stereo line-out jack (J2: tip=L, ring=R, sleeve=GND) ----------------
     # mono mix driven to both channels.

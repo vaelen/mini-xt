@@ -34,6 +34,10 @@ Options: (a) place a 2nd physical TL072 just to reach a "unit 1" for the right
 Pick: (b). OUT = -(SPKR + PicoGUS_L + PicoGUS_R), 10k summing + 10k feedback,
    AC-coupled to both tip and ring. Doc S9 only asks for a "simple op-amp
    summer", so mono is acceptable. Unit B is left unused.
+   **Update (2026-07-12):** the mini-xt:TL072 symbol is now a flat single body
+   with all 8 pins at distinct positions, so the coordinate clash is gone.
+   Unit B stays unused but is parked as a follower on VREF (pins 6-7 tied,
+   pin 5 to VREF) -- floating CMOS op-amp inputs oscillate.
 
 ## 5. Op-amp power pins (same multi-unit limitation)
 Q: TL072 V+ (pin 8) / V- (pin 4) belong to the symbol's separate POWER unit,
@@ -45,6 +49,8 @@ Pick: do NOT draw stubs on pins 4/8 (kept the design valid). Power intent is
    The single-supply bias (VREF = +2.5V virtual ground from a 10k/10k divider +
    bypass cap) feeds the non-inverting input. At true board integration the
    TL072 should be given a real footprint with its power unit wired to +5V/GND.
+   **STALE (2026-07-12):** the flat symbol has real pins 4/8 and audio.py wires
+   them to GND/+5V directly; the netlist confirms it. No workaround remains.
 
 ## 6. Single +5V supply
 Q: Op-amp runs from +5V/GND only (no split rail available on this board).
@@ -68,3 +74,11 @@ post M62429 volume), so J1 is gone and PG_L/PG_R are interface pins. The
 summer and AC-coupling are unchanged -- the chipdown mix network's 2.2uF
 couplers in series with our 1uF give ~0.7uF into the 10k summing input,
 a ~23 Hz corner, fine for line audio.
+
+## Summer headroom + line-node bleed (design review 2026-07-12)
+PG_L/PG_R summing resistors changed 10k -> 20k (0.5x each): the PCM5102A is
+2.1 Vrms/channel full-scale, and a unity L+R sum of correlated (mono-ish)
+content demands ~+-6 Vpk -- far beyond the MCP6002's ~+-2.5 V swing around
+VREF on a +5 V rail. At 0.5x the worst case stays inside the rails. SPKR
+stays 1x. Also added R8 (100k, LINE -> GND): the jack side of C7 had no DC
+path, so it floated and charged through whatever was plugged in (pop).

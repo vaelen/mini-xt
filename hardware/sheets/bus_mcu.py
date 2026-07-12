@@ -381,6 +381,18 @@ def build(sch, lib):
     pull("R16", "DATADIR", "GND", (299.72, 25.4))
     pull("R17", "M_TC", "GND", (314.96, 25.4))
     pull("R18", "HLDA", "GND", (330.2, 25.4))
+    # Same MCU-Hi-Z window, MCU-driven nets that leave the sheet:
+    # ~{CPURESET} parked LOW = V20 + RESET_DRV held in reset until firmware
+    # drives it (otherwise the V20 starts running with floating HOLD/READY/
+    # INTR once the TCM809 timeout lapses).  ~{DACK1}/~{REFRESH} are GPIO
+    # outputs into the PicoGUS/sidecar: park deasserted.  DRQ1 is driven by
+    # the PicoGUS RP2040 -- idle it low for the unflashed/absent case, like
+    # DRQ2/3.  DACK1/REFRESH pull to 3V3_BUS (their driven-high level; both
+    # nets sit directly on RP2350B pins).
+    pull("R25", "~{CPURESET}", "GND", (345.44, 25.4))
+    pull("R26", "~{DACK1}", "3V3_BUS", (360.68, 25.4))
+    pull("R27", "~{REFRESH}", "3V3_BUS", (375.92, 25.4))
+    pull("R28", "DRQ1", "GND", (391.16, 25.4))
     sch.text("DMA ch2/3 + raw ~WR/IO-M are NOT wired to the MCU (48-GPIO budget, "
              "S5.2): DACK2/3 parked high, DRQ2/3 low. First candidates for a "
              "second '165/'595 if sidecar DMA is ever needed.", (86.36, 15.24))

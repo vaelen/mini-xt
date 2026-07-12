@@ -8,7 +8,9 @@ pins are reclaimed for signals we DO need:
 
     pin  7 : -5V   -> ~{IOCHCK}   (I/O channel check -> NMI)
     pin 11 : -12V  -> GND         (extra return; improves ribbon signal integrity)
-    pin 15 : +12V  -> IRQ8        (RTC interrupt)
+    pin 15 : +12V  -> GND         (second extra return; was IRQ8, dropped -- the
+                                   RTC is on-board now and IRQ8 is exclusively its
+                                   push-pull net to the Bus MCU, never a card's)
 
 Everything else follows the standard ISA edge pinout (our net names in []):
 RESET DRV[RESET_DRV], SD0-7[D0-D7], SA0-19[A0-A19], SMEMR/W[~{MEMR}/~{MEMW}],
@@ -46,7 +48,7 @@ PIN_NETS = [
     "DRQ2",       "D3",    # 9  10
     "GND",        "D2",    # 11(-12V->GND)  12
     _NC,          "D1",    # 13(reserved)  14
-    "IRQ8",       "D0",    # 15(+12V->IRQ8) 16
+    "GND",        "D0",    # 15(+12V->GND; was IRQ8 -- RTC on-board) 16
     "GND",        "IOCHRDY",   # 17 18
     "~{MEMW}",    "AEN",       # 19 20
     "~{MEMR}",    "A19",       # 21 22

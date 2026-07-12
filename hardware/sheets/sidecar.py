@@ -41,7 +41,7 @@ def build(sch, lib, expose=True):
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
     sch.text("J1: 60-pin (2x30) -- standard 8-bit ISA pinout off-board (S4.3); "
              "same as the soft-card IN/OUT headers (isa_conn). -5V/+-12V reclaimed "
-             "for ~{IOCHCK}/IRQ8/GND. +5V feed fused (2A polyfuse) + TVS-clamped; "
+             "for ~{IOCHCK}/GND/GND. +5V feed fused (2A polyfuse) + TVS-clamped; "
              "header power pins ~3A each so keep daisy-chains to 2-3 cards.", (139.7, 106.68))
     sch.text("Pin 13 = reserved/0WS# (unconnected), per the standard/PicoGUS header.",
              (139.7, 200.66))

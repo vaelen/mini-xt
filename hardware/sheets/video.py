@@ -235,9 +235,13 @@ def build(sch, lib, expose=True):
 
     # ================= VGA out (resistor-ladder DAC) =================
     # 3-bit R, 3-bit G, 2-bit B weighted ladders summing per colour.
+    # Blue is 820/470 (not 1k/510): matches the R/G full-scale into 75R --
+    # 470||820 = 299R vs 2k||1k||510 = 289R (~0.66V vs ~0.68V FS); the old
+    # 1k/510 pair was ~12% blue-deficient.  Ratio 1.74 vs ideal 2 is fine
+    # for 2 bits (monotonic; both values are JLC basic parts).
     vga_dac = [("VR0", "VGA_R", "2k"), ("VR1", "VGA_R", "1k"), ("VR2", "VGA_R", "510"),
                ("VG0", "VGA_G", "2k"), ("VG1", "VGA_G", "1k"), ("VG2", "VGA_G", "510"),
-               ("VB0", "VGA_B", "1k"), ("VB1", "VGA_B", "510")]
+               ("VB0", "VGA_B", "820"), ("VB1", "VGA_B", "470")]
     for i, (src, out, val) in enumerate(vga_dac):
         r = sch.place("Device:R", "R%d" % (20 + i), val, at=(266.7, 165.1 + i * 15.24))
         sch.net(r, "1", src, kind="label", dx=0, dy=-2.54)

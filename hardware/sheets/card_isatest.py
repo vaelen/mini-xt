@@ -130,6 +130,9 @@ def build(sch, lib):
     for i in range(4, 8):
         sch.no_connect(UCO1.pin_xy("A%d" % i)); sch.no_connect(UCO1.pin_xy("B%d" % i))
     # Control IN (input only): dir tied low (GND => B->A). B = bus, A = *_S.
+    # NOTE: IRQ8 no longer exists on the isa_conn header (pin 15 -> GND; the
+    # RTC is on-board).  The IRQ8 lane is kept so the firmware bit map is
+    # stable; its card-local pull-down (R12 below) makes it always read 0.
     UCI0 = xcvr("U7", (355.6, 228.6), "GND")
     ci0 = ["IRQ2", "IRQ3", "IRQ4", "IRQ5", "IRQ6", "IRQ7", "IRQ8", "DRQ1"]
     for i, b in enumerate(ci0):
