@@ -51,7 +51,8 @@ STD_LIBS = ["Device", "power", "Connector", "Connector_Generic", "74xx",
             "Transistor_BJT", "Power_Protection"]
 
 SHEETS = ["cpu_core", "bus_mcu", "supervisor", "video", "com_port",
-          "parallel", "rtc", "power", "storage", "audio", "sidecar", "picogus"]
+          "parallel", "rtc", "power", "storage", "audio", "sidecar", "picogus",
+          "network"]
 
 
 def load_lib():
