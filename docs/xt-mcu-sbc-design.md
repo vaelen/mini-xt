@@ -623,9 +623,10 @@ space if a physical drive or Gotek must plug in; nothing else requires it.)*
   **COM3 0x3E8 is reserved for the emulated serial mouse**, §11.4.) The 60-pin sidecar header
   carries only the standard 8-bit ISA IRQ lines (IRQ2–7; IRQ8's old pin was reclaimed as a
   ground return once the RTC moved on-board — IRQ8 is motherboard-internal now), so a
-  sidecar COM4 cannot use IRQ10+: **COM4 (0x2E8) uses the bus IRQ2 line, delivered as IRQ9**
-  (the standard AT IRQ2→9 redirect) rather than legacy-sharing IRQ3 with COM2 — still
-  avoiding the ISA edge-triggered IRQ-sharing problem. The virtual COM3 mouse keeps
+  sidecar COM4 cannot use IRQ10+ — and the bus IRQ2 line is now hardwired to the
+  on-board NE2000 NIC (§9.1): **a sidecar COM4 (0x2E8) needs a freed line — disable
+  COM2 (JP3) for IRQ3, or the NIC (JP1) to reclaim IRQ2→9** — still avoiding the ISA
+  edge-triggered IRQ-sharing problem. The virtual COM3 mouse keeps
   **IRQ4** (the convention mouse drivers expect), so it *does* share IRQ4 with COM1; in
   practice you use one or the other (most mouse use implies COM1 is free).
 
@@ -711,7 +712,7 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | 0x2F8 / 0x3F8 | COM2 / COM1 (16C550) |
 | 0x3E8 | **COM3 — emulated serial mouse** (Bus MCU, IRQ4) |
 | 0x3F0–0x3F7 | (reserved) **firmware floppy** tier-2 registers, §10.1 (Bus MCU) |
-| 0x2E8 | COM4 (sidecar, **bus IRQ2 line → IRQ9**) |
+| 0x2E8 | COM4 (sidecar; needs a freed IRQ — see §11.1) |
 | 0x300–0x31F | XT-IDE (JP1 re-straps to 0x320; JP2 disables) |
 | 0x378 | LPT1 (JP1 re-straps to 0x278; JP2 disables) |
 | 0x3B0–0x3BF / 0x3D0–0x3DF | MDA-Hercules / CGA (video MCU) |
@@ -720,7 +721,7 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | IRQ | Use | | IRQ | Use |
 |---|---|---|---|---|
 | 0 | Timer | | 8 | RTC |
-| 1 | Keyboard (USB-HID) | | 9 | IRQ2 redirect (sidecar COM4 etc.) |
+| 1 | Keyboard (USB-HID) | | 9 | IRQ2 redirect (on-board NE2000 NIC) |
 | 2 | cascade → slave | | 10 | spare (no line on 8-bit header) |
 | 3 | COM2 | | 11 | spare (no line on 8-bit header) |
 | 4 | COM1 (+ COM3 mouse, shared) | | 12 | PS/2 mouse (if used) |
