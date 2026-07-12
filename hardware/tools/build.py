@@ -181,16 +181,8 @@ def assemble(write=True, run_checks=True):
             root.label(netname, p1, 0 if not on_left else 180,
                        justify="left" if not on_left else "right")
 
-    # ---- power flags so power nets are 'driven' for ERC ----
-    # Placed in the margin ABOVE the sheet-symbol grid (which starts at
-    # row_y=25.4 and only grows downward) so they can never collide with a
-    # tall sheet's pin-stub column, whatever height any column grows to.
-    fx = 25.4
-    for net in mxbus.POWER:
-        pf = root.place("power:PWR_FLAG", "#FLG", value="PWR_FLAG",
-                        at=(fx, 12.7))
-        root.net(pf, "1", net, dx=0, dy=-2.54)
-        fx += 15.24
+    # (No root power flags: power.py's #FLG1-3 already drive +5V/+3V3/GND;
+    # a second set here made flag-vs-flag pin_to_pin ERC errors.)
 
     # ---- bind sub-sheet instance paths with UNIQUE reference banks ----
     # Each sheet instance gets a 'bank' so refs never collide across sheets:

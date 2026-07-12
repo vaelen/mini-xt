@@ -163,6 +163,8 @@ def build(sch, lib):
     # Host-port VBUS bulk (USB spec requires >=120uF for downstream inrush)
     C13 = sch.place("Device:C_Polarized", "C13", "100uF", at=(50.8, 134.62))
     L(C13, "1", "VBUS_KBD", dx=0, dy=-2.54); L(C13, "2", "GND", dx=0, dy=2.54)
+    pf = sch.place("power:PWR_FLAG", "#FLG1", at=(12.7, 12.7))  # VBUS_KBD is polyfuse-fed
+    sch.net(pf, "1", "VBUS_KBD", kind="label", dx=0, dy=-2.54)
 
     # ---------------- 2-digit hex POST display ----------------
     # POST_A..G + DP segment lines and two digit-select lines, driven from GPIO.

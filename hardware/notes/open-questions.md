@@ -363,3 +363,10 @@ Review sweep of the whole motherboard netlist + all sheets. Fixes applied:
   single-sheet by design: the soft-PIC collector pulls them up on bus_mcu
   and no on-board source drives them (60-pin header carries 8-bit IRQs
   only); kept in PINS as the AT-style contract for future 16-bit sources.
+- ERC power cleanup: root's duplicate PWR_FLAGs removed (power.py #FLG1-3
+  own +5V/+3V3/GND -- the pair made flag-vs-flag pin_to_pin errors), and
+  PWR_FLAGs added on the series-fed local rails ERC can't see through:
+  VBUS_MCU / VBUS_VID (Schottky), VBUS_KBD / HDMI_5V (polyfuse),
+  CH224_VDD (1k), AVDD_PGUS / AGND_PGUS (ferrite). Full-build ERC is now
+  just the 6 expected IRQ9-13/15 label_dangling; net membership verified
+  unchanged (821 nets, node-identical to HEAD).

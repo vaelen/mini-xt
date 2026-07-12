@@ -111,6 +111,10 @@ def build(sch, lib, expose=True):
     d1 = sch.place("Device:D_Schottky", "D1", "SS34", at=(152.4, 40.64))
     sch.net(d1, "2", "+5V", kind="label", dx=0, dy=-2.54)       # 2 = anode
     sch.net(d1, "1", "VBUS_VID", kind="label", dx=0, dy=2.54)   # 1 = cathode
+    # ERC power markers: VBUS_VID is diode-fed, HDMI_5V polyfuse-fed
+    for i, net in ((1, "VBUS_VID"), (2, "HDMI_5V")):
+        pf = sch.place("power:PWR_FLAG", "#FLG%d" % i, at=(12.7 + (i - 1) * 15.24, 12.7))
+        sch.net(pf, "1", net, kind="label", dx=0, dy=-2.54)
 
     # local 3V3_VID decoupling for the shifters (module itself is self-decoupled)
     decouple("C1", (44.45, 274.32), net="3V3_VID")

@@ -168,6 +168,8 @@ def build(sch, lib):
     d1 = sch.place("Device:D_Schottky", "D1", "SS34", at=(40.64, 116.84))
     sch.net(d1, "2", "+5V", kind="label", dx=0, dy=-2.54)       # 2 = anode
     sch.net(d1, "1", "VBUS_MCU", kind="label", dx=0, dy=2.54)   # 1 = cathode
+    pf = sch.place("power:PWR_FLAG", "#FLG1", at=(12.7, 12.7))  # VBUS_MCU is diode-fed
+    sch.net(pf, "1", "VBUS_MCU", kind="label", dx=0, dy=-2.54)
 
     # =================================================================
     #  Level shifters (74LVC245A) -- value override on mini-xt:74LVC245A

@@ -176,6 +176,10 @@ def build(sch, lib):
     L(FB1, "1", "3V3_PGUS", dx=-2.54); L(FB1, "2", "AVDD_PGUS", dx=2.54)
     FB2 = sch.place("Device:FerriteBead", "FB2", "100R@100MHz", at=(50.8, 101.6))
     L(FB2, "1", "GND", dx=-2.54); L(FB2, "2", "AGND_PGUS", dx=2.54)
+    # ERC power markers: both analog rails arrive through ferrite beads
+    for i, net in ((1, "AVDD_PGUS"), (2, "AGND_PGUS")):
+        pf = sch.place("power:PWR_FLAG", "#FLG%d" % i, at=(12.7 + (i - 1) * 15.24, 12.7))
+        sch.net(pf, "1", net, kind="label", dx=0, dy=-2.54)
 
     C9 = sch.place("Device:C", "C9", "47uF", at=(76.2, 63.5))
     L(C9, "1", "+5V", dx=0, dy=-2.54); L(C9, "2", "GND", dx=0, dy=2.54)

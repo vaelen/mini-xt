@@ -151,6 +151,7 @@ def build(sch, lib):
     flag("#FLG2", "+3V3", (304.8, 127.0))
     flag("#FLG3", "GND", (50.8, 241.3))
     flag("#FLG4", "VBUS_IN", (76.2, 114.3))
+    flag("#FLG5", "CH224_VDD", (91.44, 114.3))   # fed through R9 (1k)
     g = sch.power("power:GND", "#PWR01", at=(38.1, 228.6))
     sch.net(g, "1", "GND", kind="label", dx=0, dy=2.54)
 
