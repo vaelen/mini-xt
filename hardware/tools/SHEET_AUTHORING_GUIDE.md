@@ -83,7 +83,8 @@ Free text: `sch.text("note", (x, y))`.
   (`LINK_B2S`,`LINK_S2B`), `PRIV_SUPER`, `PRIV_SPEED` (`SPEED_SEL`).
 
 Only declare in `PINS` the signals your sheet actually uses. A soft card (video,
-com, lpt, rtc, storage, sidecar, audio) must use **only ISA signals + power** —
+com, lpt, rtc, storage, sidecar, audio, picogus, network) must use **only ISA
+signals + power** —
 no private names (that would be an isolation leak; if you think you need one,
 log a question instead).
 

@@ -105,7 +105,8 @@ how-to. `hardware/sheets/cpu_core.py` is the worked reference example. Key rules
   `IRQ2..IRQ15`, `~{MEMR}`, `BALE`, `IOCHRDY`, ...). A typo'd name silently
   fails to connect across sheets. Active-low = KiCad overbar `~{NAME}`.
 - **Isolation rule (the point of the whole exercise):** soft-card sheets
-  (video, com_port, parallel, rtc, storage, sidecar, audio, card_*) may use
+  (video, com_port, parallel, rtc, storage, sidecar, audio, picogus,
+  network, card_*) may use
   *only* ISA signals + power. Private nets (`PRIV_*` in mxbus: HOLD/HLDA, UART
   link, counter strobes, SPEED_SEL, Y5) are motherboard-only. Never leak one
   into a soft card — log a question instead.
