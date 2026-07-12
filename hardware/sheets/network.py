@@ -211,9 +211,11 @@ def build(sch, lib):
     L(Ctdct, "1", "TDCT", dx=0, dy=-2.54); L(Ctdct, "2", "GND", dx=0, dy=2.54)
     Crdct = sch.place("Device:C", "C6", "1nF", at=(317.5, 139.7))
     L(Crdct, "1", "RDCT", dx=0, dy=-2.54); L(Crdct, "2", "GND", dx=0, dy=2.54)
-    Ctxct = sch.place("Device:C", "C7", "1nF", at=(342.9, 63.5))
+    # line-side CT caps sit on the Ethernet isolation barrier -> 2 kV rating
+    # (upstream ISA8019 used 1nF/2kV 1206 here); chip-side C5/C6 stay 50 V.
+    Ctxct = sch.place("Device:C", "C7", "1nF/2kV", at=(342.9, 63.5))
     L(Ctxct, "1", "TXCT", dx=0, dy=-2.54); L(Ctxct, "2", "EARTH", dx=0, dy=2.54)
-    Crxct = sch.place("Device:C", "C8", "1nF", at=(342.9, 139.7))
+    Crxct = sch.place("Device:C", "C8", "1nF/2kV", at=(342.9, 139.7))
     L(Crxct, "1", "RXCT", dx=0, dy=-2.54); L(Crxct, "2", "EARTH", dx=0, dy=2.54)
 
     J1 = sch.place("mini-xt:RJ45_LED", "J1", at=(381.0, 101.6))

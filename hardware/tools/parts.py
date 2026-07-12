@@ -168,6 +168,7 @@ PART_MAP = {
     ("Device:C", "22pF"):  E("C1653", "CL10C220JB8NNNC", "0603"),
     ("Device:C", "20pF"):  E("C1648", "CL10C200JB8NNNC", "0603", "NIC 20 MHz crystal load"),
     ("Device:C", "1nF"):   E("C1588", "CL10B102KB8NNNC", "0603", "NIC magnetics center-tap bypass"),
+    ("Device:C", "1nF/2kV"): E("C9196", "1206B102K202NT", "1206", "NIC line-side CT caps on the isolation barrier (2kV, as ISA8019 upstream)"),
     ("Device:C", "2.2nF"): E("C1604", "0603B222K500NT", "0603"),
     ("Device:C", "2.2uF"): E("C23630", "CL10A225KO8NNNC", "0603"),
     ("Device:C", "47uF"):  E("C16780", "CL21A476MQYNNNE", "0805"),
