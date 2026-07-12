@@ -27,12 +27,12 @@ Design doc S10. A discrete, period-correct mass-storage soft card:
   * 40-pin IDE header (Conn_02x20) and a CompactFlash True-IDE socket
     (Conn_02x25, 50-pin -- no CF symbol in lib, see questions-storage.md) wired
     in parallel.
-  * Drive INTRQ -> 2N7002-gated 74HCT125 -> STOR_IRQ, selectable via JP3 strap
-    (IRQ14 default: AT primary-IDE convention, motherboard-internal line collected
-    by the Bus MCU; or IRQ5: XT convention; or open for polled mode).
+  * Drive INTRQ -> 2N7002-gated 74HCT125 -> IRQ14, hardwired (AT primary-IDE
+    convention; the soft PIC is AT-style anyway). Poll vs interrupt is an
+    XTIDE UB config choice -- the line can stay wired either way, since the
+    '125 only drives while INTRQ is asserted.
   * JP1: base-address strap (0x300 vs 0x320; differ only in A5).
   * JP2: enable/disable jumper; open kills the card, closed enables it.
-  * JP3: IRQ strap -- 1-2 = IRQ14 (default), 2-3 = IRQ5, open = polled.
 
 Soft card: exposes ONLY ISA signals + power. The IDE/CF connectors are local.
 See hardware/notes/questions-storage.md for the register-map / topology picks.
@@ -49,7 +49,7 @@ PINS = (
     [pin(s, "input") for s in mxbus.ADDR[:10]] +          # A0..A9
     [pin(s, "bidirectional") for s in mxbus.DATA] +       # D0..D7
     [pin(s, "input") for s in ["~{IOR}", "~{IOW}", "AEN", "RESET_DRV"]] +
-    [pin("IRQ5", "output"), pin("IRQ14", "output")]  # JP3 picks the line (default 14)
+    [pin("IRQ14", "output")]   # hardwired (AT primary-IDE); poll vs IRQ = XTIDE UB config
 )
 
 
@@ -114,13 +114,13 @@ def build(sch, lib, expose=True):
     L(OR, "P9", "~{HB_SEL}", dx=-2.54);  L(OR, "P10", "~{IOR}", dx=-2.54); L(OR, "P8", "~{HBRD_N}")  # HB read
     L(OR, "P12", "~{HB_SEL}", dx=-2.54); L(OR, "P13", "~{IOW}", dx=-2.54); L(OR, "P11", "HBW_N")      # HB write
 
-    # ---- 74HCT125: INTRQ -> STOR_IRQ, tri-state (drive-high-else-release) ----
+    # ---- 74HCT125: INTRQ -> IRQ14 (hardwired), tri-state (drive-high-else-release) ----
     # Q1 (2N7002) inverts INTRQ into the '125 ~OE: INTRQ=1 -> ~OE=0 -> buffer
-    # drives STOR_IRQ high (input strapped high); INTRQ=0 -> ~OE=1 (R4) -> Z, so the
+    # drives IRQ14 high (input strapped high); INTRQ=0 -> ~OE=1 (R4) -> Z, so the
     # line stays shareable -- same convention as the LPT card's IRQ7 stage.
     IRQ = sch.place("mini-xt:74HCT125", "U5", at=(38.1, 256.54))
     pwr(IRQ, "VCC", "GND")
-    L(IRQ, "P1", "~{IRQ5_OE}", dx=-2.54); L(IRQ, "P2", "+5V", dx=-2.54); L(IRQ, "P3", "STOR_IRQ")
+    L(IRQ, "P1", "~{IRQ_OE}", dx=-2.54); L(IRQ, "P2", "+5V", dx=-2.54); L(IRQ, "P3", "IRQ14")
     for oe in ("P4", "P10", "P13"):
         L(IRQ, oe, "+5V", dx=-2.54)
     for ip in ("P5", "P9", "P12"):
@@ -129,7 +129,7 @@ def build(sch, lib, expose=True):
         sch.no_connect(IRQ.pin_xy(u))
     Q1 = sch.place("Device:Q_NMOS", "Q1", "2N7002", at=(76.2, 256.54))
     L(Q1, "G", "IDE_IRQ", dx=-2.54)
-    L(Q1, "D", "~{IRQ5_OE}", dx=0, dy=-2.54)
+    L(Q1, "D", "~{IRQ_OE}", dx=0, dy=-2.54)
     L(Q1, "S", "GND", dx=0, dy=2.54)
 
     # ============================================================== decode ====
@@ -231,11 +231,11 @@ def build(sch, lib, expose=True):
     pullup("R1", "~{IORDY}", (228.6, 25.4))    # IORDY idle-high (8-bit PIO)
     # ATA INTRQ is ACTIVE-HIGH and tri-stated whenever no drive is selected (or
     # nIEN=1), so it parks DEASSERTED: pull-DOWN. (A pull-up here would hold
-    # IRQ5 permanently asserted -> interrupt storm once IRQ5 is unmasked.)
+    # IRQ14 permanently asserted -> interrupt storm once IRQ14 is unmasked.)
     r2 = sch.place("Device:R", "R2", "10k", at=(243.84, 25.4))
     sch.net(r2, "1", "IDE_IRQ", kind="label", dx=0, dy=-2.54)
     sch.net(r2, "2", "GND", kind="label", dx=0, dy=2.54)
-    pullup("R4", "~{IRQ5_OE}", (91.44, 243.84))  # buffer released (Z) when INTRQ low
+    pullup("R4", "~{IRQ_OE}", (91.44, 243.84))  # buffer released (Z) when INTRQ low
     # JP1: base address -- 1-2 = 0x300 (A5 must be 0), 2-3 = 0x320 (A5 must be 1).
     # 0x300/0x320 differ only in A5; the U1 inverter already provides nA5.
     JP1 = sch.place("Connector_Generic:Conn_01x03", "JP1", "BASE 300/320", at=(274.32, 25.4))
@@ -244,20 +244,11 @@ def build(sch, lib, expose=True):
     L(JP1, "Pin_3", "A5")
     # JP2: enable -- closed grounds ~{STOR_EN} (enabled); open = R5 parks it
     # high and DEC1 never selects, so /CS0, /ODD_SEL and everything downstream
-    # (DEC2/DEC3, both '573 latch clocks, the '245 enable) are inert. IRQ5
+    # (DEC2/DEC3, both '573 latch clocks, the '245 enable) are inert. IRQ14
     # stays quiet: the drive is never selected and R2 holds INTRQ low.
     JP2 = sch.place("Connector_Generic:Conn_01x02", "JP2", "STOR_EN", at=(289.56, 25.4))
     L(JP2, "Pin_1", "~{STOR_EN}")
     L(JP2, "Pin_2", "GND")
-    # JP3: IRQ strap -- 1-2 = IRQ14 (DEFAULT: AT primary-IDE convention;
-    # motherboard-internal line, collected by the Bus MCU's '165 -- not on
-    # the 60-pin sidecar header), 2-3 = IRQ5 (XT convention; shared with the
-    # PicoGUS jumper block -- one driver only), open = polled.
-    # The '125 driver is tri-state, so the unselected line is untouched.
-    JP3 = sch.place("Connector_Generic:Conn_01x03", "JP3", "IRQ 14/5", at=(304.8, 25.4))
-    L(JP3, "Pin_1", "IRQ14")
-    L(JP3, "Pin_2", "STOR_IRQ")
-    L(JP3, "Pin_3", "IRQ5")
     pullup("R5", "~{STOR_EN}", (320.04, 25.4))
     for i, x in enumerate(range(30, 250, 20)):
         decouple("C%d" % (1 + i), (float(x), 276.86))
@@ -266,6 +257,6 @@ def build(sch, lib, expose=True):
     sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)
 
     # =============== strapping notes ==
-    sch.text("JP1 base 0x300/0x320 (XTIDE UB); JP2 open = card disabled; JP3 1-2=IRQ14(default)/2-3=IRQ5/open=polled.", at=(266.7, 17.78))
+    sch.text("JP1 base 0x300/0x320 (XTIDE UB); JP2 open = card disabled; IRQ14 hardwired (poll vs IRQ = XTIDE UB config).", at=(266.7, 17.78))
     sch.text("Populate ONE of J1 (IDE) / J2 (CF): both CSELs are grounded, so both "
              "devices ID as master on the shared cable.", at=(266.7, 12.7))

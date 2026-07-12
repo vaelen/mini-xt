@@ -386,3 +386,12 @@ Review sweep of the whole motherboard netlist + all sheets. Fixes applied:
   with it, freeing the line. Storage JP3 (IRQ14/IRQ5) kept: its two
   positions are both real use cases (AT vs XT convention), not just
   conflict avoidance.
+- Storage JP3 and the PicoGUS IRQ jumper row deleted; both hardwired.
+  Storage INTRQ -> '125 -> IRQ14 (the soft PIC is AT-style anyway; poll vs
+  interrupt is an XTIDE UB per-controller config, safe to leave wired --
+  the '125 only drives while INTRQ asserts). PicoGUS -> IRQ5, the free
+  line and now its sole driver; every personality is happy on IRQ5 and
+  pgusinit tells the firmware which line to use, so the 5-row IRQ jumper
+  bought nothing. PicoGUS J1 shrank 2x9 -> 2x4 (DMA pairs only; ch1 is
+  the only MCU-serviced channel). IRQ5 contention is now zero -- the
+  sidecar header is the only other possible driver.

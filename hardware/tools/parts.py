@@ -199,7 +199,7 @@ LIBID_MAP = {
     "Connector_Generic:Conn_01x04": E("C2337", "1x40 2.54mm header (break to 4)", "THT"),
     "Connector_Generic:Conn_01x08": E("C2337", "1x40 2.54mm header (break to 8)", "THT"),
     "Connector_Generic:Conn_01x10": E("C2337", "1x40 2.54mm header (break to 10)", "THT"),
-    "Connector_Generic:Conn_02x09_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x9)", "THT"),
+    "Connector_Generic:Conn_02x04_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x4)", "THT"),
     "Connector_Generic:Conn_02x20_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x20)", "THT"),
     "Connector_Generic:Conn_02x30_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x30)", "THT"),
     "Switch:SW_Push": E("C318884", "TS-1187A-B-A-B", "SMD 5.1x5.1", "BOOTSEL buttons"),

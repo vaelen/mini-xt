@@ -518,8 +518,8 @@ Sound Blaster, Gravis UltraSound, MPU-401, CMS/Game Blaster, Tandy/PCjr**.
   same bare-chip design, sharing flash/crystal parts.
 - **Requires functional DMA** in the Bus MCU (§5) — SB/GUS digital audio is DMA-driven.
   **DMA must be jumpered to channel 1** (the only MCU-serviced channel); the reference
-  IRQ/DMA jumper block is kept (IRQ 2/3/4/5/7 — IRQ5 is free now that storage defaults
-  to IRQ14).
+  jumper block is trimmed to the DMA pairs, and the **IRQ is hardwired to IRQ5** (the
+  free line, sole driver — pgusinit sets the firmware to match).
 - **Deviations from the reference card** (logged in `notes/questions-picogus.md`): no USB-A
   joystick port (the Supervisor owns HID, so **no gameport** — 0x201 unused); **no
   wavetable header and no MIDI-out jack** (build simplification — and with the wavetable
@@ -541,14 +541,14 @@ Discrete and period-correct (uses 74HCT on hand):
   re-straps to **0x320** (they differ only in A5; XTIDE UB supports both) and **JP2**
   disables the port outright (lifts the decode '138's enable — every select, latch clock
   and buffer goes inert, the IRQ stays released), so an external XT-IDE on the sidecar
-  chain can coexist or take over. **JP3 picks the IRQ: 14 (default — the AT primary-IDE
-  convention, collected on the Bus MCU's '165 D7; a motherboard-internal
-  line, not on the 60-pin header), 5 (XT convention), or open = polled.**
+  chain can coexist or take over. **The IRQ is hardwired to IRQ14** (the AT primary-IDE
+  convention, collected on the Bus MCU's '165 D7; a motherboard-internal line, not on
+  the 60-pin header) — the soft PIC is AT-style anyway, so there's nothing to strap.
 - **40-pin IDE header + CompactFlash** (True-IDE). 8-bit-capable CF can skip the latch; keep
   it for general IDE drives.
 - Boot ROM = **XTIDE Universal BIOS**, shadow-loaded @0xC8000. Polled or interrupt-driven
-  per the JP3 strap (IRQ14 default / IRQ5); XTIDE UB takes the IRQ per-controller in its
-  config, so the strap and the BIOS build just need to agree.
+  is purely an XTIDE UB per-controller config choice — the line is wired either way, and
+  the tri-state driver is silent unless the drive asserts INTRQ.
 - *(Alternative not taken: an SD-card-backed virtual IDE on a small MCU. Discrete XT-IDE+CF
   is simpler and rock-solid.)*
 

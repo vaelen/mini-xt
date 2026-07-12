@@ -134,9 +134,10 @@ replace:
   design (CERN-OHL-P): a bare RP2040 running **stock PicoGUS firmware**
   (AdLib/SB/GUS/MPU-401/CMS/Tandy), with the reference's ADS-muxed shared
   AD bus through CB3T FET switches, BUSOE power-up latch, APS6404L sample
-  PSRAM, PCM5102A I²S DAC, and the IRQ/DMA jumper block (jumper DMA to
-  **channel 1** — the only MCU-serviced channel; IRQ5 is free now that
-  storage defaults to IRQ14). Deviations, all logged: no gameport (USB HID
+  PSRAM, PCM5102A I²S DAC, and a DMA jumper pair (jumper DMA to
+  **channel 1** — the only MCU-serviced channel). The IRQ is hardwired to
+  **IRQ5** — the free line, sole driver — with pgusinit setting the
+  firmware to match. Deviations, all logged: no gameport (USB HID
   instead), no wavetable header or MIDI-out jack (build simplification —
   the volume chip and mix node went with them; the firmware's volume/MIDI
   GPIOs are documented no-connects), audio feeds the board's one line-out
@@ -149,10 +150,12 @@ replace:
   two 8-bit transfers. A 40-pin IDE header and a CompactFlash socket
   (True-IDE) hang off the same bus. Straps: JP1 base 0x300/0x320, JP2
   enable (lifts the decode '138 — every select, latch clock and buffer
-  goes inert), JP3 IRQ — **IRQ14 default** (AT primary-IDE convention,
-  collected by the Bus MCU's cascaded second '165; motherboard-internal
-  line), IRQ5 alternate, open = polled. No boot ROM on the interface: the
-  Bus MCU shadow-loads XTIDE Universal BIOS into SRAM at boot.
+  goes inert). The IRQ is hardwired to **IRQ14** (AT primary-IDE
+  convention, collected on the Bus MCU's '165 D7; motherboard-internal
+  line) — poll vs interrupt is an XTIDE UB config choice, and the
+  tri-state driver is silent unless the drive asserts INTRQ. No boot ROM
+  on the interface: the Bus MCU shadow-loads XTIDE Universal BIOS into
+  SRAM at boot.
 
 The on-board video instance carries the same straps as its standalone card
 (VID_EN + CGA/MDA window strap). Disabling an on-board port (or re-strapping

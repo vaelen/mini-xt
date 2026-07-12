@@ -41,7 +41,7 @@ PINS = (
     [pin(s, "input") for s in ["~{IOR}", "~{IOW}", "AEN", "RESET_DRV", "TC",
                                "~{DACK1}", "~{DACK3}"]] +
     [pin("IOCHRDY", "output"), pin("DRQ1", "output"), pin("DRQ3", "output")] +
-    [pin("IRQ%d" % n, "output") for n in (2, 3, 4, 5, 7)] +
+    [pin("IRQ5", "output")] +      # hardwired (the free line); pgusinit sets the firmware to match
     [pin("PG_L", "output"), pin("PG_R", "output")] +       # post-filter audio -> audio sheet summer
     [pin("PGUS_USB_DP", "bidirectional"), pin("PGUS_USB_DM", "bidirectional")]
 )
@@ -224,7 +224,7 @@ def build(sch, lib):
     L(U6, "1A2", "A8", dx=-2.54);  L(U6, "1Y2", "RA8", dx=2.54)
     L(U6, "1A3", "A9", dx=-2.54);  L(U6, "1Y3", "RA9", dx=2.54)
     L(U6, "2A0", "RDRQ", dx=-2.54); L(U6, "2Y0", "DRQ", dx=2.54)
-    L(U6, "2A1", "RIRQ", dx=-2.54); L(U6, "2Y1", "IRQ", dx=2.54)
+    L(U6, "2A1", "RIRQ", dx=-2.54); L(U6, "2Y1", "IRQ5", dx=2.54)  # hardwired (free line)
     L(U6, "2A2", "GND", dx=-2.54);  sch.no_connect(U6.pin_xy("2Y2"))
     L(U6, "2A3", "GND", dx=-2.54);  sch.no_connect(U6.pin_xy("2Y3"))
 
@@ -280,20 +280,17 @@ def build(sch, lib):
               at=(355.6, 215.9))
 
     # =================================================== 6. IRQ/DMA jumpers ====
-    J1 = sch.place("Connector_Generic:Conn_02x09_Odd_Even", "J1", "IRQDMA_JP", at=(431.8, 63.5))
-    irq_dma_odd = {1: "IRQ2", 3: "IRQ3", 5: "IRQ4", 7: "IRQ5", 9: "IRQ7",
-                   11: "DRQ1", 13: "~{DACK1}", 15: "DRQ3", 17: "~{DACK3}"}
-    for num, net in irq_dma_odd.items():
+    J1 = sch.place("Connector_Generic:Conn_02x04_Odd_Even", "J1", "DMA_JP", at=(431.8, 63.5))
+    dma_odd = {1: "DRQ1", 3: "~{DACK1}", 5: "DRQ3", 7: "~{DACK3}"}
+    for num, net in dma_odd.items():
         L(J1, str(num), net, dx=-2.54)
-    for num in (2, 4, 6, 8, 10):
-        L(J1, str(num), "IRQ", dx=2.54)
-    for num in (12, 16):
+    for num in (2, 6):
         L(J1, str(num), "DRQ", dx=2.54)
-    for num in (14, 18):
+    for num in (4, 8):
         L(J1, str(num), "DACK", dx=2.54)
-    sch.text("IRQ/DMA jumpers: one IRQ row + one DRQ/DACK pair. Our Bus MCU\n"
-              "services DMA ch1 ONLY -- jumper DRQ1/DACK1. IRQ5 free (storage\n"
-              "default is IRQ14).", at=(431.8, 25.4))
+    sch.text("DMA jumpers: one DRQ/DACK pair -- our Bus MCU services DMA ch1\n"
+              "ONLY, so jumper DRQ1/DACK1. IRQ hardwired to IRQ5 (the free\n"
+              "line, sole driver); pgusinit sets the firmware to match.", at=(431.8, 25.4))
 
     # ========================================================= 7. sample RAM ===
     U11 = sch.place("mini-xt:APS6404L", "U11", at=(63.5, 203.2))
