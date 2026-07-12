@@ -714,6 +714,7 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | 0x3F0–0x3F7 | (reserved) **firmware floppy** tier-2 registers, §10.1 (Bus MCU) |
 | 0x2E8 | COM4 (sidecar; needs a freed IRQ — see §11.1) |
 | 0x300–0x31F | XT-IDE (JP1 re-straps to 0x320; JP2 disables) |
+| 0x340–0x35F | NE2000 NIC (RTL8019AS, §9.1; IRQ2→9; JP1 disables) |
 | 0x378 | LPT1 (JP1 re-straps to 0x278; JP2 disables) |
 | 0x3B0–0x3BF / 0x3D0–0x3DF | MDA-Hercules / CGA (video MCU) |
 

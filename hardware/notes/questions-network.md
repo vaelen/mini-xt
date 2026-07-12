@@ -81,7 +81,7 @@ bead to GND, keeping earth quasi-isolated at DC while still bonded at RF.
 **Options:** (a) Simplify to one GND net board-wide; (b) carry the
 upstream's GND/EARTH split through unchanged.
 **Pick:** (b) -- carried over unchanged: TDCT/RDCT -> 1nF -> GND, TXCT/RXCT
--> 1nF -> EARTH, J1 SH1/SH2 -> EARTH, single FB1 ferrite bead EARTH -> GND.
+-> 1nF/2kV -> EARTH (2 kV rating added post-review: barrier caps, as upstream), J1 SH1/SH2 -> EARTH, single FB1 ferrite bead EARTH -> GND.
 A `power:PWR_FLAG` was added on EARTH (mirroring the picogus sheet's
 AVDD_PGUS/AGND_PGUS idiom) since it's a locally-generated net with no other
 driven source in isolated-sheet ERC.
