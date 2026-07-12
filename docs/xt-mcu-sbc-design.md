@@ -34,7 +34,7 @@ Design date: 2026-06-28.
 | Audio | **On-board PicoGUS (bare RP2040 "chip-down" copy, stock firmware)** — AdLib/SB/GUS/MPU/etc.; no gameport (USB HID instead) |
 | Input | **USB-A HID host** on the **Supervisor** MCU (keyboard; mouse via user's hub) |
 | Mouse | Emulated **virtual COM3 serial mouse** (default) or **PS/2 on IRQ12** (option) |
-| Storage | Discrete **XT-IDE** (8-bit, Chuck-mod) + CompactFlash; XTIDE Universal BIOS |
+| Storage | Discrete **XT-IDE** (8-bit, Chuck-mod) + CompactFlash; XTIDE Universal BIOS. Floppy = **all-firmware emulation** (§10.1, no FDC hardware) |
 | Serial | **2× 16C550** + **MAX3241** (full DB9); TTL console header on COM1 |
 | Parallel | Discrete **74HCT** LPT @ 0x378 (jumpers: 0x278 alt, enable; IRQ7 hardwired) |
 | RTC | **DS12C887** (integral battery + crystal) @ 0x70/0x71 |
@@ -552,6 +552,41 @@ Discrete and period-correct (uses 74HCT on hand):
 - *(Alternative not taken: an SD-card-backed virtual IDE on a small MCU. Discrete XT-IDE+CF
   is simpler and rock-solid.)*
 
+### 10.1 Floppy — all-firmware (no controller hardware)
+
+**Decision: no physical FDC.** Floppy support is emulated entirely in the Bus MCU,
+because every piece rides infrastructure the board already has — the marginal
+hardware cost is exactly zero:
+
+- **Registers:** the Bus MCU is already a full 8-bit ISA slave (it serves the
+  emulated PIT/KBC/COM3 today); a virtual floppy just claims I/O ports and
+  answers them in firmware.
+- **IRQ6** is raised inside the soft PIC the same way virtual COM3 raises IRQ4 —
+  a firmware event, no physical line. (The collector's IRQ6 input stays free
+  for a sidecar card.)
+- **"DMA":** the emulated 8237 lives in the same chip, and sector transfers into
+  conventional memory use the existing bus-master machinery (HOLD/HLDA + the
+  §5.1 counter chain) — the same path every other emulated DMA transfer takes.
+- **Media:** disk images live in the Core2350B module's flash; selection/swap is
+  a page in the Supervisor's pre-BIOS setup menu (§12), and images arrive over
+  the existing USB/console paths.
+- **BIOS:** the shadow-loaded BIOS fork hooks INT 13h for the floppy exactly as
+  XTIDE UB hooks it for the disk.
+
+Two firmware tiers, both zero-hardware — ship tier 1, add tier 2 only if real
+software demands it:
+
+1. **INT 13h hook** (ship this): BIOS floppy services call a private Bus MCU
+   port; sectors appear. DOS and anything well-behaved works.
+2. **Register-level µPD765 emulation @ 0x3F0–0x3F7** (only if needed): the 765
+   command state machine as bus-visible registers, for software that bangs the
+   controller directly (copy-protected boot loaders, imaging tools).
+
+*(Path not taken: a real socketed WD37C65/FDC37C78 + 34-pin header. It would
+also need DMA ch2, which the Bus MCU doesn't service — either non-DMA-mode
+BIOS floppy code or the '165/'595 GPIO expansion (§5.2). Only worth the board
+space if a physical drive or Gotek must plug in; nothing else requires it.)*
+
 ---
 
 ## 11. Serial / parallel / RTC / input
@@ -658,6 +693,7 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | 0x220.../0x240.../0x330/0x388 | PicoGUS (SB / GUS / MPU / OPL) |
 | 0x2F8 / 0x3F8 | COM2 / COM1 (16C550) |
 | 0x3E8 | **COM3 — emulated serial mouse** (Bus MCU, IRQ4) |
+| 0x3F0–0x3F7 | (reserved) **firmware floppy** tier-2 registers, §10.1 (Bus MCU) |
 | 0x2E8 | COM4 (sidecar, **bus IRQ2 line → IRQ9**) |
 | 0x300–0x31F | XT-IDE (JP1 re-straps to 0x320; JP2 disables) |
 | 0x378 | LPT1 (JP1 re-straps to 0x278; JP2 disables) |
@@ -671,14 +707,14 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | 2 | cascade → slave | | 10 | spare (no line on 8-bit header) |
 | 3 | COM2 | | 11 | spare (no line on 8-bit header) |
 | 4 | COM1 (+ COM3 mouse, shared) | | 12 | PS/2 mouse (if used) |
-| 5 | XT-IDE alt (JP3) / LPT alt / sound | | 13 | (FPU — unused) |
-| 6 | Floppy (opt) / spare | | 14 | **XT-IDE (on-board, JP3 default)** — internal line |
-| 7 | LPT1 | | 15 | spare (no line on 8-bit header) |
+| 5 | **PicoGUS (hardwired, sole driver)** | | 13 | (FPU — unused) |
+| 6 | firmware floppy (virtual, §10.1) / sidecar spare | | 14 | **XT-IDE (hardwired)** — internal line |
+| 7 | LPT1 (hardwired) | | 15 | spare (no line on 8-bit header) |
 
 ### DMA
 | Ch | Use | | Ch | Use |
 |---|---|---|---|---|
-| 0 | (refresh — unused, SRAM) | | 2 | Floppy (opt) |
+| 0 | (refresh — unused, SRAM) | | 2 | (firmware floppy needs none, §10.1) |
 | 1 | **PicoGUS (SB/GUS)** | | 3 | sidecar / spare |
 
 ---

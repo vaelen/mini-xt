@@ -16,7 +16,7 @@ inside the Bus MCU's AT-style soft PIC.
 | IRQ3  | physical | COM2 (0x2F8) — hardwired           | free it by disabling COM2 (JP3 open); sidecar can then drive it                  |
 | IRQ4  | physical | COM1 (0x3F8) — hardwired           | shared by the virtual COM3 mouse (use one or the other); COM1 JP3 frees it       |
 | IRQ5  | physical | PicoGUS — hardwired                | sole driver; pgusinit sets the firmware to match                                 |
-| IRQ6  | physical | Free (no FDC)                      | sidecar header only                                                              |
+| IRQ6  | physical | Firmware floppy (virtual event)    | no physical FDC (design doc §10.1); the physical line stays free for the sidecar |
 | IRQ7  | physical | LPT ~Ack (0x378) — hardwired       | tri-state, silent unless IRQ_EN set; LPT JP2 (disable) frees it                  |
 | IRQ8  | physical | RTC periodic/alarm — hardwired     | motherboard-internal (not on the header)                                         |
 | IRQ12 | virtual  | PS/2 mouse option                  | Bus MCU firmware (default is the COM3 mouse on IRQ4)                             |
@@ -41,6 +41,7 @@ them if a 16-bit source ever appears.
 | 0x2E8                     | (reserved) sidecar COM4                      | future; IRQ2→9                                                          |
 | 0x2F8                     | COM2 — 16C550                                | J2 base strap; JP3 enable; IRQ3 hardwired                               |
 | 0x300 / 0x320             | XT-IDE (0x300 default)                       | JP1 base strap; JP2 enable; IRQ14 hardwired                             |
+| 0x3F0–0x3F7               | (reserved) firmware floppy tier-2 registers  | Bus MCU emulated, only if register-level 765 emulation lands (§10.1)    |
 | 0x3B4–3BF / 0x3D4–3DF     | Video MDA / CGA registers                    | VID_BASE strap picks; status 0x3BA/0x3DA scan-coherent                  |
 | 0x3E8                     | COM3 — virtual serial mouse                  | Bus MCU emulated; IRQ4                                                  |
 | 0x3F8                     | COM1 — 16C550                                | J2 base strap; JP3 enable; IRQ4 hardwired; TTL console via JP1          |
