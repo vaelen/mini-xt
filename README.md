@@ -119,13 +119,13 @@ replace:
 - **COM1/COM2** — one `com_port` sheet instanced twice: 16C550 (SMD PLCC-44
   socket taking new TI silicon or period NS16550AFN pulls) + MAX3241 for a
   full DB9 DTE, 1.8432 MHz crystal baud reference. Per port: J2 base address
-  (0x3F8/0x2F8), JP2 IRQ (4/3, open = polled), JP3 enable (open parks the
-  16550's CS1 — the port simply never decodes), JP1 RX source (DB9 vs 5 V
-  TTL console header, COM1).
+  (0x3F8/0x2F8), IRQ hardwired (COM1=IRQ4, COM2=IRQ3), JP3 enable (open parks
+  the 16550's CS1 — the port simply never decodes, freeing its IRQ), JP1 RX
+  source (DB9 vs 5 V TTL console header, COM1).
 - **LPT** — period-correct SPP at JP1-strapped 0x378/0x278 in discrete 74HCT
   ('574 latches, '244 buffers, AND-tree decode); Busy inverted on-card into
-  status bit 7, IRQ7/IRQ5 strap (JP3, tri-state driver, open = polled), JP2
-  enable gates the register-select '138. DB25 out.
+  status bit 7, IRQ7 hardwired (tri-state driver, silent until enabled), JP2
+  enable gates the register-select '138 (open also frees IRQ7). DB25 out.
 - **RTC** — DS12C887 (integral battery + crystal, machined DIP-24 socket) at
   the PC-standard 0x70/0x71: Intel bus mode, discrete exact 10-bit decode
   synthesizing the multiplexed AS/DS/R~W cycle from ~IOW/~IOR, open-drain

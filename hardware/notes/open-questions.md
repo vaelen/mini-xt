@@ -370,3 +370,19 @@ Review sweep of the whole motherboard netlist + all sheets. Fixes applied:
   CH224_VDD (1k), AVDD_PGUS / AGND_PGUS (ferrite). Full-build ERC is now
   just the 6 expected IRQ9-13/15 label_dangling; net membership verified
   unchanged (821 nets, node-identical to HEAD).
+- IRQ collector shrunk to ONE 74HCT165 (U19 + pull-downs R19-R24 + C18
+  deleted): the live set is exactly 8 lines -- D0-D6 = IRQ2-8 (header +
+  RTC), D7 = IRQ14 (storage strap; replaces the source-less IRQ9).
+  IRQ9-13/15 dropped from bus_mcu PINS entirely -- nothing on the board
+  or the 8-bit header can drive them; a cascaded second '165 comes back
+  if a 16-bit source ever appears. Firmware shifts 8 bits, Q7-first
+  (IRQ14, IRQ8, IRQ7...IRQ2). Full-build ERC is now ZERO violations.
+- COM/LPT IRQ straps deleted (COM JP2, LPT JP3): IRQs are hardwired to the
+  PC conventions -- COM1=IRQ4, COM2=IRQ3 (via the COM_IRQ instance remap in
+  INSTANCES, the sheet's first use of the netmap mechanism), LPT=IRQ7 (U13
+  '125 drives the net directly). Rationale: the straps only existed to
+  dodge conflicts, and the enable jumpers already do that better -- COM JP3
+  / LPT JP2 disable the whole port and the tri-state IRQ driver goes silent
+  with it, freeing the line. Storage JP3 (IRQ14/IRQ5) kept: its two
+  positions are both real use cases (AT vs XT convention), not just
+  conflict avoidance.

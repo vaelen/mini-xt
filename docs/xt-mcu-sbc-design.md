@@ -36,7 +36,7 @@ Design date: 2026-06-28.
 | Mouse | Emulated **virtual COM3 serial mouse** (default) or **PS/2 on IRQ12** (option) |
 | Storage | Discrete **XT-IDE** (8-bit, Chuck-mod) + CompactFlash; XTIDE Universal BIOS |
 | Serial | **2× 16C550** + **MAX3241** (full DB9); TTL console header on COM1 |
-| Parallel | Discrete **74HCT** LPT @ 0x378 (jumpers: 0x278 alt, IRQ7/5, enable) |
+| Parallel | Discrete **74HCT** LPT @ 0x378 (jumpers: 0x278 alt, enable; IRQ7 hardwired) |
 | RTC | **DS12C887** (integral battery + crystal) @ 0x70/0x71 |
 | Config | **Pre-BIOS setup menu** (Supervisor MCU), shown on **video + MCU console**, entered by keypress |
 | BIOS | **Xi 8088** (Sergey Kiselev), expected to be **forked** for our chipset |
@@ -338,7 +338,7 @@ beyond the 2-wire link (§5.3).
 | Ready / check | IOCHRDY (bidir), IOCHCK̄ (in) | 2 | |
 | Bus grant | HOLD (out), HLDA (in) | 2 | V20 min-mode handshake |
 | Interrupt deliver | INTR (out), INTĀ (in), NMI (out) | 3 | vector goes out on D0–D7 |
-| IRQ inputs | 2× 74HCT165: LOAD, CLK, SER | 3 | collects IRQ2–15 (16-bit shift; IRQ10–15 internal-only, IRQ14 = on-board XT-IDE); µs-poll is fine (ISA holds IRQ until serviced) |
+| IRQ inputs | 74HCT165: LOAD, CLK, SER | 3 | collects the 8 live IRQs (D0–D6 = IRQ2–8, D7 = IRQ14 for on-board XT-IDE; IRQ9–13/15 have no possible source — second cascaded '165 if one ever appears); µs-poll is fine (ISA holds IRQ until serviced) |
 | DMA handshake | DRQ1 (in), DACK1̄ (out), TC (out) | 3 | on-board PicoGUS channel; sidecar DMA via '165/'595 or deferred |
 | Counter control | COUNT + load-steer ×3 | 3–4 | drives the external 20-bit address counter |
 | Speaker | PWM → op-amp (GPIO22) | 1 | PIT ch2 direct output; bus-CLK sense dropped (PIO tracks via BALE/strobes) |
@@ -542,7 +542,7 @@ Discrete and period-correct (uses 74HCT on hand):
   disables the port outright (lifts the decode '138's enable — every select, latch clock
   and buffer goes inert, the IRQ stays released), so an external XT-IDE on the sidecar
   chain can coexist or take over. **JP3 picks the IRQ: 14 (default — the AT primary-IDE
-  convention, collected by the Bus MCU's cascaded second '165; a motherboard-internal
+  convention, collected on the Bus MCU's '165 D7; a motherboard-internal
   line, not on the 60-pin header), 5 (XT convention), or open = polled.**
 - **40-pin IDE header + CompactFlash** (True-IDE). 8-bit-capable CF can skip the latch; keep
   it for general IDE drives.
@@ -558,18 +558,19 @@ Discrete and period-correct (uses 74HCT on hand):
 
 ### 11.1 Serial (2× COM)
 - **2× 16C550** (one `com_port` sheet, instanced twice): **COM1 0x3F8/IRQ4**,
-  **COM2 0x2F8/IRQ3** as the default strapping. On-board only — no standalone
-  COM card — but jumper-configured exactly like a period card: **J2** base
-  address (0x3F8/0x2F8), **JP2** IRQ (4/3, open = polled), **JP3** enable
+  **COM2 0x2F8/IRQ3** — the IRQs are **hardwired** per instance (the PC
+  convention; no strap to misconfigure). On-board only — no standalone COM
+  card — remaining jumpers: **J2** base address (0x3F8/0x2F8), **JP3** enable
   (open parks the 16550's spare active-high CS1, so the port never decodes;
   the IRQ driver is tri-state and MCR resets to 0, so a disabled port is
-  silent on every line).
+  silent on every line — disabling a port is how you free its IRQ).
 - **MAX3241** per port — 3 drivers + 5 receivers = a **full DB9** (TXD/RTS/DTR out;
   RXD/CTS/DSR/DCD/RI in), internal charge pump (single-supply, no ±12 V).
 - **TTL console header** jumpered onto COM1 (ahead of the MAX3241) for headless bring-up.
 - (TL16C554 quad rejected: ~6× the cost for 4× ports; add COM3/4 on the sidecar later — note
   **COM3 0x3E8 is reserved for the emulated serial mouse**, §11.4.) The 60-pin sidecar header
-  carries only the standard 8-bit ISA IRQ lines (IRQ2–7, + IRQ8 on a reclaimed pin), so a
+  carries only the standard 8-bit ISA IRQ lines (IRQ2–7; IRQ8's old pin was reclaimed as a
+  ground return once the RTC moved on-board — IRQ8 is motherboard-internal now), so a
   sidecar COM4 cannot use IRQ10+: **COM4 (0x2E8) uses the bus IRQ2 line, delivered as IRQ9**
   (the standard AT IRQ2→9 redirect) rather than legacy-sharing IRQ3 with COM2 — still
   avoiding the ISA edge-triggered IRQ-sharing problem. The virtual COM3 mouse keeps
@@ -579,11 +580,11 @@ Discrete and period-correct (uses 74HCT on hand):
 ### 11.2 Parallel (LPT)
 Discrete **74HCT** ('574 data/control latches + '244/'245 status & read-back) —
 on-board only, jumper-configured: **JP1** base address (**0x378/0x278** — they
-differ only in A8; a spare NAND inverts it), **JP3** IRQ (**7/5**, open =
-polled — note IRQ5 conflicts with storage §10 if both are enabled), **JP2**
-enable (open lifts the register-select '138's enable: no register can be read,
-written or latched). The IRQ driver is tri-state (asserted only for an enabled
-ACK̄ pulse), so the line stays shareable.
+differ only in A8; a spare NAND inverts it), **JP2** enable (open lifts the
+register-select '138's enable: no register can be read, written or latched —
+and frees the line). **IRQ7 is hardwired** (LPT1 convention). The IRQ driver
+is tri-state (asserted only for an enabled ACK̄ pulse), so the line stays
+shareable.
 
 ### 11.3 RTC
 **DS12C887** (integral battery + crystal, machined DIP-24 socket) @ **0x70/0x71** —
@@ -701,7 +702,7 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | PIC / PIT / KBC / DMA | 8259 / 8253 / 8042 / 8237 | **Bus MCU: RP2350B (soft-emulated)** |
 | Chipset Supervisor | (part of the chipset) | **RP2040** — USB host, setup UI, config + BIOS-image flash, console, POST |
 | Bus-master address | (8237 internal + 74LS612 page) | **5× 74HC163** loadable counter (Bus MCU drives load/count) |
-| IRQ collector | (8259 internal) | **2× 74HCT165** shift chain (IRQ2–15 → 3 pins) |
+| IRQ collector | (8259 internal) | **74HCT165** shift register (IRQ2–8, 14 → 3 pins) |
 | Chipset link | — | **2-wire UART** (Bus MCU ↔ Supervisor) |
 | RAM | 9× 4164 + parity | **2× AS6C4008-55 SRAM** |
 | ROM / BIOS | mask ROM / 2764 | **none — shadow-loaded into SRAM by the Bus MCU (image from Supervisor flash)** |

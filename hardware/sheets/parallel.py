@@ -1,11 +1,11 @@
 """parallel -- discrete 74HC parallel printer port (LPT1) @ I/O 0x378/0x278 + DB25.
 
 Design doc S11.2. A *soft* card: it speaks ONLY the standard 8-bit XT/ISA bus
-(A0-A9, D0-D7, ~{IOR}/~{IOW}, AEN) plus power and exports IRQ5/IRQ7
-(selectable by JP3 strap). No private motherboard nets cross this sheet.
+(A0-A9, D0-D7, ~{IOR}/~{IOW}, AEN) plus power and exports IRQ7 (hardwired,
+the LPT1 convention). No private motherboard nets cross this sheet.
 
-Straps: JP1 base address (A8 = 0x378 vs 0x278), JP2 enable/disable, JP3 IRQ
-selection (IRQ7/IRQ5/open=polled).
+Straps: JP1 base address (A8 = 0x378 vs 0x278), JP2 enable/disable (open
+also frees IRQ7 for something else -- the tri-state driver never fires).
 
 Three classic registers in the 0x378 block (Centronics/SPP):
   * 0x378  Data    (R/W)  -- 74HCT574 output latch -> DB25 pins 2-9
@@ -32,7 +32,7 @@ PINS = (
     [pin("~{IOR}", "input"), pin("~{IOW}", "input"),
      pin("AEN", "input")] +      # no RESET_DRV: the '574s have no reset pin;
                                  # BIOS initializes 0x378/0x37A at POST
-    [pin("IRQ5", "output"), pin("IRQ7", "output")]        # JP3 picks the line
+    [pin("IRQ7", "output")]        # hardwired (LPT1 convention); JP2 disables the port
 )
 
 
@@ -87,8 +87,8 @@ def build(sch, lib, expose=True):
     # the ~Ack pulse while IRQ_EN (control bit 4) is set, released (Z)
     # otherwise so the line stays shareable.  U12 NAND gate 1 makes the
     # active-low enable for the U13 '125 buffer (input strapped high); gate 2
-    # makes ~A8 for the base-address strap (JP1). Output drives LPT_IRQ into
-    # JP3 strap that selects IRQ7 or IRQ5.
+    # makes ~A8 for the base-address strap (JP1). Output drives IRQ7 directly
+    # (hardwired LPT1 convention; disable the port via JP2 to free the line).
     # NOTE the ISA ~Ack pulse is 1-12 us and is NOT latched here (real SPP
     # behaviour): the Bus MCU's '165 IRQ poll loop must run faster than the
     # shortest pulse, or sample IRQ7 via PIO.
@@ -103,7 +103,7 @@ def build(sch, lib, expose=True):
     U13 = sch.place("mini-xt:74HCT125", "U13", at=(266.7, 127.0))
     pwr(U13)
     L(U13, "P1", "~{IRQ7_OE}", dx=-2.54); L(U13, "P2", "+5V", dx=-2.54)
-    L(U13, "P3", "LPT_IRQ")
+    L(U13, "P3", "IRQ7")           # hardwired; tri-state until IRQ_EN & ~Ack
     for oe in ("P4", "P10", "P13"):
         L(U13, oe, "+5V", dx=-2.54)        # disable spare buffers
     for ip in ("P5", "P9", "P12"):
@@ -264,16 +264,8 @@ def build(sch, lib, expose=True):
     sch.net(r6, "1", "+5V", kind="label", dx=0, dy=-2.54)
     sch.net(r6, "2", "~{LPT_EN}", kind="label", dx=0, dy=2.54)
 
-    # JP3: IRQ strap -- 1-2 = IRQ7 (LPT1 convention), 2-3 = IRQ5 (NOTE: shared
-    # with the storage card's XT-IDE INTRQ -- don't enable both on IRQ5), open =
-    # polled-only. U13 is tri-state, so the unselected line is untouched.
-    JP3 = sch.place("Connector_Generic:Conn_01x03", "JP3", "IRQ strap", at=(330.2, 195.58))
-    L(JP3, "Pin_1", "IRQ7", dx=2.54)
-    L(JP3, "Pin_2", "LPT_IRQ", dx=2.54)
-    L(JP3, "Pin_3", "IRQ5", dx=2.54)
-
     # Configuration note
-    sch.text("JP1: base 0x378/0x278; JP2: open=port disabled; JP3: IRQ7/IRQ5/open=polled",
+    sch.text("JP1: base 0x378/0x278; JP2: open=port disabled (frees IRQ7); IRQ7 hardwired",
              at=(299.72, 187.96), size=2.5)
 
     # ============================================================

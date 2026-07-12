@@ -2,8 +2,10 @@
 
 Design doc S11.1. ONE serial port; the harness instantiates this sheet twice
 (COM1 0x3F8, COM2 0x2F8) via INSTANCES below. Each instance is configurable
-via two on-sheet jumpers: J2 (base-address strap, A8/~A8), JP2 (IRQ select,
-IRQ3/IRQ4/polled), and JP3 (port enable/disable via CS1 gating).
+via on-sheet jumpers: J2 (base-address strap, A8/~A8) and JP3 (port
+enable/disable via CS1 gating). The IRQ is hardwired per instance (COM1 ->
+IRQ4, COM2 -> IRQ3, the PC convention) through the COM_IRQ instance remap;
+to reuse the IRQ for something else, disable the whole port with JP3.
 
 Structure:
   * U1  16C550 UART (Interface_UART:16550), 8-bit ISA slave
@@ -27,7 +29,7 @@ PINS = (
     [pin(s, "input") for s in mxbus.ADDR[:10]] +        # A0..A9 (A0-A2 regs, A3-A9 decode)
     [pin(s, "bidirectional") for s in mxbus.DATA] +     # D0..D7
     [pin(s, "input") for s in ["~{IOR}", "~{IOW}", "AEN", "RESET_DRV"]] +
-    [pin("IRQ3", "output"), pin("IRQ4", "output")]      # JP2 strap picks the active line
+    [pin("COM_IRQ", "output")]      # remapped per instance: COM1->IRQ4, COM2->IRQ3
 )
 
 
@@ -235,14 +237,6 @@ def build(sch, lib, expose=True):
     L(R1, "1", "COM_EN", dx=0, dy=-2.54)
     L(R1, "2", "GND", dx=0, dy=2.54)
 
-    # ---------------- JP2: IRQ strap ----------------
-    # 1-2 = IRQ4 (pairs with J2 at 0x3F8/COM1), 2-3 = IRQ3 (0x2F8/COM2),
-    # open = polled, no IRQ. U6 is tri-state, so the unselected line is untouched.
-    JP2 = sch.place("Connector_Generic:Conn_01x03", "JP2", "IRQ strap", at=(241.3, 254.0))
-    L(JP2, "Pin_1", "IRQ4", dx=2.54)
-    L(JP2, "Pin_2", "COM_IRQ", dx=2.54)
-    L(JP2, "Pin_3", "IRQ3", dx=2.54)
-
     # ---------------- decoupling ----------------
     decouple("C1", (109.22, 50.8))   # U1
     decouple("C2", (210.82, 50.8))   # U2
@@ -257,10 +251,11 @@ def build(sch, lib, expose=True):
     sch.text("Base-address strap J2: jumper A8 (0x3F8/COM1) or ~A8 (0x2F8/COM2)",
              (60.96, 233.68))
     sch.text("TTL console header J3 (5V levels!): populate on COM1 only;", (165.1, 248.92))
-    sch.text("JP1 selects UART RX source: 1-2 DB9, 2-3 console; JP2 IRQ strap: 1-2 IRQ4, 2-3 IRQ3, open = polled",
+    sch.text("JP1 selects UART RX source: 1-2 DB9, 2-3 console; IRQ hardwired per instance (COM1=IRQ4, COM2=IRQ3)",
              (165.1, 246.38))
     sch.text("JP3: jumper closed = port enabled, open = port disabled via CS1 pulldown (R1)",
              (165.1, 243.84))
 
 
-INSTANCES = [("COM1", ""), ("COM2", "B")]   # IRQ picked by JP2 on each instance, not by remap
+INSTANCES = [("COM1", "", {"COM_IRQ": "IRQ4"}),     # hardwired PC convention;
+             ("COM2", "B", {"COM_IRQ": "IRQ3"})]    # JP3 disables the whole port

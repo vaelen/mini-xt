@@ -70,7 +70,11 @@ _CTRL = ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}", "BALE", "AEN", "IOCHRDY",
 PINS = (
     [pin(s, "bidirectional") for s in mxbus.ADDR] +
     [pin(s, "bidirectional") for s in mxbus.DATA] +
-    [pin(s, "input") for s in mxbus.IRQ] +
+    # Only the IRQs with a real source: IRQ2-7 (ISA header), IRQ8 (RTC),
+    # IRQ14 (storage strap). IRQ9-13/15 have no possible driver (not on the
+    # 60-pin header) -- re-add alongside a second '165 if a 16-bit source
+    # ever appears.
+    [pin("IRQ%d" % n, "input") for n in (2, 3, 4, 5, 6, 7, 8, 14)] +
     [pin(s, _DIR[s]) for s in _CTRL] +
     # (~{WR} / IO/~{M} are not in PRIV_CPU anymore: not sensed here -- GPIO
     # budget -- writes are tracked via the gated MEMW/IOW strobes instead.)
@@ -325,37 +329,24 @@ def build(sch, lib):
              (236.22, 213.36))
 
     # =================================================================
-    #  IRQ collector -- 74HCT165 PISO, §5.2 (IRQ2..IRQ9; cascade DS for the rest)
+    #  IRQ collector -- 74HCT165 PISO, §5.2: one chip covers every live IRQ
+    #  (IRQ2-7 header, IRQ8 RTC, IRQ14 storage strap). IRQ9-13/15 have no
+    #  possible source (not on the 60-pin header) -- a second cascaded '165
+    #  comes back if a 16-bit source ever appears.
     # =================================================================
     U12 = sch.place("mini-xt:74HCT165", "U12", at=(200.66, 233.68))
     N(U12, "VCC", "+5V", length=2.54)
     N(U12, "GND", "GND", length=2.54)
-    for i in range(8):
-        N(U12, "D%d" % i, "IRQ%d" % (2 + i))       # IRQ2..IRQ9
+    for i in range(7):
+        N(U12, "D%d" % i, "IRQ%d" % (2 + i))       # IRQ2..IRQ8
+    N(U12, "D7", "IRQ14")                           # storage strap (AT primary IDE)
     N(U12, "~{PL}", "IRQ_LOAD")                     # parallel load strobe
     N(U12, "CP", "IRQ_CLK")                         # shift clock
     N(U12, "~{CE}", "GND")                          # clock enable (active low)
-    N(U12, "DS", "IRQ_CAS")                         # cascaded from U19 (IRQ10-15)
+    N(U12, "DS", "GND")                             # no cascade
     N(U12, "Q7", "IRQ_SER")                         # serial out to MCU
     sch.no_connect(U12.pin_xy("~{Q7}"))
-
-    # Cascade stage: IRQ10-IRQ15 (the AT-only lines -- motherboard-internal,
-    # not on the 60-pin header; IRQ14 = on-board storage default). Same 3 MCU
-    # pins; firmware shifts 16 bits: U12 (IRQ2-9) first, then U19 (IRQ10-15).
-    U19 = sch.place("mini-xt:74HCT165", "U19", at=(152.4, 233.68))
-    N(U19, "VCC", "+5V", length=2.54)
-    N(U19, "GND", "GND", length=2.54)
-    for i in range(6):
-        N(U19, "D%d" % i, "IRQ%d" % (10 + i))      # IRQ10..IRQ15
-    N(U19, "D6", "GND")                             # spare inputs tied low
-    N(U19, "D7", "GND")
-    N(U19, "~{PL}", "IRQ_LOAD")
-    N(U19, "CP", "IRQ_CLK")
-    N(U19, "~{CE}", "GND")
-    N(U19, "DS", "GND")                             # end of the cascade
-    N(U19, "Q7", "IRQ_CAS")                         # -> U12 DS
-    sch.no_connect(U19.pin_xy("~{Q7}"))
-    sch.text("§5.2 IRQ collector: 2x 74HCT165 -> 3 MCU pins, 16-bit shift (U12 IRQ2-9, U19 IRQ10-15)",
+    sch.text("§5.2 IRQ collector: 74HCT165 -> 3 MCU pins, 8-bit shift (D0-D6=IRQ2-8, D7=IRQ14)",
              (180.34, 210.82))
 
     # ---- bus-line idle pulls: wire-OR / releasable lines need defined levels
@@ -365,12 +356,10 @@ def build(sch, lib):
         sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
     pull("R2", "IOCHRDY", "+5V", (86.36, 25.4))       # wire-OR ready: idle high
     pull("R3", "~{IOCHCK}", "+5V", (101.6, 25.4))     # open-collector: idle high
-    for i in range(8):                                # ISA IRQ is active-high and
+    for i in range(7):                                # ISA IRQ is active-high and
         pull("R%d" % (4 + i), "IRQ%d" % (2 + i),      # released when unclaimed --
              "GND", (116.84 + 15.24 * i, 25.4))       # no floating '165 inputs
-    for i in range(6):                                # IRQ10-15: same idle-low
-        pull("R%d" % (19 + i), "IRQ%d" % (10 + i),    # network as IRQ2-9 (no
-             "GND", (129.54 + 15.24 * i, 205.74))     # floating '165 inputs)
+    pull("R11", "IRQ14", "GND", (223.52, 25.4))       # same idle-low network
     pull("R12", "~{DACK2}", "+5V", (238.76, 25.4))    # declared, undriven (GPIO
     pull("R13", "~{DACK3}", "+5V", (254.0, 25.4))     # dropped): park deasserted
     pull("R14", "DRQ2", "GND", (269.24, 25.4))        # DRQ2/3 not wired to the MCU
@@ -417,7 +406,6 @@ def build(sch, lib):
     decouple("C8", (350.52, 40.64), "3V3_BUS")     # AEN/TC xcvr
     decouple("C9", (50.8, 220.98), "3V3_BUS")      # counters (3.3 V domain)
     decouple("C10", (190.5, 198.12), "+5V")        # U12 '165
-    decouple("C18", (121.92, 198.12), "+5V")        # U19 '165
     decouple("C12", (281.94, 213.36), "+5V")       # U14 '244
     decouple("C13", (327.66, 213.36), "+5V")       # U15 '244
     decouple("C14", (373.38, 213.36), "+5V")       # U16 '244

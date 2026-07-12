@@ -250,9 +250,9 @@ def build(sch, lib, expose=True):
     L(JP2, "Pin_1", "~{STOR_EN}")
     L(JP2, "Pin_2", "GND")
     # JP3: IRQ strap -- 1-2 = IRQ14 (DEFAULT: AT primary-IDE convention;
-    # motherboard-internal line, collected by the Bus MCU's cascaded '165 --
-    # not on the 60-pin sidecar header), 2-3 = IRQ5 (XT convention; also the
-    # LPT sheet's alternate -- don't strap both to IRQ5), open = polled.
+    # motherboard-internal line, collected by the Bus MCU's '165 -- not on
+    # the 60-pin sidecar header), 2-3 = IRQ5 (XT convention; shared with the
+    # PicoGUS jumper block -- one driver only), open = polled.
     # The '125 driver is tri-state, so the unselected line is untouched.
     JP3 = sch.place("Connector_Generic:Conn_01x03", "JP3", "IRQ 14/5", at=(304.8, 25.4))
     L(JP3, "Pin_1", "IRQ14")
