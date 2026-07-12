@@ -102,7 +102,13 @@ def emit_interface(sch, pins, at=(25.4, 25.4), pitch=2.54):
     """
     x, y = at
     for i, pd in enumerate(pins):
-        sch.hier_label(pd["name"], (x, y + i * pitch), 0, pd["dir"])
+        py = y + i * pitch
+        # anchor the hier label on a stub whose far end carries a same-name
+        # local label: connectivity is still by name, but neither label
+        # dangles for ERC.
+        sch.wire((x - pitch, py), (x, py))
+        sch.label(pd["name"], (x - pitch, py), 180, justify="right")
+        sch.hier_label(pd["name"], (x, py), 0, pd["dir"])
 
 
 def power_net(sch, lib, net, at, rot=0):

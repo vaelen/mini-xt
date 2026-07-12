@@ -352,3 +352,14 @@ Review sweep of the whole motherboard netlist + all sheets. Fixes applied:
   (both CSELs grounded = both master).
 - Supervisor: second USBLC6 (U4) on PROG_DP/DM at J6, so the programming port
   is ESD-protected in BOTH SW2 positions (U3 only covers the jack-side nets).
+- ERC dangling-label cleanup (KiCad 10): emit_interface now anchors every
+  hier label on a short stub ending in a same-name local label (connectivity
+  unchanged -- still by name; verified /D0, /AEN, /~{MEMR} spans in the
+  netlist). Interface honesty fixes that fell out of it: cpu_core dropped
+  AEN/IOCHRDY from PINS (AEN is generated on bus_mcu, IOCHRDY folds into
+  READY there -- nothing on cpu_core touched either), and bus_mcu dropped
+  PRIV_COUNTER from PINS (the 20-bit counter chain lives on-sheet, CNT_*
+  never crosses). Remaining 6 label_dangling (root IRQ9-13/15) are
+  single-sheet by design: the soft-PIC collector pulls them up on bus_mcu
+  and no on-board source drives them (60-pin header carries 8-bit IRQs
+  only); kept in PINS as the AT-style contract for future 16-bit sources.

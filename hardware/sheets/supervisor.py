@@ -195,6 +195,10 @@ def build(sch, lib):
     # PD contract status from the power sheet (CH224K PG, open-drain + 3V3 pull-up)
     L(U1, "GPIO16", "PD_PG", dx=2.54)
 
+    # Unused GPIO (by pin number): GPIO2/3, GPIO17-25, GPIO26-29 (ADC bank)
+    for p in (4, 5, 28, 29, 30, 31, 32, 34, 35, 36, 37, 38, 39, 40, 41):
+        sch.no_connect(U1.pin_xy(p))
+
     # ----------- shared RP2040 programming port (USB-C, device mode) --------
     # SW2 selects which RP2040 the port reaches: position A = this Supervisor
     # (via the jack-side USB_DP_J/USB_DM_J nets -- unplug the keyboard while

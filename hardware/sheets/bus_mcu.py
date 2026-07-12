@@ -61,8 +61,6 @@ _DIR = {
     "HOLD": "output", "HLDA": "input", "READY": "output",
     "~{RD}": "input",
     "INTR": "output", "~{INTA}": "input", "NMI": "output", "~{CPURESET}": "output",
-    # counter strobes + link
-    "CNT_CLK": "output", "CNT_LD0": "output", "CNT_LD1": "output", "CNT_LD2": "output",
     "LINK_B2S": "output", "LINK_S2B": "input",
 }
 _CTRL = ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}", "BALE", "AEN", "IOCHRDY",
@@ -77,7 +75,8 @@ PINS = (
     # (~{WR} / IO/~{M} are not in PRIV_CPU anymore: not sensed here -- GPIO
     # budget -- writes are tracked via the gated MEMW/IOW strobes instead.)
     [pin(s, _DIR[s]) for s in mxbus.PRIV_CPU] +
-    [pin(s, _DIR[s]) for s in mxbus.PRIV_COUNTER] +
+    # (PRIV_COUNTER dropped from the interface: the 20-bit counter chain lives
+    # on this sheet, so CNT_* never leaves it.)
     [pin("LINK_B2S", "output"), pin("LINK_S2B", "input"),
      pin("SPEED_SEL", "output"), pin("~{REFRESH}", "output"), pin("SPKR", "output")]
 )
@@ -109,8 +108,7 @@ _NET_SHAPE = {"IOCHRDY": "bidirectional", "~{IOCHCK}": "input",
               "~{INTA}": "input", "NMI": "output", "READY": "output",
               "~{CPURESET}": "output", "~{RD}": "input",
               "DRQ1": "input", "~{DACK1}": "output",
-              "CNT_CLK": "output", "CNT_LD0": "output", "CNT_LD1": "output",
-              "CNT_LD2": "output", "LINK_B2S": "output", "LINK_S2B": "input",
+              "LINK_B2S": "output", "LINK_S2B": "input",
               "SPEED_SEL": "output", "~{REFRESH}": "output", "SPKR": "output"}
 _HIER = set(_NET_SHAPE) | {"IRQ_LOAD", "IRQ_CLK", "IRQ_SER"}  # IRQ_* are internal labels
 

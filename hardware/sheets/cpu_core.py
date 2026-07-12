@@ -31,9 +31,11 @@ PINS = (
     [pin(s, "bidirectional") for s in mxbus.DATA] +       # D0..D7
     [pin("~{MEMR}", "output"), pin("~{MEMW}", "output"),
      pin("~{IOR}", "output"), pin("~{IOW}", "output"),
-     pin("BALE", "output"), pin("AEN", "bidirectional"),
+     pin("BALE", "output"),
+     # (AEN / IOCHRDY intentionally absent: AEN is generated on bus_mcu and
+     # IOCHRDY folds into READY there -- nothing on this sheet touches either.)
      pin("CLK", "output"), pin("OSC", "output"),
-     pin("RESET_DRV", "output"), pin("IOCHRDY", "input")] +
+     pin("RESET_DRV", "output")] +
     # private V20 <-> Bus MCU  (~{WR} / IO/~{M} are sheet-internal: the Bus MCU
     # doesn't sense them -- GPIO budget -- so only ~{RD} crosses the boundary)
     [pin("HOLD", "input"), pin("HLDA", "output"), pin("READY", "input"),
@@ -165,6 +167,8 @@ def build(sch, lib):
     L(U6, "A0", "A17"); L(U6, "A1", "A18"); L(U6, "A2", "A19")
     L(U6, "~{E0}", "GND"); L(U6, "~{E1}", "GND"); L(U6, "E2", "+5V")
     L(U6, "~{Y5}", "Y5_INT")          # 0xA0000-0xBFFFF: INTERNAL ONLY (not exposed)
+    for y in (0, 1, 2, 3, 4, 6, 7):   # only Y5 decode is used
+        sch.no_connect(U6.pin_xy("~{Y%d}" % y))
     U7 = sch.place("mini-xt:74HCT00", "U7", at=(248.92, 109.22))
     L(U7, "VCC", "+5V", dx=0, dy=-2.54); L(U7, "GND", "GND", dx=0, dy=2.54)
     # SRAM#2 /CE = NAND(A19, Y5): low only when A19=1 and not video block
@@ -220,6 +224,8 @@ def build(sch, lib):
     # duty (what the 8284 supplied) only appears after the INVERTING U13
     # buffer stage below. That inversion is load-bearing, not a buffer choice.
     L(div3, "Q0", "CLK4")          # ~4.77 MHz, 67% duty here (33% after U13)
+    for q in ("Q1", "Q2", "Q3"):   # only Q0 used
+        sch.no_connect(div3.pin_xy(q))
 
     # Speed mux is 74HC157 (no HCT/ACT157 stocked at JLC). Its clock inputs
     # are 5 V, but the SPEED_SEL select comes from a 3.3 V MCU GPIO -- below
@@ -270,9 +276,6 @@ def build(sch, lib):
     L(U7, "P10", "~{CPURESET}", dx=-2.54)
     P(U7, "P8", "RESET_DRV", shape="output")     # -> buffered bus reset
 
-    # IOCHRDY folds into READY (handled in bus_mcu); AEN generated there too
-    sch.hier_label("IOCHRDY", (304.8, 250), 0, "input")
-    sch.hier_label("AEN", (304.8, 235), 0, "bidirectional")
 
     # ---------------- handoff pull-ups ----------------
     # Raw V20 strobes float during HOLD (inputs to the U10 gates), DEN floats

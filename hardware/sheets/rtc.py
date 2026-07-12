@@ -81,6 +81,8 @@ def build(sch, lib, expose=True):
     L(U2, "~{E1}", "GND", dx=-2.54)          # tied active
     L(U2, "E2", "ADDR_ZERO", dx=-2.54)       # high when upper bits all zero
     L(U2, "~{Y7}", "~{RTC_SEL}", dx=2.54)    # 0x70/0x71 select (active low)
+    for y in range(7):                       # only Y7 decode is used
+        sch.no_connect(U2.pin_xy("~{Y%d}" % y))
 
     # ---------------- "upper address all zero" detector ----------------
     # need A1=A2=A3=A7=A8=A9=0.  NOR pairs -> high when both 0; AND them.

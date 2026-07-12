@@ -100,7 +100,9 @@ def build(sch, lib, expose=True):
     L(M1, "GPIO41", "HDMI_HPD", dx=2.54)      # 5V-level from sink; RP2350 IO is 5V-tolerant
     L(M1, "GPIO42", "VID_EN", dx=2.54)        # boot strap: low = card enabled
     L(M1, "GPIO43", "VID_BASE", dx=2.54)      # boot strap: low = CGA, high = MDA
-    # GPIO47 = module's onboard PSRAM chip-select (internal) -- left unwired here.
+    # GPIO44-46 unused; GPIO47 = module's onboard PSRAM chip-select (internal).
+    for g in (44, 45, 46, 47):
+        sch.no_connect(M1.pin_xy("GPIO%d" % g))
 
     # VBUS diode-OR: the Core2350B has NO on-module diode between its USB
     # connector and the VBUS pin (vendor schematic) -- D1 feeds the module
