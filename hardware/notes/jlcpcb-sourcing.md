@@ -92,6 +92,24 @@ and TI's tube-packed CFN is obsolete — the reel CFNR is the active leg.
 - **VGA HD15 (DE15) connector** (video card) — THT part from another
   distributor, or build the video card HDMI-only initially.
 
+## Network card (2026-07-12)
+
+RTL8019AS NE2000 NIC soft-card sourcing pass (schematic from Tasks 1-3):
+
+- **RTL8019AS**: bound to **C22465363** (~$19.5, 202 pcs on 2026-07-12). The
+  cheaper alternative **C10016** (~$11) has only 4 pcs in stock — not enough
+  for a build. Re-check both at order time.
+- **RJ45 jack**: the upstream reference's part **C133529 is EOL** →
+  swapped to **C386757** (Ckmtw R-RJ45R08P-C000).
+- **Line-side CT caps**: 1nF/2kV 1206 (**C9196**), matching the upstream
+  reference design.
+- **New passives** (all basic library, verified live 2026-07-12): 27k
+  (C22967), 1M (C22935), 200R (C8218), 20pF (C1648), 1nF (C1588).
+- **Custom symbols pin-verified** against EasyEDA + datasheet on 2026-07-12:
+  **RTL8019AS**, **AT93C46** (MAC EEPROM), **13F-39MNL** (RJ45 magnetics
+  jack), **RJ45_LED** (the jack's integrated LEDs) — all four new
+  hand-authored symbols this card needed.
+
 ## Thin stock — re-verify with jlc_stock_check before ordering
 
 - 16550: now SOCKETED (SMD PLCC-44, see socket table) with TL16C550CFNR as
@@ -105,6 +123,8 @@ and TI's tube-packed CFN is obsolete — the reel CFNR is the active leg.
 - DB25 male (C5400534): ~10 pcs — likely needs a substitute.
 - MAX3241EEAI+T (C406859): ~175. DS12C887+ (C9869): ~573.
 - TPS563200DDCR (C97253): ~256.
+- RTL8019AS (C22465363): 202 pcs on 2026-07-12 — healthy for now, but the
+  cheaper C10016 alt sits at only 4 pcs; re-verify before ordering.
 
 ## Other design changes made during sourcing
 

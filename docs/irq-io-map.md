@@ -12,7 +12,7 @@ inside the Bus MCU's AT-style soft PIC.
 |-------|----------|------------------------------------|--------------------------------------------------------------------------------|
 | IRQ0  | virtual  | PIT ch0 tick (emulated 8254)       | Bus MCU firmware                                                                 |
 | IRQ1  | virtual  | Keyboard (emulated 8255/8042)      | Bus MCU firmware                                                                 |
-| IRQ2  | physical | Free                               | sidecar header only (reserved: future COM4, delivered as IRQ9 via AT redirect)   |
+| IRQ2  | physical | NE2000 NIC (0x340) — hardwired     | delivered as IRQ9 via AT redirect; NIC JP1 open tri-states it for the sidecar    |
 | IRQ3  | physical | COM2 (0x2F8) — hardwired           | free it by disabling COM2 (JP3 open); sidecar can then drive it                  |
 | IRQ4  | physical | COM1 (0x3F8) — hardwired           | shared by the virtual COM3 mouse (use one or the other); COM1 JP3 frees it       |
 | IRQ5  | physical | PicoGUS — hardwired                | sole driver; pgusinit sets the firmware to match                                 |
@@ -38,9 +38,10 @@ them if a 16-bit source ever appears.
 | 0x80                      | POST display                                 | Bus MCU snoops → Supervisor's 2-digit hex                               |
 | 0x220/0x240/0x330/0x388 … | PicoGUS personality (one at a time)          | SB/GUS/MPU-401/AdLib etc. via pgusinit; IRQ5, DMA1                      |
 | 0x278 / 0x378             | LPT (0x378 default)                          | JP1 base strap; JP2 enable; IRQ7 hardwired                              |
-| 0x2E8                     | (reserved) sidecar COM4                      | future; IRQ2→9                                                          |
+| 0x2E8                     | (reserved) sidecar COM4                      | future; needs a freed COM/LPT IRQ (IRQ2 now taken by the NIC)           |
 | 0x2F8                     | COM2 — 16C550                                | J2 base strap; JP3 enable; IRQ3 hardwired                               |
 | 0x300 / 0x320             | XT-IDE (0x300 default)                       | JP1 base strap; JP2 enable; IRQ14 hardwired                             |
+| 0x340–0x35F               | NE2000 NIC (RTL8019AS)                       | hardwired strap; IRQ2→9; JP1 = disable (frees IRQ2 + ignores all I/O)   |
 | 0x3F0–0x3F7               | (reserved) firmware floppy tier-2 registers  | Bus MCU emulated, only if register-level 765 emulation lands (§10.1)    |
 | 0x3B4–3BF / 0x3D4–3DF     | Video MDA / CGA registers                    | VID_BASE strap picks; status 0x3BA/0x3DA scan-coherent                  |
 | 0x3E8                     | COM3 — virtual serial mouse                  | Bus MCU emulated; IRQ4                                                  |

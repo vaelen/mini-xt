@@ -502,7 +502,7 @@ The hardware is specified **VGA-capable** from the start; scope is a firmware mi
 
 ---
 
-## 9. Audio — on-board PicoGUS (RP2040, chip-down)
+## 9. Audio & Network — on-board PicoGUS + RTL8019AS NIC
 
 A **faithful copy of the upstream PicoGUS 2.0 "chip-down" design** (CERN-OHL-P;
 `picogus/hw-chipdown/` sources): a **bare RP2040** + W25Q128 flash + 12 MHz crystal (the
@@ -530,6 +530,23 @@ Sound Blaster, Gravis UltraSound, MPU-401, CMS/Game Blaster, Tandy/PCjr**.
   Supervisor's shared programming port reaches this RP2040 via the SW2 selector (§12), a
   documented soft-card isolation exception. All removed blocks remain in the reference
   sources if ever wanted back.
+
+### 9.1 Network — RTL8019AS NE2000 NIC
+
+A **NE2000-compatible NIC** built around the **RTL8019AS** (the same ISA8019 lineage as
+the original Realtek NE2000 clone cards) — **10BaseT only** (twisted-pair, link test
+enabled via PL=00; no AUI/BNC). **I/O 0x340–0x35F, hardwired** (no base-address strap);
+**IRQ2**, delivered as **IRQ9** via the soft PIC's standard AT redirect (the same '165
+collector line and redirect path the rest of the 8-bit IRQs use).
+
+- **No boot ROM.** Like XT-IDE, a NIC boot ROM would need Bus MCU shadow-loading — but
+  nothing on this board needs PXE/RPL boot, so none is populated.
+- **MAC address** lives in a **93C46 EEPROM**, shipped **blank**; program it once with
+  Realtek's **RSET8019.EXE** (the same utility period NE2000 clones used).
+- **JP1 (disable)**: open tri-states the IRQ2 line through a spare **74HCT125** gate and
+  forces the chip's **AEN input high**, so a disabled NIC ignores every I/O cycle and
+  frees IRQ2 for the sidecar — the same self-isolating pattern as the other on-board
+  cards' enable jumpers (LPT JP2, COM JP3, XT-IDE JP2).
 
 ---
 
