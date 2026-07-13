@@ -73,7 +73,7 @@ def build(sch, lib):
     for s in mxbus.ADDR:
         L(U1, "S" + s, s, dx=-2.54)                        # SA0..SA19 -> A0..A19
     for s in mxbus.DATA:
-        L(U1, "S" + s, s, dx=-2.54)                        # SD0..SD7 -> D0..D7
+        L(U1, "S" + s, "S" + s + "_NIC", dx=-2.54)         # SD0..SD7 -> U4 '245 (5V isolation, NOT the shared 3.3V bus)
 
     L(U1, "IORB", "~{IOR}", dx=-2.54)
     L(U1, "IOWB", "~{IOW}", dx=-2.54)
@@ -132,6 +132,56 @@ def build(sch, lib):
     sch.text(
         "LED semantics default to COL/RX at power-up; RSET8019 sets LEDS0=1\n"
         "for link/activity -- same behavior as the real ISA8019.", at=(228.6, 132.08))
+
+    # ================================= 1b. data-bus isolation buffer + decode ==
+    # REVIEW FIX (2026-07-14, task 7): the RTL8019AS is a 5V-only part and its
+    # SD0-7 pins drive 5V TTL during I/O reads. They must NOT sit directly on the
+    # shared 3.3V bus (the RP2040/PicoGUS D0-7 inputs are NOT 5V-tolerant). U4, a
+    # 74LVC245A powered at +3V3 (5V-tolerant B-side faces the NIC's 5V SD pins;
+    # A-side outputs only ever swing 0-3.3V), isolates them. This is a mini-xt
+    # 3.3V-bus addition, not on the 5V-native upstream ISA8019.
+    #
+    # DIR (pin "A->B", high = A->B on the mini-xt symbol -- verified via
+    #   `pins.py mini-xt:74HCT245`, pin 1 literally named "A->B"):
+    #     ~{IOR}=1 (write/idle) -> A->B: bus drives NIC (writes; NIC ignores unless
+    #                                    addressed + IOW).
+    #     ~{IOR}=0 (read)       -> B->A: NIC drives bus. Same idiom as storage.py U8.
+    # ~{OE} (pin "CE", active low) = ~{NIC_SEL}, the 0x340 window decode below, so
+    #   U4 is Hi-Z on BOTH sides whenever the NIC is not the addressed target ->
+    #   no contention on other cards' I/O reads, and (AEN_CHIP high) full bus
+    #   release when JP1 is open. One LVC245 (~4 ns) in the read path is negligible
+    #   vs ISA I/O timing.
+    U4 = sch.place("mini-xt:74HCT245", "U4", "74LVC245A", at=(50.8, 190.5))
+    L(U4, "VCC", "+3V3", dx=0, dy=-2.54); L(U4, "GND", "GND", dx=0, dy=2.54)
+    L(U4, "A->B", "~{IOR}", dx=-2.54)          # DIR: write/idle A->B, read B->A
+    L(U4, "CE", "~{NIC_SEL}", dx=-2.54)        # ~OE: enabled only in the 0x340 window
+    for i, s in enumerate(mxbus.DATA):
+        L(U4, "A%d" % i, s, dx=-2.54)          # A-side -> shared 3.3V bus D0..D7
+        L(U4, "B%d" % i, "S" + s + "_NIC", dx=2.54)  # B-side -> NIC SD0..SD7 (5V-tolerant)
+    decouple("C16", (63.5, 203.2), rail="+3V3")
+
+    # ---- 0x340 I/O-window decode (one 74HC138, all inputs 3.3V-driven) ----
+    # The RTL8019AS decodes 0x340 internally, but that decode is not exposed as a
+    # pin, so U4's enable needs its own copy. 0x340 (10-bit ISA I/O) => A9..A5 =
+    # 1 1 0 1 0, A4..A0 selected inside the NIC. Map onto the '138:
+    #   sel inputs C,B,A = A8,A7,A6 -> need 1,0,1 = binary 101 = ~Y5
+    #   ~E1 = AEN_CHIP (enabled when AEN low; parks off with JP1 open)
+    #   ~E2 = A5       (enabled when A5 = 0)
+    #    E3 = A9       (enabled when A9 = 1)
+    # => ~Y5 low  <=>  A9.A8.~A7.A6.~A5.~AEN_CHIP  =  I/O read/write in 0x340-0x35F.
+    # 74HC138 value override (like storage.py/cpu_core): all inputs are 3.3V-driven.
+    U5 = sch.place("mini-xt:74HCT138", "U5", "74HC138", at=(50.8, 101.6))
+    L(U5, "VCC", "+3V3", dx=0, dy=-2.54); L(U5, "GND", "GND", dx=0, dy=2.54)
+    L(U5, "A0", "A6", dx=-2.54)                 # sel LSB
+    L(U5, "A1", "A7", dx=-2.54)
+    L(U5, "A2", "A8", dx=-2.54)                 # sel MSB  (C,B,A = A8,A7,A6 = 101)
+    L(U5, "~{E0}", "AEN_CHIP", dx=-2.54)        # ~E1: AEN low (and JP1-gated off)
+    L(U5, "~{E1}", "A5", dx=-2.54)              # ~E2: A5 = 0
+    L(U5, "E2", "A9", dx=-2.54)                 #  E3: A9 = 1
+    L(U5, "~{Y5}", "~{NIC_SEL}", dx=2.54)       # active-low select -> U4 ~OE
+    for y in ("~{Y0}", "~{Y1}", "~{Y2}", "~{Y3}", "~{Y4}", "~{Y6}", "~{Y7}"):
+        sch.no_connect(U5.pin_xy(y))
+    decouple("C17", (63.5, 114.3), rail="+3V3")
 
     # ============================================================ 2. straps =====
     R1 = sch.place("Device:R", "R1", "10k", at=(228.6, 25.4))
