@@ -51,7 +51,7 @@ STD_LIBS = ["Device", "power", "Connector", "Connector_Generic", "74xx",
             "Transistor_BJT", "Power_Protection"]
 
 SHEETS = ["cpu_core", "bus_mcu", "supervisor", "video", "com_port",
-          "parallel", "rtc", "power", "storage", "audio", "sidecar", "picogus",
+          "parallel", "power", "storage", "audio", "sidecar", "picogus",
           "network"]
 
 
@@ -76,10 +76,12 @@ def build_subsheet(modname, lib):
 
 
 # Standalone soft-card PCBs (each = logic + two chainable ISA headers, isa_conn).
-# COM/LPT/RTC/storage live on the motherboard only (their sheets carry
-# enable + base-addr/IRQ straps); the remaining standalone cards are the
-# ones that earn a separate PCB: video (HDMI/VGA bring-up) and the isatest
-# jig (the bus HOST -- opposite role, needs its own board).
+# COM/LPT/storage live on the motherboard only (their sheets carry enable +
+# base-addr/IRQ straps); RTC is no longer a motherboard sheet at all -- it's
+# emulated in the Bus MCU + a PCF8563 on the Supervisor (2026-07-14). The
+# remaining standalone cards are the ones that earn a separate PCB: video
+# (HDMI/VGA bring-up) and the isatest jig (the bus HOST -- opposite role,
+# needs its own board).
 CARD_SHEETS = ["card_video", "card_isatest"]
 
 

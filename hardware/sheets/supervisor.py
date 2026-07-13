@@ -197,8 +197,70 @@ def build(sch, lib):
     # PD contract status from the power sheet (CH224K PG, open-drain + 3V3 pull-up)
     L(U1, "GPIO16", "PD_PG", dx=2.54)
 
-    # Unused GPIO (by pin number): GPIO2/3, GPIO17-25, GPIO26-29 (ADC bank)
-    for p in (4, 5, 28, 29, 30, 31, 32, 34, 35, 36, 37, 38, 39, 40, 41):
+    # ---------------- I2C RTC (PCF8563) + CR2032 battery backup ----------------
+    # Battery-backed timekeeping for the Bus MCU's port-0x70/71 RTC emulation
+    # (spec 2026-07-14): Supervisor reads it over I2C, syncs time over the
+    # UART link at boot; CMOS config bytes live in Supervisor flash.
+    # GPIO2/GPIO3 (RP2040's default I2C1 SDA/SCL function-select pair) are
+    # picked from the spare-GPIO pool below -- no mux reassignment needed vs.
+    # any other spare pin. See questions-supervisor.md.
+    RTC = sch.place("mini-xt:PCF8563", "U5", "PCF8563T", at=(215.9, 177.8))
+    L(RTC, "SDA", "RTC_SDA", dx=-2.54)
+    L(RTC, "SCL", "RTC_SCL", dx=-2.54)
+    L(U1, "GPIO2", "RTC_SDA", dx=2.54)   # I2C1 SDA (default mux)
+    L(U1, "GPIO3", "RTC_SCL", dx=2.54)   # I2C1 SCL (default mux)
+    # Pull-ups to +3V3 (not to the battery-only VDD_RTC rail): the Supervisor
+    # is the only bus master and only runs on board power, so the bus is only
+    # ever driven while +3V3 is up -- pulling from the always-on rail would
+    # leak current into VDD_RTC through the PCF8563's ESD diodes with the
+    # board off, for zero benefit.
+    r8 = sch.place("Device:R", "R8", "4.7k", at=(241.3, 165.1))
+    L(r8, "1", "+3V3", dx=0, dy=-2.54); L(r8, "2", "RTC_SDA", dx=0, dy=2.54)
+    r9 = sch.place("Device:R", "R9", "4.7k", at=(254.0, 165.1))
+    L(r9, "1", "+3V3", dx=0, dy=-2.54); L(r9, "2", "RTC_SCL", dx=0, dy=2.54)
+
+    # VDD_RTC: simple two-Schottky diode-OR keeps the PCF8563 powered from
+    # +3V3 while the board is up (forward drop puts VDD_RTC a diode-drop
+    # below +3V3, so it always wins over the ~3.0V CR2032) and from the
+    # CR2032 alone when the board is off -- the standard battery-backed-RTC
+    # arrangement. Same SS34 already used for OR-ing elsewhere (video.py,
+    # bus_mcu.py, card_isatest.py).
+    d1 = sch.place("Device:D_Schottky", "D1", "SS34", at=(177.8, 152.4))
+    L(d1, "2", "+3V3", dx=-2.54, dy=0)          # 2 = anode
+    L(d1, "1", "VDD_RTC", dx=2.54, dy=0)        # 1 = cathode
+    d2 = sch.place("Device:D_Schottky", "D2", "SS34", at=(177.8, 165.1))
+    L(d2, "2", "VBAT_RTC", dx=-2.54, dy=0)      # 2 = anode
+    L(d2, "1", "VDD_RTC", dx=2.54, dy=0)        # 1 = cathode
+    bt1 = sch.place("Device:Battery_Cell", "BT1", "CR2032", at=(152.4, 177.8))
+    L(bt1, "1", "VBAT_RTC", dx=0, dy=-2.54)     # '+'
+    L(bt1, "2", "GND", dx=0, dy=2.54)           # '-'
+    L(RTC, "VDD", "VDD_RTC", dx=0, dy=-2.54)
+    L(RTC, "VSS", "GND", dx=0, dy=2.54)
+    decouple("C8", (203.2, 152.4), rail="VDD_RTC")   # 100nF on VDD
+
+    # 32.768kHz crystal: the PCF8563 has ONE integrated oscillator trim
+    # capacitor (C_OSCO on OSCO, 15-35pF/typ 25pF per datasheet Table 30) --
+    # only OSCI needs an external cap (Ctrim, 5-25pF ext., datasheet:
+    # CL = Ctrim*C_OSCO / (Ctrim+C_OSCO)). Crystal picked at CL=12.5pF (the
+    # datasheet's max quartz-CL rating, and JLC's deepest-stock 32.768kHz
+    # part, C32346); solving for Ctrim at C_OSCO=25pF typ gives ~25pF --
+    # reuse parts.py's existing 22pF (already sourced for the NIC crystal)
+    # rather than add a new SKU. That's within a couple pF of nominal, far
+    # inside the crystal's +-20ppm tolerance for this fidelity. No cap on
+    # OSCO (internal). ~{INT}: NC (Supervisor polls over I2C, no interrupt
+    # wiring needed). CLKOUT: NC (unused).
+    Y2 = sch.place("Device:Crystal", "Y2", "32.768kHz", at=(190.5, 203.2))
+    L(Y2, "1", "OSCI_RTC", dx=-2.54); L(Y2, "2", "OSCO_RTC", dx=2.54)
+    L(RTC, "OSCI", "OSCI_RTC", dx=-2.54)
+    L(RTC, "OSCO", "OSCO_RTC", dx=-2.54)
+    c7 = sch.place("Device:C", "C7", "22pF", at=(177.8, 215.9))
+    L(c7, "1", "OSCI_RTC", dx=0, dy=-2.54); L(c7, "2", "GND", dx=0, dy=2.54)
+    sch.no_connect(RTC.pin_xy("~{INT}"))
+    sch.no_connect(RTC.pin_xy("CLKOUT"))
+
+    # Unused GPIO (by pin number): GPIO17-25, GPIO26-29 (ADC bank) --
+    # GPIO2/3 (pins 4/5) are now the RTC_SDA/RTC_SCL pair above.
+    for p in (28, 29, 30, 31, 32, 34, 35, 36, 37, 38, 39, 40, 41):
         sch.no_connect(U1.pin_xy(p))
 
     # ----------- shared RP2040 programming port (USB-C, device mode) --------

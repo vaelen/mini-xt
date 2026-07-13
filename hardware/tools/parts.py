@@ -245,6 +245,10 @@ PART_MAP = {
                                         "3.3 V part -- powered from 3V3, "
                                         "buffered to 5 V by an HCT gate"),
     ("Device:Crystal", "12MHz"):      E("C9002", "X322512MSB4SI", "SMD3225", XTAL3225, "CL=20pF"),
+    ("Device:Crystal", "32.768kHz"):  E("C32346", "Q13FC13500004", "SMD3215-2P",
+        "Crystal:Crystal_SMD_3215-2Pin_3.2x1.5mm",
+        "PCF8563 RTC crystal; CL=12.5pF, ESR<=70k (datasheet max Rs=100k) -- "
+        "JLC's deepest-stock 32.768kHz part, basic library"),
     ("Device:Crystal", "1.8432MHz"):  E("C47345430", "6A01843AG20UCD", "HC-49U THT",
                                         "Crystal:Crystal_HC49-U_Vertical",
                                         "CL=20pF; on 16C550 XIN/XOUT"),

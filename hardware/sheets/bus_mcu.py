@@ -5,6 +5,10 @@ XT/ISA backplane as **slave and master**.  It carries:
 
   * M1  Core2350B module (RP2350B) -- the Bus MCU; self-powers 3V3 from +5V via D1 (SS34 Schottky diode-OR).  Soft dual-8259 PIC, 8254 PIT, 8255/8042 KBC,
         8237 DMA, NMI mask, POST snoop -- all in firmware on core0+PIO / core1.
+        Ports 0x70/0x71 (RTC index/data) are ALSO emulated here in firmware --
+        backed by the PCF8563 I2C RTC on the Supervisor sheet (off-bus), time
+        synced over the existing UART link at boot (spec 2026-07-14; see
+        hardware/notes/questions-supervisor.md).
   * NO local transceivers (3.3V bus redesign, spec 2026-07-14): the RP2350B GPIOs
         sit on the 3.3V ISA bus DIRECTLY -- they are 5V-tolerant and tri-state
         natively for master/slave role changes.  The six 74LVC245A that bridged
@@ -74,10 +78,16 @@ _CTRL = ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}", "BALE", "AEN", "IOCHRDY",
 PINS = (
     [pin(s, "bidirectional") for s in mxbus.ADDR] +
     [pin(s, "bidirectional") for s in mxbus.DATA] +
-    # Only the IRQs with a real source: IRQ2-7 (ISA header), IRQ8 (RTC),
-    # IRQ14 (storage strap). IRQ9-13/15 have no possible driver (not on the
-    # 60-pin header) -- re-add alongside a second '165 if a 16-bit source
-    # ever appears.
+    # Only the IRQs with a real source: IRQ2-7 (ISA header), IRQ14 (storage
+    # strap). IRQ9-13/15 have no possible driver (not on the 60-pin header)
+    # -- re-add alongside a second '165 if a 16-bit source ever appears.
+    # IRQ8 is now UNDRIVEN (it never left the 60-pin ISA header -- pin 15 is
+    # GND, per the 2026-07-12 review -- IRQ8 was purely a motherboard-only
+    # net from rtc.py's '04 output into this sheet's '165 collector). Now
+    # that rtc.py is deleted (2026-07-14), nothing drives IRQ8: the PCF8563
+    # replacement lives on the Supervisor and is polled over I2C, no ISA
+    # interrupt line. Still sampled here (label_dangling at this fidelity)
+    # -- flagged for a follow-up to repurpose or formally retire the line.
     [pin("IRQ%d" % n, "input") for n in (2, 3, 4, 5, 6, 7, 8, 14)] +
     [pin(s, _DIR[s]) for s in _CTRL] +
     # (~{WR} / IO/~{M} are not in PRIV_CPU anymore: not sensed here -- GPIO
