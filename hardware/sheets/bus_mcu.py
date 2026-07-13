@@ -5,23 +5,24 @@ XT/ISA backplane as **slave and master**.  It carries:
 
   * M1  Core2350B module (RP2350B) -- the Bus MCU; self-powers 3V3 from +5V via D1 (SS34 Schottky diode-OR).  Soft dual-8259 PIC, 8254 PIT, 8255/8042 KBC,
         8237 DMA, NMI mask, POST snoop -- all in firmware on core0+PIO / core1.
-  * Local 74LVC245A level shifters, powered from the module's own 3V3 (3V3_BUS):
-        - U2  data group   D0-D7   (DIR = DATADIR, read/write of the cycle)
-        - U6  strobe group IOR/IOW/MEMR/MEMW (DIR = HLDA -- the only truly
-          role-flipping lines: sensed as slave, driven as master, §5.2)
-        - U3/U4/U5 address group A0-A19 + BALE, FIXED bus->MCU (sense only:
-          master-cycle addresses come from the counter, never MCU GPIO)
-        - U13 AEN/TC, FIXED MCU->bus (the soft-8237 alone generates these;
-          M_AEN is pulled down so AEN reads idle-low before firmware runs)
-        - R16-R18 park DATADIR/M_TC/HLDA low during MCU Hi-Z (BOOTSEL/reset) so
-          always-enabled shifters U2/U13 don't drive the 5V bus with garbage
+  * NO local transceivers (3.3V bus redesign, spec 2026-07-14): the RP2350B GPIOs
+        sit on the 3.3V ISA bus DIRECTLY -- they are 5V-tolerant and tri-state
+        natively for master/slave role changes.  The six 74LVC245A that bridged
+        the old 5V bus (U2 data, U6 strobes, U3/U4/U5 address+BALE, U13 AEN/TC)
+        and their DIR logic are DELETED; each GPIO now carries its bus net 1:1
+        (see GPIO_NET).  DATADIR's sole consumer (U2 DIR) is gone, freeing GPIO43
+        -> reused as EXP_DDIR.  R1/R17/R18 park AEN/TC/HLDA at a defined level
+        during the MCU-Hi-Z (BOOTSEL/reset) window (AEN idle-low so cards read
+        their I/O decode deasserted; HLDA low so the counter's '244s stay off).
   * External 20-bit loadable address counter (§5.1): U7..U11, 5x 74HCT163
         cascaded.  Loaded from D0-D7 (3 byte-lanes steered by CNT_LD0/1/2);
         advanced one byte per CNT_CLK pulse.  Cuts master-cycle address cost
         from ~20 GPIO to ~4.  The '163 has NO output enable, so the counter
-        reaches A0-A19 through U14-U16 (74HCT244, ~OE = ~HLDA): enabled only
+        reaches A0-A19 through U14-U16 (74HC244 @ 3V3, ~OE = ~HLDA): enabled only
         while the MCU owns the bus, opposite the cpu_core '573s (OE = HLDA) --
-        the 8282-style address handoff.
+        the 8282-style address handoff.  These '244s STAY in the 3.3V design
+        (they are the counter's only tri-state; deleting them would fight the
+        '573 latches on A0-A19 during CPU cycles).
   * RESET_DRV is NOT driven here: the MCU sequences reset via ~{CPURESET} and
         cpu_core's NAND combine drives V20 RESET + bus RESET_DRV.
   * IRQ collector (§5.2): 2x 74HCT165 PISO (U12, U19) -- collects 16 IRQ lines onto 3 pins
@@ -38,8 +39,11 @@ XT/ISA backplane as **slave and master**.  It carries:
   * SPKR (out) -> audio sheet: PIT ch2 tone / port-61h speaker gate PWM (GPIO22; the bus-CLK
     sense was dropped for it -- PIO tracks bus timing from BALE/strobes).
 
-Strobe xcvr DIR = HLDA (master/slave role, §5.2); DATADIR is the data
-read/write direction; address group is fixed sense; AEN/TC fixed drive.
+Data/address/strobe are wired GPIO<->bus directly (no transceivers, no DIR
+nets); master/slave role is a firmware tri-state.  HLDA still gates the
+counter's '244 output stage (U17 inverts it to ~{HLDA}).  The EXT scan chain
+(U19/U20 '165, PRIV_EXP EXT_*) extends the IRQ collector to sample the
+expansion port's isolated IRQ/DRQ lines.
 See hardware/notes/questions-bus_mcu.md for design picks.
 """
 import mxbus
@@ -82,26 +86,36 @@ PINS = (
     # (PRIV_COUNTER dropped from the interface: the 20-bit counter chain lives
     # on this sheet, so CNT_* never leaves it.)
     [pin("LINK_B2S", "output"), pin("LINK_S2B", "input"),
-     pin("SPEED_SEL", "output"), pin("~{REFRESH}", "output"), pin("SPKR", "output")]
+     pin("SPEED_SEL", "output"), pin("~{REFRESH}", "output"), pin("SPKR", "output")] +
+    # expansion-port isolation bank (mxbus.PRIV_EXP): EXP_DDIR drives the sidecar
+    # data-xcvr direction (out); the ten EXT_* are the port's inward IRQ/DRQ,
+    # collected on the EXT scan chain -- NEVER merged with the internal IRQ/DRQ
+    # nets in hardware (firmware ORs them into the soft-PIC / soft-8237).
+    [pin("EXP_DDIR", "output")] +
+    [pin(n, "input") for n in mxbus.PRIV_EXP if n != "EXP_DDIR"]
 )
 
-# RP2350B GPIO -> internal/interface net (MCU-side names).  ~48 GPIO budget (§5.2).
+# RP2350B GPIO -> internal/interface net.  ~48 GPIO budget (§5.2).  The 3.3V bus
+# redesign deleted every 74LVC245A: each GPIO that fed a '245's MCU-side channel
+# now carries the SAME bus net that '245 channel bridged, 1:1 (no GPIO moved).
+# The RP2350B GPIOs are 5V-tolerant and tri-state natively, so they sit on the
+# 3.3V bus directly and flip master/slave role in firmware.
 GPIO_NET = {}
 for i in range(8):
-    GPIO_NET[i] = "MD%d" % i            # data, MCU side of U2
+    GPIO_NET[i] = "D%d" % i             # data bus, direct (was MD%d via U2)
 for i in range(8):
-    GPIO_NET[8 + i] = "MA%d" % i        # low address sense (slave I/O decode)
+    GPIO_NET[8 + i] = "A%d" % i         # low address A0-A7, direct (was MA%d via U3); slave I/O decode
 GPIO_NET.update({
-    16: "M_IOR", 17: "M_IOW", 18: "M_MEMR", 19: "M_MEMW",
-    20: "M_BALE", 21: "M_AEN", 22: "SPKR",     # SPKR: PIT ch2 / port-61h speaker out (CLK sense dropped -- GPIO reclaimed)
+    16: "~{IOR}", 17: "~{IOW}", 18: "~{MEMR}", 19: "~{MEMW}",  # strobes direct (were M_* via U6)
+    20: "BALE", 21: "AEN", 22: "SPKR",     # BALE sense + AEN drive direct (were via U5/U13); SPKR: PIT ch2 / port-61h
     23: "IOCHRDY", 24: "~{IOCHCK}",                 # direct input sense
-    25: "HOLD", 26: "HLDA",
+    25: "HOLD", 26: "HLDA",                         # HLDA also feeds U17 -> ~{HLDA} ('244 ~OE)
     27: "INTR", 28: "~{INTA}", 29: "NMI",
-    30: "IRQ_LOAD", 31: "IRQ_CLK", 32: "IRQ_SER",   # '165 collector
-    33: "DRQ1", 34: "~{DACK1}", 35: "M_TC",         # on-board DMA channel
+    30: "IRQ_LOAD", 31: "IRQ_CLK", 32: "IRQ_SER",   # '165 scan chain
+    33: "DRQ1", 34: "~{DACK1}", 35: "TC",           # on-board DMA channel; TC drive direct (was M_TC via U13)
     36: "CNT_CLK", 37: "CNT_LD0", 38: "CNT_LD1", 39: "CNT_LD2",
     40: "LINK_B2S", 41: "LINK_S2B",                 # UART link to Supervisor
-    42: "SPEED_SEL", 43: "DATADIR",                 # SPEED_SEL out; data DIR
+    42: "SPEED_SEL", 43: "EXP_DDIR",                # SPEED_SEL out; GPIO43 freed by U2 deletion (was DATADIR) -> expansion data-xcvr dir
     44: "READY", 45: "~{CPURESET}",                 # V20 handshake (private)
     46: "~{RD}",                                    # raw V20 read-strobe sense
     47: "~{REFRESH}",     # drives bus REFRESH# (was raw ~WR; writes are tracked via
@@ -176,76 +190,26 @@ def build(sch, lib):
     sch.net(pf, "1", "VBUS_MCU", kind="label", dx=0, dy=-2.54)
 
     # =================================================================
-    #  Level shifters (74LVC245A) -- value override on mini-xt:74LVC245A
-    # =================================================================
-    def xcvr(ref, at, dir_net):
-        u = sch.place("mini-xt:74LVC245A", ref, "74LVC245A", at=at)
-        N(u, "VCC", "3V3_BUS", length=2.54)
-        N(u, "GND", "GND", length=2.54)
-        N(u, "A->B", dir_net)              # DIR
-        N(u, "CE", "GND")                  # OE active-low: always on here (Q3)
-        return u
-
-    # data group: MCU MD0-7 <-> bus D0-7, dir = DATADIR (read/write)
-    U2 = xcvr("U2", (200.66, 76.2), "DATADIR")
-    for i in range(8):
-        N(U2, "A%d" % i, "MD%d" % i)
-        N(U2, "B%d" % i, "D%d" % i)
-
-    # strobe group: the only role-flipping lines -- sensed as slave, driven as
-    # master.  DIR = HLDA (bus role, HLDA-derived per §5.2).
-    U6 = xcvr("U6", (200.66, 152.4), "HLDA")
-    ctrl_pairs = [("M_IOR", "~{IOR}"), ("M_IOW", "~{IOW}"),
-                  ("M_MEMR", "~{MEMR}"), ("M_MEMW", "~{MEMW}")]
-    for i, (a, b) in enumerate(ctrl_pairs):
-        N(U6, "A%d" % i, a)
-        N(U6, "B%d" % i, b)
-    for i in range(4, 8):                     # spare channels
-        sch.no_connect(U6.pin_xy("A%d" % i))
-        sch.no_connect(U6.pin_xy("B%d" % i))
-
-    # address group: 3x '245, FIXED bus->MCU sense (DIR tied low = B->A).
-    # Master-cycle addresses come from the counter via U14-U16, never from
-    # GPIO, so these must never drive the bus (MA8-19 are unbonded sense taps).
-    # BALE rides a spare U5 channel: input-only (the V20 does NOT float ALE
-    # during HOLD, so it must never be driven from this side).
-    U3 = xcvr("U3", (281.94, 76.2), "GND")
-    U4 = xcvr("U4", (358.14, 76.2), "GND")
-    U5 = xcvr("U5", (281.94, 152.4), "GND")
-    for i in range(8):
-        N(U3, "A%d" % i, "MA%d" % i);        N(U3, "B%d" % i, "A%d" % i)
-        N(U4, "A%d" % i, "MA%d" % (8 + i));  N(U4, "B%d" % i, "A%d" % (8 + i))
-    for i in range(4):
-        N(U5, "A%d" % i, "MA%d" % (16 + i)); N(U5, "B%d" % i, "A%d" % (16 + i))
-    N(U5, "A4", "M_BALE"); N(U5, "B4", "BALE")
-    for i in range(5, 8):                     # remaining U5 channels unused
-        sch.no_connect(U5.pin_xy("A%d" % i))
-        sch.no_connect(U5.pin_xy("B%d" % i))
-
-    # AEN / TC: FIXED MCU->bus (DIR tied high = A->B) -- only the soft-8237
-    # generates these, and AEN must stay defined-low through CPU-owned cycles
-    # (every card qualifies its I/O decode on AEN=0).  R1 parks M_AEN low
-    # until firmware configures the GPIO.
-    U13 = xcvr("U13", (358.14, 152.4), "3V3_BUS")
-    N(U13, "A0", "M_AEN"); N(U13, "B0", "AEN")
-    N(U13, "A1", "M_TC");  N(U13, "B1", "TC")
-    for i in range(2, 8):
-        sch.no_connect(U13.pin_xy("A%d" % i))
-        sch.no_connect(U13.pin_xy("B%d" % i))
-    r1 = sch.place("Device:R", "R1", "10k", at=(340.36, 172.72))
-    sch.net(r1, "1", "M_AEN", kind="label", dx=0, dy=-2.54)
-    sch.net(r1, "2", "GND", kind="label", dx=0, dy=2.54)
-
+    #  (3.3V bus) NO level shifters.  The six 74LVC245A -- U2 data, U6 strobes,
+    #  U3/U4/U5 address+BALE, U13 AEN/TC -- and their DIR logic are DELETED.
+    #  Every MCU-side channel now sits on its bus net directly through GPIO_NET
+    #  (1:1; see the map above).  D0-7=GPIO0-7, A0-7=GPIO8-15, ~{IOR/IOW/MEMR/
+    #  MEMW}=GPIO16-19, BALE=GPIO20, AEN=GPIO21, TC=GPIO35.  A8-A19 are no longer
+    #  sensed here (they never had a GPIO -- the old U4/U5 upper channels were
+    #  unbonded sense taps).  DATADIR (ex-U2 DIR, GPIO43) is freed -> EXP_DDIR.
+    #  AEN (R1) and TC (R17) get an idle-low park below so cards read them
+    #  deasserted during the MCU-Hi-Z (BOOTSEL/reset) window; HLDA parks low (R18).
     # =================================================================
     #  External 20-bit loadable address counter (5x 74HCT163), §5.1
     # =================================================================
     # Counters are 74HC161 (same pinout as the '163; async ~MR tied inactive;
     # no HC/HCT163 is stocked at JLC) and run in the 3.3 V DOMAIN (VCC =
     # 3V3_BUS): every control input (CNT_CLK/CNT_LD*/CNT_RUN) is a 3.3 V MCU
-    # signal that 5 V HC could not read, and the load DATA comes from the
-    # MCU-side MD0-MD7 nets (the MCU drives them during master-cycle loads),
-    # not the 5 V bus.  The 3.3 V CA outputs feed the 5 V-side U14-U16
-    # 74HCT244s, whose TTL Vih (2.0 V) reads them cleanly.
+    # signal, and the load DATA comes from D0-D7 directly (GPIO0-7 sit on the
+    # 3.3 V data bus now; the MCU drives them during master-cycle loads).  74HC
+    # at 3.3 V is fine here -- these load/count clocks are slow (Task-1 check-7's
+    # fmax concern was only the 14.318 MHz cpu_core dividers).  The 3.3 V CA
+    # outputs feed U14-U16 (74HC244 @ 3V3), which tri-state them onto the bus.
     # Load steered in 3 byte-lanes: CNT_LD0 -> bits 0-7, CNT_LD1 -> 8-15,
     # CNT_LD2 -> 16-19.  Carry chained TC->CET; all CP = CNT_CLK.
     cnt_cfg = [  # (ref, x, Dsrc[4], Adst[4], PE, CETin, TCout)
@@ -260,7 +224,7 @@ def build(sch, lib):
         N(u, "VCC", "3V3_BUS", length=2.54)        # 3.3 V domain (see above)
         N(u, "GND", "GND", length=2.54)
         for q in range(4):
-            N(u, "D%d" % q, "MD%d" % dsrc[q])     # load byte-lane, MCU side (3.3V)
+            N(u, "D%d" % q, "D%d" % dsrc[q])      # load byte-lane from 3.3V data bus
             N(u, "Q%d" % q, "CA%d" % adst[q])     # -> U14-U16 '244s -> A0-A19
         N(u, "~{PE}", pe)                          # active-low parallel load
         N(u, "CP", "CNT_CLK")                      # advance one byte per pulse
@@ -292,11 +256,13 @@ def build(sch, lib):
         sch.no_connect(gate.pin_xy(p))
     decouple("C11", (398.78, 182.88), "3V3_BUS")   # U18 (3.3 V domain)
 
-    # Counter -> bus output-enable stage: 74HCT244 x3, enabled ONLY during
+    # Counter -> bus output-enable stage: 74HC244 x3 @ 3V3, enabled ONLY during
     # master cycles (~OE = ~HLDA, inverted from HLDA by U17).  Complements the
-    # cpu_core '573s (OE = HLDA) for a contention-free address handoff.
-    inv = sch.place("mini-xt:74HCT04", "U17", at=(236.22, 233.68))
-    N(inv, "VCC", "+5V", length=2.54)
+    # cpu_core '573s (OE = HLDA) for a contention-free address handoff.  These
+    # STAY in the 3.3V design: the '163 counter has no output enable, so without
+    # them the counter would fight the '573 latches on A0-A19 during CPU cycles.
+    inv = sch.place("mini-xt:74HCT04", "U17", "74HC04", at=(236.22, 233.68))
+    N(inv, "VCC", "+3V3", length=2.54)
     N(inv, "GND", "GND", length=2.54)
     N(inv, "P1", "HLDA")
     N(inv, "P2", "~{HLDA}")
@@ -308,8 +274,8 @@ def build(sch, lib):
                ("U15", 327.66, [8, 9, 10, 11], [12, 13, 14, 15]),
                ("U16", 373.38, [16, 17, 18, 19], None)]
     for ref, x, lo, hi in buf_cfg:
-        u = sch.place("mini-xt:74HCT244", ref, at=(x, 233.68))
-        N(u, "VCC", "+5V", length=2.54)
+        u = sch.place("mini-xt:74HCT244", ref, "74HC244", at=(x, 233.68))
+        N(u, "VCC", "+3V3", length=2.54)
         N(u, "GND", "GND", length=2.54)
         N(u, "1OE", "~{HLDA}")
         for q, bit in enumerate(lo):
@@ -321,7 +287,7 @@ def build(sch, lib):
                 N(u, "2A%d" % q, "CA%d" % bit)
                 N(u, "2Y%d" % q, "A%d" % bit)
         else:                                  # U16 upper half unused
-            N(u, "2OE", "+5V")                 # disabled
+            N(u, "2OE", "+3V3")                # disabled
             for q in range(4):
                 N(u, "2A%d" % q, "GND")        # don't float CMOS inputs
                 sch.no_connect(u.pin_xy("2Y%d" % q))
@@ -329,13 +295,22 @@ def build(sch, lib):
              (236.22, 213.36))
 
     # =================================================================
-    #  IRQ collector -- 74HCT165 PISO, §5.2: one chip covers every live IRQ
-    #  (IRQ2-7 header, IRQ8 RTC, IRQ14 storage strap). IRQ9-13/15 have no
-    #  possible source (not on the 60-pin header) -- a second cascaded '165
-    #  comes back if a 16-bit source ever appears.
+    #  IRQ + EXT scan chain -- 3x 74HC165 PISO @ 3V3, §5.2.  Serial cascade,
+    #  all sharing IRQ_LOAD/IRQ_CLK and costing just the 3 MCU pins
+    #  (IRQ_LOAD/IRQ_CLK/IRQ_SER):
+    #
+    #    MCU(IRQ_SER) <- U12.Q7  U12.DS <- U19.Q7  U19.DS <- U20.Q7  U20.DS=GND
+    #
+    #  CHAIN ORDER (each '165 shifts D7 first): firmware clocks 24 bits --
+    #    U12 (internal: IRQ2-8 header/RTC + IRQ14 storage strap),
+    #    then U19 (expansion port EXT_IRQ2-8),
+    #    then U20 (expansion port EXT_DRQ1-3).
+    #  U20 is FURTHEST from the MCU (DS=GND, end of chain).  The EXT_* are the
+    #  sidecar's ISOLATED lines -- collected here, ORed into the soft-PIC /
+    #  soft-8237 in firmware, never wired onto the internal IRQ/DRQ nets.
     # =================================================================
-    U12 = sch.place("mini-xt:74HCT165", "U12", at=(200.66, 233.68))
-    N(U12, "VCC", "+5V", length=2.54)
+    U12 = sch.place("mini-xt:74HCT165", "U12", "74HC165", at=(200.66, 233.68))
+    N(U12, "VCC", "+3V3", length=2.54)
     N(U12, "GND", "GND", length=2.54)
     for i in range(7):
         N(U12, "D%d" % i, "IRQ%d" % (2 + i))       # IRQ2..IRQ8
@@ -343,33 +318,62 @@ def build(sch, lib):
     N(U12, "~{PL}", "IRQ_LOAD")                     # parallel load strobe
     N(U12, "CP", "IRQ_CLK")                         # shift clock
     N(U12, "~{CE}", "GND")                          # clock enable (active low)
-    N(U12, "DS", "GND")                             # no cascade
+    N(U12, "DS", "IRQ_CHAIN1")                      # <- U19.Q7 (EXT chain)
     N(U12, "Q7", "IRQ_SER")                         # serial out to MCU
     sch.no_connect(U12.pin_xy("~{Q7}"))
-    sch.text("§5.2 IRQ collector: 74HCT165 -> 3 MCU pins, 8-bit shift (D0-D6=IRQ2-8, D7=IRQ14)",
+
+    def ext165(ref, at, ds_net, q7_net, dpins):
+        u = sch.place("mini-xt:74HCT165", ref, "74HC165", at=at)
+        N(u, "VCC", "+3V3", length=2.54)
+        N(u, "GND", "GND", length=2.54)
+        N(u, "~{PL}", "IRQ_LOAD")
+        N(u, "CP", "IRQ_CLK")
+        N(u, "~{CE}", "GND")
+        N(u, "DS", ds_net)
+        N(u, "Q7", q7_net)
+        sch.no_connect(u.pin_xy("~{Q7}"))
+        for i in range(8):
+            N(u, "D%d" % i, dpins[i] if dpins[i] else "GND")  # unused inputs tied low
+        return u
+    # U19: expansion IRQs (EXT_IRQ2..EXT_IRQ8 on D0-D6; D7 grounded)
+    ext165("U19", (60.96, 304.8), "IRQ_CHAIN2", "IRQ_CHAIN1",
+           ["EXT_IRQ%d" % n for n in range(2, 9)] + [None])
+    # U20: expansion DRQs (EXT_DRQ1-3 on D0-D2; D3-D7 grounded); DS=GND = chain end
+    ext165("U20", (152.4, 304.8), "GND", "IRQ_CHAIN2",
+           ["EXT_DRQ1", "EXT_DRQ2", "EXT_DRQ3", None, None, None, None, None])
+    sch.text("§5.2 IRQ+EXT scan: 3x 74HC165 -> 3 MCU pins; order U12(IRQ)->U19(EXT_IRQ)->U20(EXT_DRQ)",
              (180.34, 210.82))
+    decouple("C18", (35.56, 304.8), "+3V3")        # U19 (EXT '165)
+    decouple("C19", (190.5, 304.8), "+3V3")        # U20 (EXT '165)
 
     # ---- bus-line idle pulls: wire-OR / releasable lines need defined levels
     def pull(ref, net, rail, at):
         r = sch.place("Device:R", ref, "10k", at=at)
         sch.net(r, "1", rail, kind="label", dx=0, dy=-2.54)
         sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
-    pull("R2", "IOCHRDY", "+5V", (86.36, 25.4))       # wire-OR ready: idle high
-    pull("R3", "~{IOCHCK}", "+5V", (101.6, 25.4))     # open-collector: idle high
+    pull("R2", "IOCHRDY", "+3V3", (86.36, 25.4))      # wire-OR ready: idle high (3.3V bus)
+    pull("R3", "~{IOCHCK}", "+3V3", (101.6, 25.4))    # open-collector: idle high (3.3V bus)
     for i in range(7):                                # ISA IRQ is active-high and
         pull("R%d" % (4 + i), "IRQ%d" % (2 + i),      # released when unclaimed --
              "GND", (116.84 + 15.24 * i, 25.4))       # no floating '165 inputs
     pull("R11", "IRQ14", "GND", (223.52, 25.4))       # same idle-low network
-    pull("R12", "~{DACK2}", "+5V", (238.76, 25.4))    # declared, undriven (GPIO
-    pull("R13", "~{DACK3}", "+5V", (254.0, 25.4))     # dropped): park deasserted
+    pull("R12", "~{DACK2}", "+3V3", (238.76, 25.4))   # declared, undriven (GPIO
+    pull("R13", "~{DACK3}", "+3V3", (254.0, 25.4))    # dropped): park deasserted
     pull("R14", "DRQ2", "GND", (269.24, 25.4))        # DRQ2/3 not wired to the MCU
     pull("R15", "DRQ3", "GND", (284.48, 25.4))        # (GPIO budget): idle low
-    # MCU-Hi-Z parking (BOOTSEL flashing / reset-to-init window): U2's CE is
-    # grounded (always on), so its DIR must default to B->A sense; U13's M_TC
-    # input must not float; U6's DIR (HLDA) floats when the V20 side is off.
-    pull("R16", "DATADIR", "GND", (299.72, 25.4))
-    pull("R17", "M_TC", "GND", (314.96, 25.4))
+    # MCU-Hi-Z parking (BOOTSEL flashing / reset-to-init window): AEN and TC are
+    # now driven straight from GPIO21/GPIO35, so they float while the MCU is
+    # Hi-Z -- park AEN low (cards qualify I/O decode on AEN=0) and TC low.  HLDA
+    # (sensed on GPIO26, also feeding U17 -> '244 ~OE) parks low so the counter
+    # stays off the bus until firmware runs.  (DATADIR's park R16 is gone with U2.)
+    pull("R1", "AEN", "GND", (299.72, 25.4))
+    pull("R17", "TC", "GND", (314.96, 25.4))
     pull("R18", "HLDA", "GND", (330.2, 25.4))
+    # Expansion-port EXT_* idle low: active-high IRQ/DRQ that float when no
+    # sidecar is fitted -- keep the EXT '165 (U19/U20) inputs from floating.
+    ext_nets = [n for n in mxbus.PRIV_EXP if n != "EXP_DDIR"]
+    for i, n in enumerate(ext_nets):
+        pull("R%d" % (29 + i), n, "GND", (86.36 + 15.24 * i, 289.56))
     # Same MCU-Hi-Z window, MCU-driven nets that leave the sheet:
     # ~{CPURESET} parked LOW = V20 + RESET_DRV held in reset until firmware
     # drives it (otherwise the V20 starts running with floating HOLD/READY/
@@ -386,9 +390,9 @@ def build(sch, lib):
              "S5.2): DACK2/3 parked high, DRQ2/3 low. First candidates for a "
              "second '165/'595 if sidecar DMA is ever needed.", (86.36, 15.24))
 
-    sch.text("U6 strobes DIR = HLDA (bus role, §5.2);  DATADIR = data read/write dir;",
+    sch.text("3.3V bus: data/addr/strobe/BALE/AEN/TC wired GPIO<->bus directly (no '245s);",
              (200.66, 116.84))
-    sch.text("U3-U5 address+BALE = fixed sense;  U13 AEN/TC = fixed drive (R1 idles AEN low)",
+    sch.text("master/slave role = firmware tri-state.  R1/R17/R18 idle AEN/TC/HLDA during MCU Hi-Z.",
              (200.66, 119.38))
 
     # =================================================================
@@ -401,14 +405,12 @@ def build(sch, lib):
     bulk = sch.place("Device:C", "C3", "10uF", at=(71.12, 50.8))
     sch.net(bulk, "1", "3V3_BUS", kind="label", dx=0, dy=-2.54)
     sch.net(bulk, "2", "GND", kind="label", dx=0, dy=2.54)
-    decouple("C6", (190.5, 40.64), "3V3_BUS")      # data xcvr
-    decouple("C7", (271.78, 40.64), "3V3_BUS")     # addr xcvrs
-    decouple("C8", (350.52, 40.64), "3V3_BUS")     # AEN/TC xcvr
+    # (C6/C7/C8 removed with the data/addr/AEN '245s they decoupled.)
     decouple("C9", (50.8, 220.98), "3V3_BUS")      # counters (3.3 V domain)
-    decouple("C10", (190.5, 198.12), "+5V")        # U12 '165
-    decouple("C12", (281.94, 213.36), "+5V")       # U14 '244
-    decouple("C13", (327.66, 213.36), "+5V")       # U15 '244
-    decouple("C14", (373.38, 213.36), "+5V")       # U16 '244
-    decouple("C15", (251.46, 213.36), "+5V")       # U17 '04
+    decouple("C10", (190.5, 198.12), "+3V3")       # U12 '165
+    decouple("C12", (281.94, 213.36), "+3V3")      # U14 '244
+    decouple("C13", (327.66, 213.36), "+3V3")      # U15 '244
+    decouple("C14", (373.38, 213.36), "+3V3")      # U16 '244
+    decouple("C15", (251.46, 213.36), "+3V3")      # U17 '04
     decouple("C16", (35.56, 220.98), "3V3_BUS")    # counter bank
-    decouple("C17", (20.32, 220.98), "3V3_BUS")    # addr xcvr bank
+    decouple("C17", (20.32, 220.98), "3V3_BUS")    # 3V3_BUS bulk

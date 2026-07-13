@@ -91,5 +91,85 @@ IRQ14 (AT primary-IDE convention) by default, which previously had no
 physical path into the soft-PIC; this also un-dangles the IRQ10-15 pins the
 sheet interface had declared all along. These lines are motherboard-internal
 (the 60-pin header carries only IRQ2-8).
-</content>
-</invoke>
+
+## 3.3V single-board redesign -- transceivers shed + EXT scan (2026-07-14, Task 5)
+
+The bus is now 3.3V end to end (cpu_core already converted). The RP2350B GPIOs
+are 5V-tolerant and tri-state natively, so they sit on the 3.3V bus DIRECTLY.
+
+### D1. All SIX 74LVC245A deleted (brief said "3x"); 1:1 rewire, no GPIO moved.
+The sheet actually had six '245s, not three: U2 data, U6 strobes, U3/U4/U5
+address+BALE, U13 AEN/TC. Every one is a clean 1:1 channel map, so all six are
+deleted and each MCU GPIO that fed a '245 MCU-side pin now carries the bus net
+that '245 bridged (same GPIO):
+
+| GPIO | old 245 channel        | bus net now on the GPIO |
+|------|------------------------|-------------------------|
+| 0-7  | U2  A0-A7 (MD0-7)      | D0-D7                    |
+| 8-15 | U3  A0-A7 (MA0-7)      | A0-A7                    |
+| 16   | U6  A0 (M_IOR)        | ~{IOR}                   |
+| 17   | U6  A1 (M_IOW)        | ~{IOW}                   |
+| 18   | U6  A2 (M_MEMR)       | ~{MEMR}                  |
+| 19   | U6  A3 (M_MEMW)       | ~{MEMW}                  |
+| 20   | U5  A4 (M_BALE)       | BALE                     |
+| 21   | U13 A0 (M_AEN)        | AEN                      |
+| 35   | U13 A1 (M_TC)         | TC                       |
+
+A8-A19 are no longer sensed here: U4 and U5's upper channels were "unbonded
+sense taps" (no GPIO on the MCU side), so deleting them rewires nothing. The
+counter (via the '244s) remains the only master-cycle source of A8-A19.
+
+### D2. GPIO43 (ex-DATADIR) freed -> EXP_DDIR. Only freed GPIO.
+The '245 CHANNEL GPIOs above all stay in use (1:1). The only GPIO that frees up
+is a DIR-driver: DATADIR (GPIO43), whose sole consumer was U2's direction pin.
+Its park R16 is deleted with U2. Candidate list for EXP_DDIR: all 48 GPIO
+(GPIO0-47) were assigned before this change; the only newly-free pin is GPIO43.
+Pick: **GPIO43 = EXP_DDIR** (documented repurpose of the freed DIR pin, not a
+silent one). U6's DIR was HLDA (GPIO26) which STAYS -- HLDA is still sensed and
+still feeds U17 -> '244 ~OE. U3/U4/U5 DIR were tied to GND (no GPIO).
+
+### D3. DEVIATION from brief Step 2: the '244 stage (U14-U16) is KEPT, not deleted.
+Brief Step 2 says "the HCT244s buffered 3.3V MCU outputs onto the 5V bus --
+delete them and wire the MCU GPIOs direct." That premise is wrong about what the
+'244s do: they buffer the **counter** ('163) outputs, not MCU GPIO, and their
+real job is the **tri-state output enable** (~OE = ~HLDA) that the '163 lacks.
+Deleting them would leave the counter permanently driving A0-A19, fighting
+cpu_core's '573 latches (OE = HLDA, confirmed in cpu_core.py:157-163) during
+every CPU-owned cycle -- bus contention. This is exactly the dispatch's
+"mixed duties you can't cleanly separate" case; the engineering-correct action
+is to KEEP the '244s as the counter's tri-state, moved to +3V3 (value 74HC244).
+U17 (the HLDA -> ~{HLDA} inverter feeding their ~OE) likewise stays, +3V3
+(74HC04). Flagged for review; the alternative (a counter part with a built-in
+OE) is a larger redesign not in scope.
+
+### D4. Counters + all '165 move to 74HC at 3.3V -- fmax is fine.
+U7-U11 ('161 counters) already valued 74HC161; VCC already 3V3_BUS; only the
+load-data source changes MD0-7 -> D0-7 (GPIO0-7 sit on the data bus now).
+U12/U19/U20 '165 -> value 74HC165, +3V3. U18 '08 stays (74HC08, 3V3_BUS) --
+the CNT_RUN load-cascade guard is a real remaining function, not DIR logic.
+74HC at 3.3V is safe here: the counter/scan clocks (CNT_CLK, IRQ_CLK) are slow;
+Task-1 check-7's 3.3V fmax failure applied only to the 14.318 MHz cpu_core
+clock dividers, which is why those (and only those) went LVC.
+
+### D5. EXT scan chain order (firmware-visible -- documented in the sheet too).
+Two more 74HC165 (U19, U20) extend the existing IRQ collector chain, wired
+exactly like U12 (shared IRQ_LOAD/IRQ_CLK; serial cascade; ~{CE}=GND). Chain,
+from the MCU serial-in pin outward (each '165 shifts D7 first):
+
+    MCU(IRQ_SER) <- U12 <- U19 <- U20(DS=GND, end of chain)
+
+Firmware clocks 24 bits: **U12 first (internal IRQ2-8 + IRQ14), then U19
+(EXT_IRQ2..EXT_IRQ8), then U20 (EXT_DRQ1..EXT_DRQ3)**. U20 is furthest from the
+MCU. Input assignment: U19 D0-D6 = EXT_IRQ2..8, D7 = GND; U20 D0-D2 =
+EXT_DRQ1..3, D3-D7 = GND (6 unused inputs grounded). The EXT_* are the sidecar's
+ISOLATED lines (PRIV_EXP) -- collected here, ORed into the soft-PIC/soft-8237 in
+firmware, NEVER wired onto the internal IRQ/DRQ nets. R29-R38 idle them low so
+the '165 inputs don't float when no sidecar is fitted.
+
+### D6. Bus idle pull-ups moved +5V -> +3V3.
+IOCHRDY, ~{IOCHCK}, ~{DACK2}, ~{DACK3} idle pulls were to +5V (old 5V bus);
+now +3V3 (the bus rail). AEN/TC now come straight from GPIO21/35, so their
+Hi-Z-window parks (R1=AEN low, R17=TC low) are kept; HLDA park (R18) kept
+because HLDA also gates the '244s. C6/C7/C8 (decoupling for the deleted
+data/addr/AEN '245s) removed; C10/C12-C15 moved +5V -> +3V3; C18/C19 added for
+U19/U20.
