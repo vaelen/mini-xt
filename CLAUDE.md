@@ -69,28 +69,49 @@ Boards are fabbed and assembled at JLCPCB. Rules that shape every sheet:
   parts.py change, not a sheet change. When a sheet must deviate from the
   generic symbol (e.g. a value override like `74HC161` on the 74HCT163
   body), say why in a comment.
-- **SMD construction** to keep each board within **100 × 100 mm** (the cheap
-  JLC tier): 0603 passives, SOIC/TSSOP logic. Through-hole is reserved for
-  connectors, headers, jumpers — and the socketed parts below.
-- **Sockets, installed by the fab**, for expensive/irreplaceable/swappable
-  chips: the V20 (DIP-40), the 2× AS6C4008 SRAMs (DIP-32; no 5 V 512K×8
-  SRAM exists at JLC), the DS12C887 (DIP-24 600 mil), the COM cards' 16550s
-  (SMD PLCC-44 socket — reflows in the SMD pass; takes new TL16C550CFNR or
-  period NS16550AFN alike), and female headers for the Core2350B/Pico
-  modules. For these the `LCSC Part Num` is the SOCKET.
-- **Sub-boards stay standalone**: each card must remain buildable as its own
-  ≤100×100 mm PCB that daisy-chains over the 60-pin ISA headers; a combined
-  board comes later, after the separate boards are proven.
+- **SMD construction**: 0603 passives, SOIC/TSSOP logic. Through-hole is
+  reserved for connectors, headers, jumpers — and the socketed parts below.
+  **One large board** (>100×100 mm JLC tier, since the 2026-07-14 3.3V
+  single-board redesign) — there are no more per-subsystem PCBs or inter-board
+  60-pin daisy-chain headers on the motherboard; sheets stay separate
+  *schematic* sheets only.
+- **Sockets, installed by the fab**, are now down to the **V20 only**
+  (DIP-40, the board's one vintage/irreplaceable/5 V chip) plus female headers
+  for the Core2350B/Pico modules. (The AS6C4008 SRAM sockets and the DS12C887
+  socket are gone with those parts, §RAM/RTC below; the COM UARTs are now
+  soldered, not socketed.) For the V20 and the module headers the
+  `LCSC Part Num` is the SOCKET.
+- **`hardware/cards/` dev cards target the buffered expansion port**: video
+  and isatest are genuine 5 V ISA cards that plug into the motherboard's
+  expansion-port header (`sidecar` sheet) and keep their own local level
+  shifters — same as any real period card. Each remains its own standalone
+  ≤100×100 mm PCB (the "one big board" decision only merged the motherboard's
+  own subsystems; card PCBs are unaffected); `build_cards()` still builds
+  them separately.
 - **Voltage domains matter for substitutions**: 74HCT reads 3.3 V inputs at
   5 V; plain 74HC does NOT (Vih ≈ 3.5 V) and is only used where every input
-  is 5 V-driven or the part itself runs at 3.3 V. When JLC stock forces an
-  HC-grade part into a 3.3 V-driven position, buffer the input through a
-  spare HCT gate. `hardware/notes/jlcpcb-sourcing.md` records all current
+  is 5 V-driven or the part itself runs at 3.3 V. The board is now 3.3V almost
+  everywhere — only the V20 and one 74HCT04 package (V20 CLK buffer) stay on
+  the 5 V rail; the expansion port's isolation bank and the network sheet's
+  RTL8019AS 5V-island buffer are the only other 5V↔3.3V crossings. When JLC
+  stock forces an HC-grade part into a 3.3 V-driven position, buffer the
+  input through a spare HCT gate, or use LVC-grade if fmax margin is tight
+  (the clock dividers needed this — plain HC fails its 3.3V fmax spec at
+  14.318 MHz). `hardware/notes/jlcpcb-sourcing.md` records all current
   substitutions, the socket policy, and the parts that must be sourced
-  elsewhere (ISA edge slot, VGA DE15, the V20 itself).
+  elsewhere (ISA edge slot, VGA DE15, the V20 itself, and now the
+  TL16C550CPT — zero JLC stock).
+- **RAM is one IS62WV51216BLL-55TLI** (512K×16, 3.3V) wired 1M×8 via the
+  byte-lane trick (both 8-bit halves tied to D0-7, A0 selects the lane) —
+  not two discrete 8-bit SRAMs.
+- **COM ports are TL16C550CPT** (LQFP-48, 3.3V, soldered directly — no
+  socket, no JLC stock, sourced elsewhere).
+- **RTC is emulated in the Bus MCU** (ports 0x70/0x71, like PIC/PIT); there
+  is no on-board `rtc` ISA sheet. Battery-backed timekeeping is a PCF8563
+  I2C RTC + CR2032 coin cell on the Supervisor, synced over the UART link.
 - Custom-symbol pin numbers are verified against JLCPCB/EasyEDA data (the
-  MAX3241 and DS12C887 were both wrong before 2026-07-03 — do the same
-  check before trusting any new hand-authored symbol).
+  MAX3241 was wrong before 2026-07-03 — do the same check before trusting
+  any new hand-authored symbol).
 
 ## Authoring a sheet
 
@@ -104,20 +125,25 @@ how-to. `hardware/sheets/cpu_core.py` is the worked reference example. Key rules
 - **Use the exact canonical names from `mxbus`** (`A0..A19`, `D0..D7`,
   `IRQ2..IRQ15`, `~{MEMR}`, `BALE`, `IOCHRDY`, ...). A typo'd name silently
   fails to connect across sheets. Active-low = KiCad overbar `~{NAME}`.
-- **Isolation rule (the point of the whole exercise):** soft-card sheets
-  (video, com_port, parallel, rtc, storage, sidecar, audio, picogus,
-  network, card_*) may use
-  *only* ISA signals + power. Private nets (`PRIV_*` in mxbus: HOLD/HLDA, UART
-  link, counter strobes, SPEED_SEL, Y5) are motherboard-only. Never leak one
-  into a soft card — log a question instead.
+- **Isolation guideline** (downgraded from a hard rule by the 2026-07-14 3.3V
+  redesign — the whole internal bus is one 3.3V net now, so this is firmware/
+  architectural discipline, not an electrically-enforced boundary): soft-card
+  sheets (video, com_port, parallel, storage, sidecar, audio, picogus,
+  network, card_*) should still use *only* ISA signals + power, so they stay
+  liftable to a standalone ISA card. Private nets (`PRIV_*` in mxbus: HOLD/HLDA,
+  UART link, counter strobes, SPEED_SEL, Y5) remain motherboard-only by
+  convention — avoid leaking one into a soft card, but this is a guideline to
+  log a question against, not a build-breaking violation. (There is no `rtc`
+  sheet any more — the RTC is emulated in the Bus MCU + Supervisor, see above.)
 - Place on the 2.54 mm grid; ~40–60 mm part spacing; one net = one name.
 - When the design under-specifies something, do **not** stop: make a
   best-guess decision, log it in `hardware/notes/questions-<sheet>.md`
   (question / why / options / pick), and proceed.
 - Custom symbols live in `hardware/mini-xt.kicad_sym` (`mini-xt:` prefix): V20,
-  MAX3241, DS12C887, Core2350B, Pico, and flat single-body 74xx glue (KiCad's
-  stock multi-unit 74xx symbols don't work with the generator). New flat
-  symbols are generated via `tools/gensym.py`.
+  MAX3241, IS62WV51216, TL16C550PT, PCF8563, Core2350B, Pico, RTL8019AS, and
+  flat single-body 74xx glue (KiCad's stock multi-unit 74xx symbols don't work
+  with the generator). New flat symbols are generated via `tools/gensym.py`.
+  (DS12C887 was removed from `gensym.py` 2026-07-14 — the RTC is emulated now.)
 
 ## Validation expectations
 

@@ -1,10 +1,18 @@
 """card_video -- standalone Video soft-card PCB with chainable ISA headers.
 
+Post-3.3V-redesign target: the motherboard's internal bus is now 3.3V end to
+end, so this card is a genuine 5V ISA card -- it plugs into the motherboard's
+buffered expansion port (design doc S4.3), not a bare internal tap. It keeps
+its own local level shifting: the video sheet's 4x 74LVC245A (kept as a
+PIO-driven time-share address/data mux for RP2350B GPIO budget reasons) double
+as the 3.3V<->5V bridge to that 5V ISA bus here, same as any real period
+card would need.
+
 Combines the video soft-card schematic with two 60-pin (2x30) ISA headers (J_IN / J_OUT,
 the shared isa_conn building block). The bus enters J_IN, passes straight through
 to J_OUT (same nets), and the card logic taps it by name -- so this soft card is
-its own PCB and several can be daisy-chained header-to-header for development
-(design doc S4.3). All bus signals AND power (+5V/GND) arrive via the headers, so
+its own PCB and several can be daisy-chained header-to-header for development.
+All bus signals AND power (+5V/GND) arrive via the headers, so
 this sheet has no parent interface: it is a complete board.
 """
 import isa_conn

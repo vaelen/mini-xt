@@ -16,7 +16,15 @@ header to real period cards.
 
 Estimated component count drops from ~455 to ~350, with BOM cost dropping
 more than the count (sockets, duplicated inter-board headers, and per-section
-transceivers were the expensive parts).
+transceivers were the expensive parts). **Actual, netlist-counted after
+implementation: 481 — higher than both the ~350 estimate and the ~455
+baseline** (see "Component-count estimate" below). The estimate undercounted
+the port bank's isolation cost and didn't anticipate deviations from the plan
+(the video PIO mux and the network 5V-island buffer both kept components the
+plan assumed would be deleted); BOM *cost* still dropped as expected (sockets,
+duplicated inter-board headers, and per-card transceivers were the expensive
+parts, and those are genuinely gone), even though raw component *count* did
+not.
 
 ## Decisions (all confirmed with the user)
 
@@ -103,14 +111,25 @@ One **IS62WV51216BLL-55TLI** as 1M×8:
 ## Expansion port
 
 60-pin (2×30) header, standard 8-bit ISA pinout, unchanged reclaimed pins
-(7→IOCHCK̄, 11→GND, 15→IRQ8) and fused `+5V_ISA` (2A polyfuse + SMBJ5.0A).
-New: an isolation bank of ~6 packages, all 3.3V-powered LVC:
+(7→IOCHCK̄, 11→GND, 15→GND — IRQ8 has no header pin at all, not just no
+driver) and fused `+5V_ISA` (2A polyfuse + SMBJ5.0A). New: an isolation bank,
+**as implemented ~9 packages** (estimated ~6; see "Known drift" below), all
+3.3V-powered LVC:
 
 | Group | Parts | Direction |
 |----------------------------------|----------|------------------------------------|
-| A0–A19 + outbound control        | 3× LVC245| out (BALE, AEN, CLK, OSC, RESET, MEMR̄/W̄, IOR̄/W̄, DACK̄1-3, TC) |
-| D0–D7                            | 1× LVC245| bidir, DIR flipped by read strobes |
-| IRQ2–8, DRQ1–3, IOCHRDY, IOCHCK̄ | 1–2× LVC244| in                               |
+| A0–A19 + BALE/AEN/CLK/OSC (24 lines) | 3× LVC245A | out, DIR strapped permanently outbound |
+| Command strobes (MEMR̄/W̄, IOR̄/W̄, RESET_DRV, TC, DACK̄1-3, REFRESH̄ — 10 lines) | 2× LVC244A | out |
+| D0–D7 | 1× LVC245A | bidir, DIR = `EXP_DDIR` (Bus MCU-owned, pull-up defaults outbound) |
+| IRQ2–7 + DRQ1–3 (onto private `EXT_*` nets) | 2× LVC244A | in |
+| IOCHRDY / IOCHCK̄ (wired-AND) | 1× dual LVC2G07 | bidir, open-drain |
+
+**Known drift from the estimate:** the original ~6-package guess undercounted
+the contention-safety cost — routing inbound IRQ/DRQ onto private `EXT_*`
+nets (rather than the internal IRQ/DRQ nets directly) needed a full second
+74LVC244A pair, and the wired-AND IOCHRDY/IOCHCK̄ open-drain stage is an
+additional package the estimate didn't itemize separately. Actual: **9
+packages** (3+2+1+2+1, the last a dual-gate part).
 
 Rationale: the bank is *isolation* (load, fault, contention), not primarily
 level shifting — it would exist even for a 3.3V-only port. LVC makes the port
@@ -164,4 +183,29 @@ Deleted: ~12 internal LVC245s; ~15 buffer-only HCT packages; 1 SRAM chip,
 60-pin headers; plus proportional decoupling caps and pull-ups.
 Added: ~6 port-bank LVC packages, 1 I2C RTC, 1 coin-cell holder.
 
-**Net: ~455 → ~350 components**, one assembly instead of ~10.
+**Estimated: ~455 → ~350 components.**
+
+**Actual (2026-07-14, Task 10 netlist count — same method as the estimate:
+count `(comp ...)` blocks in `hardware/mini-xt.net`): 481 components.** The
+estimate under-shot in both directions at once:
+- **Deletions landed roughly as planned**: the SRAM sockets, DS12C887 + its
+  glue, and the inter-board headers are genuinely gone (this is why BOM
+  *cost* still dropped as expected).
+- **But the board didn't shed as many packages as hoped**, because two
+  deviations from the plan kept components the estimate assumed would go:
+  the **video** sheet's 4× 74LVC245A stayed (repurposed as a PIO time-share
+  mux, not deleted — RP2350B GPIO budget forced this), and the **network**
+  sheet (RTL8019AS NIC, added after this spec's ~455 baseline was drawn) adds
+  its own 5V-island isolation buffer + decode chip that was never in either
+  estimate's scope.
+- **The port bank came in at ~9 packages, not ~6** (see "Expansion port"
+  above) — contention-safe `EXT_*` IRQ/DRQ routing and the open-drain
+  IOCHRDY/IOCHCK̄ stage cost 3 more packages than budgeted.
+- The **~455 baseline itself predates several boards' worth of scope**
+  (network, audio, picogus, the isatest jig) added between when that number
+  was first quoted and this redesign, so it was never a fully apples-to-
+  apples comparison point either.
+
+Net effect: **481 actual vs. ~350 estimated, and above the ~455 pre-redesign
+figure** — component *count* did not drop the way BOM *cost* did. Still one
+assembly instead of ~10 separate boards, which was the primary goal.

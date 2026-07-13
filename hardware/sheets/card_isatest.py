@@ -2,6 +2,12 @@
 the ISA host / bus master to exercise a device-under-test (DUT) card over USB
 serial. See docs/superpowers/specs/2026-07-01-isa-test-card-design.md.
 
+Post-3.3V-redesign target: the motherboard's internal bus is 3.3V end to end,
+so this jig -- like card_video -- is a genuine 5V ISA card/host, exercising
+DUTs over its own ISA slot + sidecar header or the motherboard's buffered
+expansion port, and it keeps its own local level shifters (below) rather than
+relying on any motherboard-side buffering.
+
 The Pico drives the full 8-bit ISA bus through 74LVC245A 3.3<->5V transceivers:
   * data D0-7   : direct Pico GPIO (MD0-7), dir = DATADIR
   * address A0-19: 74HC595 OUT chain (split address / control latches)

@@ -19,15 +19,20 @@ hierarchical pins so the isolation is visible.
 import mxbus
 from mxbus import pin
 
-NAME  = "rtc"
-TITLE = "Real-time clock -- DS12C887"
+NAME  = "com_port"
+TITLE = "Serial port -- TL16C550CPT + MAX3241"
 PINS  = [ ... list of mxbus.pin("NETNAME", "direction") ... ]   # the interface
 
 def build(sch, lib):
     mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))   # declares the hier pins
-    U1 = sch.place("mini-xt:DS12C887", "U1", at=(101.6, 101.6))
+    U1 = sch.place("mini-xt:TL16C550PT", "U1", at=(101.6, 101.6))
     # ... place parts, wire them ...
 ```
+
+(There is no `rtc` sheet any more -- the 2026-07-14 3.3V redesign deleted it;
+the RTC is emulated in the Bus MCU with a PCF8563 on the Supervisor. Use
+`hardware/sheets/com_port.py` or `hardware/sheets/cpu_core.py` as worked
+examples instead.)
 
 `PINS` is the sheet's interface (becomes the sheet symbol's pins at the root, and
 ties to identically-named pins on other sheets). `emit_interface` drops one
@@ -83,19 +88,21 @@ Free text: `sch.text("note", (x, y))`.
   (`LINK_B2S`,`LINK_S2B`), `PRIV_SUPER`, `PRIV_SPEED` (`SPEED_SEL`).
 
 Only declare in `PINS` the signals your sheet actually uses. A soft card (video,
-com, lpt, rtc, storage, sidecar, audio, picogus, network) must use **only ISA
-signals + power** —
-no private names (that would be an isolation leak; if you think you need one,
-log a question instead).
+com, lpt, storage, sidecar, audio, picogus, network) should still use **only
+ISA signals + power** — private names are a guideline violation, not a hard
+error, since the 2026-07-14 3.3V redesign downgraded this from a schematic
+rule to a firmware-portability guideline (the whole internal bus is one 3.3V
+net now). If you think you need a private name, log a question instead.
 
 ## Finding symbols
 
 `python3 tools/pins.py -s <substr>` searches names; `python3 tools/pins.py
-<Lib:Name>` lists pins. Custom parts live in `mini-xt:` (V20, MAX3241, DS12C887,
-and flat glue 74HC573/245/138/00/02/04/08/32/74/125/157/163/165/244/374/4017).
+<Lib:Name>` lists pins. Custom parts live in `mini-xt:` (V20, MAX3241,
+IS62WV51216, TL16C550PT, PCF8563, RTL8019AS, Core2350B, Pico,
+and flat glue 74HC00/02/04/08/32/74/125/138/157/163/165/244/245/573/574).
 Standard KiCad libs available: Device, power, Connector, Connector_Generic, 74xx,
-Interface_UART (16550), Interface_USB (CH224K, USB_C), Interface_LineDriver,
-Memory_RAM (AS6C4008-55PCN), MCU_RaspberryPi (RP2040, RP2350B), Oscillator,
+Interface_UART, Interface_USB (CH224K, USB_C), Interface_LineDriver,
+MCU_RaspberryPi (RP2040, RP2350B), Oscillator,
 Regulator_Switching/Linear, Power_Supervisor, Audio (PCM5102), Amplifier_Operational,
 Connector (HDMI_A, DE9_*, DB25_*, USB_C_Receptacle). If a part is missing, pick the
 closest standard symbol and log a question.

@@ -395,3 +395,61 @@ Review sweep of the whole motherboard netlist + all sheets. Fixes applied:
   bought nothing. PicoGUS J1 shrank 2x9 -> 2x4 (DMA pairs only; ch1 is
   the only MCU-serviced channel). IRQ5 contention is now zero -- the
   sidecar header is the only other possible driver.
+
+---
+
+## Change: 3.3V single-board redesign (your call, 2026-07-14)
+
+The whole motherboard collapsed onto **one PCB with a 3.3V internal bus**
+(was: 5V bus, multiple boards + 60-pin inter-board daisy-chain headers). Full
+decision log, rationale, and verification live in
+`docs/superpowers/specs/2026-07-14-3v3-single-board-design.md` and
+`hardware/notes/3v3-verification.md` — this entry is a pointer, not a
+duplicate. Summary of what changed (all reviewer-verified against the sheets
+as actually implemented, including drift from the original plan):
+
+- **Boundary moved to the V20 itself**: the CPU's own address-latch/data-
+  transceiver stage, re-specified as 74LVC parts (5V-tolerant in, 3.3V out),
+  *is* now the board's one 5V↔3.3V crossing. Every other on-board node ties
+  its GPIOs/pins directly to the 3.3V bus — no local level shifters —
+  **except** two deliberate deviations from the original plan: the **video**
+  sheet kept its 4× 74LVC245A as a PIO-driven GPIO-budget time-share mux (not
+  a voltage boundary), and the **network** sheet's RTL8019AS is a genuine 5V
+  island isolated behind a gated 74LVC245 + 74HC138 decode. **bus_mcu** kept
+  its 3× 74HC244 tri-state buffers on the address counter output (tri-state
+  control for a shared bus, not a level shifter) — also a deviation from the
+  plan's "delete bus_mcu transceivers entirely" (only the *level-shifting*
+  transceivers were deleted; the counter's tri-state stage stays, it always
+  was one).
+- **RAM**: one **IS62WV51216BLL-55TLI** (512K×16, 3.3V) as 1M×8 via the
+  byte-lane trick, replacing 2× AS6C4008 + 2 DIP-32 sockets.
+- **RTC**: DS12C887 deleted; emulated in the Bus MCU (ports 0x70/71) with a
+  battery-backed **PCF8563 I2C RTC + CR2032** on the Supervisor, synced over
+  the existing UART link. No on-board `rtc` ISA sheet any more.
+- **COM UARTs**: TL16C550CPT (LQFP-48), soldered at 3.3V — zero JLC stock,
+  sourced elsewhere (`jlcpcb-sourcing.md`).
+- **Clock dividers**: plain HC/HCT fails fmax margin at 3.3V/14.318 MHz
+  (verified against datasheets) — both dividers moved to 74LVC74A (÷2) /
+  74LVC161 (÷3). cpu_core's U10 (74HCT32, strobe gating) and U13 (74HCT04,
+  V20 CLK buffer) stay on +5V deliberately — both are the last two 5V
+  packages besides the V20, and both are contained behind LVC boundaries
+  (U11/U15 74LVC125A) so no 5V push-pull output ever drives a shared bus net.
+- **Expansion port** (`sidecar` sheet, "buffered expansion port"): the port
+  bank came in at **~9 packages** (3× 74LVC245A out + 2× 74LVC244A out + 1×
+  74LVC245A data + 2× 74LVC244A in + 1× dual 74LVC2G07), not the spec's
+  original ~6-package estimate — contention-safe IRQ/DRQ handling onto
+  private `EXT_*` nets and wired-AND IOCHRDY/IOCHCK̄ cost the extra. `EXT_IRQ8`
+  exists Bus-MCU-side (for symmetry with the firmware-only IRQ8/RTC event)
+  but has no 8-bit header pin — idle-low, documented gap, not a bug.
+- **Dev cards** (`hardware/cards/`): video and isatest are now genuine 5V
+  ISA cards targeting this buffered expansion port; they keep their own
+  local level shifters, same as any real period card.
+- **Isolation rule downgraded to a guideline** (mxbus's `PRIV_*` split
+  loosened accordingly) — see CLAUDE.md.
+- **Leftover cleanup**: `gensym.py` no longer emits the DS12C887 symbol
+  (removed 2026-07-14, confirmed unreferenced by any sheet first);
+  `SHEET_AUTHORING_GUIDE.md` and `hardware/README.md`'s worked-example/sheet-
+  list references to the deleted `rtc` sheet were updated.
+- **Component count**: netlist-counted at **481** components (was ~350
+  estimated in the spec, ~455 before any redesign work) — see the spec's
+  "Component-count" section for the reconciliation.

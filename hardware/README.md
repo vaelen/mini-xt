@@ -19,22 +19,26 @@ descend into a subsystem.
 
 | File | Subsystem |
 |---------------------------|--------------------------------------------------|
-| `mini-xt.kicad_sch`       | root — ISA backplane + sheet instances + power   |
-| `sheets/cpu_core`         | V20 CPU, SRAM, clock tree, reset, bus buffers    |
-| `sheets/bus_mcu`          | Bus-master RP2350B: soft chipset + level shifters + addr counter + IRQ collector |
-| `sheets/supervisor`       | RP2040: USB host, setup UI, POST, console, link  |
-| `sheets/video`            | RP2350B soft CGA/MDA/Herc → HDMI + VGA           |
-| `sheets/com_port` (×2)    | 16C550 + MAX3241 + DB9 (COM1/COM2)               |
-| `sheets/parallel`         | discrete 74HC LPT @ 0x378 + DB25                 |
-| `sheets/rtc`              | DS12C887 @ 0x70/0x71                              |
+| `mini-xt.kicad_sch`       | root — 3.3V ISA backplane + sheet instances + power |
+| `sheets/cpu_core`         | V20 CPU, SRAM, clock tree, reset, the board's one 5V↔3.3V boundary |
+| `sheets/bus_mcu`          | Bus-master RP2350B: soft chipset (incl. RTC ports 0x70/71) + addr counter + IRQ collector, GPIOs direct on the 3.3V bus (no local level shifters) |
+| `sheets/supervisor`       | RP2040: USB host, setup UI, POST, console, link, battery-backed PCF8563 RTC |
+| `sheets/video`            | RP2350B soft CGA/MDA/Herc → HDMI + VGA; 4× 74LVC245A PIO time-share mux |
+| `sheets/com_port` (×2)    | TL16C550CPT + MAX3241 + DB9 (COM1/COM2)           |
+| `sheets/parallel`         | discrete 74HC/74LVC LPT @ 0x378 + DB25            |
 | `sheets/power`            | USB-C 5 V in → 3.3 V buck                         |
 | `sheets/storage`          | XT-IDE (Chuck-mod) + CompactFlash                |
 | `sheets/audio`            | PC-speaker + op-amp summer → line-out            |
-| `sheets/sidecar`          | 2×32 IDC ISA expansion header                    |
+| `sheets/sidecar`          | buffered 5V-compatible ISA expansion port: 60-pin (2×30) header + ~9-package isolation bank |
 | `sheets/picogus`          | PicoGUS chip-down copy: RP2040 AdLib/SB/GUS/MPU  |
-| `sheets/network`          | RTL8019AS NE2000 NIC @ 0x340, IRQ2→9 + RJ45      |
-| `sheets/card_isatest`     | Pico ISA host/bus-master test card (standalone; ISA slot + sidecar) |
-| `mini-xt.kicad_sym`       | custom symbols (V20, MAX3241, DS12C887, RTL8019AS, flat 74xx)|
+| `sheets/network`          | RTL8019AS NE2000 NIC @ 0x340, IRQ2→9 + RJ45 (5V island, isolated) |
+| `sheets/card_video`       | Video soft-card as a standalone 5V ISA card (chainable ISA headers) |
+| `sheets/card_isatest`     | Pico ISA host/bus-master test card (standalone; ISA slot + expansion port) |
+| `mini-xt.kicad_sym`       | custom symbols (V20, MAX3241, IS62WV51216, TL16C550PT, PCF8563, RTL8019AS, flat 74xx)|
+
+There is no `sheets/rtc` any more — the RTC is emulated in the Bus MCU
+(ports 0x70/0x71) with battery-backed timekeeping on the Supervisor
+(PCF8563 + CR2032); see `notes/open-questions.md`'s 2026-07-14 entry.
 
 ## How these were generated
 
@@ -54,11 +58,13 @@ See `tools/SHEET_AUTHORING_GUIDE.md`.
 ## Fabrication (JLCPCB)
 
 Every component carries an `LCSC Part Num` property, generated at build time
-from the sourcing map in `tools/parts.py` (SMD parts, ≤100×100 mm boards,
-fab-installed sockets for the V20/SRAM/RTC/modules). The sheets stay generic;
-the parts map is the single place where generic symbols bind to purchasable
-parts. Decisions, verified pinouts, and stock-forced substitutions:
-`notes/jlcpcb-sourcing.md`.
+from the sourcing map in `tools/parts.py` (SMD parts; the motherboard is one
+>100×100 mm board since the 2026-07-14 3.3V single-board redesign, the
+standalone `hardware/cards/` dev cards stay ≤100×100 mm; fab-installed
+sockets are down to the V20 + the Core2350B/Pico module headers). The sheets
+stay generic; the parts map is the single place where generic symbols bind to
+purchasable parts. Decisions, verified pinouts, and stock-forced
+substitutions: `notes/jlcpcb-sourcing.md`.
 
 ## Notes / decisions
 

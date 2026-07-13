@@ -15,6 +15,16 @@ See companion docs: `xt-hardware-design.md` (the period-chip build), `early-pc-c
 
 Design date: 2026-06-28.
 
+**2026-07-14 update — 3.3V single-board redesign.** The board collapsed onto
+**one PCB with a 3.3V internal bus** (was: multiple 5V-bus boards/sidecar
+modules). The V20's own address-latch/data-transceiver stage, re-specified as
+74LVC parts, *is* now the board's single 5V↔3.3V boundary; a second,
+isolation-only buffer bank sits at the external expansion port. Sections below
+are updated in place where the redesign changed them (RAM, RTC, COM UART,
+voltage architecture, block diagram, §4). Full rationale, decision log, and
+verification: `docs/superpowers/specs/2026-07-14-3v3-single-board-design.md`
+and `hardware/notes/3v3-verification.md`.
+
 ---
 
 ## 1. Design summary / decisions locked
@@ -22,26 +32,28 @@ Design date: 2026-06-28.
 | Area | Decision |
 |---|---|
 | CPU | NEC **V20** (µPD70108, **9 MHz grade**) in **min mode** (no 8087 → no 8288, no 8284) |
-| Clock | **Single 14.31818 MHz oscillator**; ÷2 = 7.16 MHz (74HC74), ÷3 = 4.77 MHz (74HC4017) |
+| Clock | **Single 14.31818 MHz oscillator** (3.3V part); ÷2 = 7.16 MHz (74LVC74A), ÷3 = 4.77 MHz (74LVC161 preset-to-3) — LVC-grade for 3.3V fmax margin |
 | CPU speed | **7.16 MHz** default, **4.77 MHz** turbo-down (selected in the boot menu, CPU held in reset) |
-| Reset / power-good | Supervisor (TL7705A/MAX809) cold-start; **Bus MCU sequences reset** |
-| RAM | **2× AS6C4008-55** SRAM (640 KB conventional + UMB); video RAM lives in the video MCU |
+| Reset / power-good | Supervisor (TCM809, 3.3V) cold-start; **Bus MCU sequences reset** |
+| Board | **One PCB** (>100×100 mm JLC tier) — the old per-subsystem boards / inter-board 60-pin daisy-chain headers are gone; sheets remain separate *schematic* sheets only |
+| RAM | **One IS62WV51216BLL-55TLI** (512K×16, 3.3V, TSOP-II-44) wired **1M×8 via the byte-lane trick** (1 MB conventional+UMB less the video window); video RAM lives in the video MCU |
 | ROM / BIOS | **None on board** — BIOS **shadow-loaded into SRAM** by the Bus MCU at boot |
-| Bus | Buffered **8-bit XT/ISA backplane**; expansion via a **60-pin (2×30) "sidecar" header**, standard 8-bit ISA pinout |
-| Support chipset | **Two-MCU split**: **Bus MCU (RP2350B)** soft-emulates PIC (×2, 15 IRQ), PIT, KBC, **functional DMA**, NMI, POST as bus master/slave; **Supervisor (RP2040)** runs USB/config/storage off-bus (§5) |
-| Chipset link | **2-wire full-duplex UART** between Bus MCU ↔ Supervisor (boot image push + HID/menu/POST events) |
-| Video | **RP2350B** soft CGA/MDA/Hercules (snoop-and-mirror), **VGA + HDMI** out (config-selected) |
+| Bus | **3.3V internal** buffered 8-bit XT/ISA backplane; a **60-pin (2×30) buffered expansion port** (isolation/level-shift bank, `sidecar` sheet) presents a standard 5V-compatible 8-bit ISA header for real cards |
+| Support chipset | **Two-MCU split**: **Bus MCU (RP2350B)** soft-emulates PIC (×2, 15 IRQ), PIT, KBC, **functional DMA**, NMI, POST, and RTC ports 0x70/71, as bus master/slave, GPIOs tied **directly** to the 3.3V bus (no local transceivers); **Supervisor (RP2040)** runs USB/config/storage off-bus plus the battery-backed RTC (§5) |
+| Chipset link | **2-wire full-duplex UART** between Bus MCU ↔ Supervisor (boot image push + HID/menu/POST/RTC-sync events) |
+| Video | **RP2350B** soft CGA/MDA/Hercules (snoop-and-mirror), **VGA + HDMI** out (config-selected); 4× 74LVC245A kept as a PIO-driven time-share address/data mux (GPIO budget), not level shifters on this 3.3V board |
 | Audio | **On-board PicoGUS (bare RP2040 "chip-down" copy, stock firmware)** — AdLib/SB/GUS/MPU/etc.; no gameport (USB HID instead) |
+| Network | **On-board RTL8019AS NE2000 NIC** @ 0x340, IRQ2→9 — a deliberate **5V island**: its 8-bit data bus (SD0-7) sits behind a gated 74LVC245 + 74HC138 decode, AEN/INT0 via 74LVC125A |
 | Input | **USB-A HID host** on the **Supervisor** MCU (keyboard; mouse via user's hub) |
 | Mouse | Emulated **virtual COM3 serial mouse** (default) or **PS/2 on IRQ12** (option) |
 | Storage | Discrete **XT-IDE** (8-bit, Chuck-mod) + CompactFlash; XTIDE Universal BIOS. Floppy = **all-firmware emulation** (§10.1, no FDC hardware) |
-| Serial | **2× 16C550** + **MAX3241** (full DB9); TTL console header on COM1 |
-| Parallel | Discrete **74HCT** LPT @ 0x378 (jumpers: 0x278 alt, enable; IRQ7 hardwired) |
-| RTC | **DS12C887** (integral battery + crystal) @ 0x70/0x71 |
+| Serial | **2× TL16C550CPT** (LQFP-48, soldered, 3.3V — no JLC stock, sourced elsewhere) + **MAX3241** (full DB9); TTL console header on COM1 |
+| Parallel | Discrete **74HC/74LVC** LPT @ 0x378 (jumpers: 0x278 alt, enable; IRQ7 hardwired) |
+| RTC | **Emulated in the Bus MCU** (ports 0x70/0x71, like PIC/PIT); battery-backed timekeeping via a **PCF8563 I2C RTC + CR2032 coin cell on the Supervisor**, synced over the UART link at boot |
 | Config | **Pre-BIOS setup menu** (Supervisor MCU), shown on **video + MCU console**, entered by keypress |
 | BIOS | **Xi 8088** (Sergey Kiselev), expected to be **forked** for our chipset |
 | Debug | **2-digit hex POST display** (port 0x80), MCU console, logic-analyzer header |
-| Power | Single **5 V in** (USB-C) → on-board **3.3 V buck**; no ±12 V |
+| Power | Single **5 V in** (USB-C) → on-board **3.3 V buck** carrying nearly the whole board; no ±12 V. Only three 5V presences remain: the V20, one 74HCT04 package (V20 CLK only), and the expansion port's far side |
 
 **MCU count: 2× RP2350B** (Bus MCU, video) **+ 2× RP2040** (Supervisor, PicoGUS).
 The chipset is deliberately split across two MCUs (§5) for clean separation: the **Bus MCU**
@@ -54,80 +66,97 @@ are independent; PicoGUS stays stock.
 ## 2. Philosophy & architecture
 
 The organizing idea: **the buffered 8-bit XT/ISA bus is the integration contract.**
-The V20 plus minimal 74HCT glue creates a real XT bus on the board; every function then
+The V20 plus minimal glue creates a real XT bus on the board; every function then
 hangs off it either as a **real chip** (what we already have) or as an **MCU "soft card"**
-that talks the bus exactly as a period ISA card would — each with its own local level
-shifters, exactly like PicoGUS. This makes each subsystem independently developable,
-testable, and (for the video and sound cards) **liftable onto a standalone ISA card later.**
+that talks the bus exactly as a period ISA card would. This makes each subsystem
+independently developable, testable, and (for the video and sound cards) **liftable
+onto a standalone ISA card later.**
+
+**2026-07-14 update:** the whole internal bus is now 3.3V, so soft cards on the
+motherboard tie their MCU GPIOs to it **directly** — no local level shifters —
+except where a chip is a genuine 5V island (the on-board RTL8019AS NIC) or the
+video card's GPIO-budget mux (below). Local shifters remain load-bearing only at
+the buffered expansion port (§4.3) and on any card that plugs into it as a real
+5V ISA card.
 
 Three classes of node:
 
 1. **The "motherboard" — a two-MCU chipset** (the one special, non-card node). It turns the
    V20 into an XT and is split by timing domain (§5):
    - **Bus MCU (RP2350B) — "fast hands."** All hard-real-time bus work: PIC, PIT, KBC, DMA,
-     NMI, POST, the shadow-load engine. A bus *slave* (answers I/O) **and** a bus *master*
-     (boot shadow-load, sound DMA, pre-BIOS menu rendering). Never touches anything but the
-     bus and its glue (counter, IRQ shift register) and the link to the Supervisor.
+     NMI, POST, RTC ports 0x70/71, the shadow-load engine. A bus *slave* (answers I/O)
+     **and** a bus *master* (boot shadow-load, sound DMA, pre-BIOS menu rendering). No
+     local transceivers — its GPIOs sit on the 3.3V bus directly and tri-state natively
+     for role changes. Touches only the bus, its glue (address counter, IRQ shift
+     register), and the link to the Supervisor.
    - **Supervisor (RP2040) — "slow brain."** Off the system bus entirely: USB HID host, setup
-     UI, persistent config, BIOS/option-ROM image storage, console, POST display. Talks to
-     the Bus MCU only over a **2-wire full-duplex UART** (§5.3).
+     UI, persistent config, BIOS/option-ROM image storage, console, POST display, and the
+     battery-backed PCF8563 RTC (synced to the Bus MCU's emulation over the link at boot).
+     Talks to the Bus MCU only over a **2-wire full-duplex UART** (§5.3).
 2. **Soft cards** — the **video** card (RP2350B) and **PicoGUS** (RP2040). Pure ISA
-   peripherals on the bus.
-3. **Real period-style chips** — V20, 2× AS6C4008 SRAM, 2× 16C550, DS12C887, plus
-   discrete 74HCT for the bus, LPT, and XT-IDE.
+   peripherals on the bus, GPIOs tied directly to the 3.3V bus (video keeps a 4×
+   74LVC245A PIO-driven time-share mux for GPIO budget, not for level shifting).
+3. **Real period-style chips** — V20, one IS62WV51216BLL SRAM, 2× TL16C550CPT UART,
+   RTL8019AS NIC (a 5V island, isolated behind its own buffer/decode), plus discrete
+   74HC/74HCT/74LVC glue for the bus, LPT, and XT-IDE.
 
-**Portability contract.** A **soft card** (class 2) may use **only signals that exist on the
-ISA bus** — it self-decodes its own address ranges and coordinates solely through standard
-lines (`MEMR̄/MEMW̄/IOR̄/IOW̄`, `BALE`, `AEN`, `IOCHRDY`, `IRQ`, `DRQ/DACK/TC`, `CLK`, `RESET`).
-No private motherboard side-channels, no dependence on host memory. This is the rule that
-keeps the video card and PicoGUS **liftable to a standalone ISA board unchanged**, and it is
-binding on any future soft card. The **class-1 motherboard MCUs are explicitly exempt** — they
-*are* the motherboard: the Bus MCU bus-masters via `HOLD/HLDA`, sequences reset, and owns
-motherboard-only signals (the SRAM-decode Y5 strobe, the speed-select latch, the external
-address counter), and the Supervisor never sits on the bus at all. Neither is intended to
-leave the board. Class-3 parts are fixed motherboard hardware and out of scope for the rule.
+**Portability guideline** (downgraded 2026-07-14 from a hard schematic rule — decision
+#8 of the 3.3V redesign). A **soft card** (class 2) is still meant to use **only
+signals that exist on the ISA bus** — self-decoding its own address ranges, coordinating
+solely through standard lines (`MEMR̄/MEMW̄/IOR̄/IOW̄`, `BALE`, `AEN`, `IOCHRDY`, `IRQ`,
+`DRQ/DACK/TC`, `CLK`, `RESET`), no dependence on host memory — because that is what keeps
+it liftable to a standalone ISA board. But with the whole board now one 3.3V bus, this is
+firmware/architectural discipline rather than an electrically-enforced boundary, so it is
+a **guideline**, not a binding constraint (`mxbus`'s `PRIV_*` split loosened accordingly).
+The **class-1 motherboard MCUs remain explicitly exempt** — they *are* the motherboard: the
+Bus MCU bus-masters via `HOLD/HLDA`, sequences reset, and owns motherboard-only signals
+(the SRAM-decode Y5 strobe, the speed-select latch, the external address counter), and the
+Supervisor never sits on the bus at all. Class-3 parts are fixed motherboard hardware and
+out of scope for the rule.
 
 ### Block diagram
 
 ```
-        14.31818 MHz osc ──┬─ ÷2 (74HC74)   → 7.16 MHz ─┐
+        14.31818 MHz osc ──┬─ ÷2 (74LVC74A) → 7.16 MHz ─┐         (3.3V clock tree;
                            │                             ├─ 74HC157 sel ─ 5V buf ─► V20 CLK
-                           ├─ ÷3 (74HC4017) → 4.77 MHz ─┘   ▲ (MCU speed GPIO, boot only)
+                           ├─ ÷3 (74LVC161) → 4.77 MHz ─┘   ▲ (MCU speed GPIO, boot only)
                            └──────────────────────────────────────────────► ISA OSC pin (B30)
+                                                     (74HCT04 = the ONLY other 5V package)
 
    ┌─────────┐  RD/WR/IO-M, ALE, HOLD/HLDA
-   │   V20   │  (min mode)
+   │   V20   │  (min mode, 5V — the board's one vintage/5V chip)
    │ 8088-cmp│
    └────┬────┘
    AD bus│ multiplexed
-   ┌─────┴───────────┐
-   │ 74HCT573 ×3 latch│ → A0–A19 ┐
-   │ 74HCT245 xceiver │ ↔ D0–D7  │   buffered 8-bit XT/ISA backplane
+   ┌─────┴───────────┐  <- the board's ONE 5V<->3.3V boundary
+   │ 74LVC573A×3 latch│ → A0–A19 ┐
+   │ 74LVC245A xceiver│ ↔ D0–D7  │   buffered 3.3V internal XT/ISA bus
    └─────────────────┘          │   (+ MEMR/W, IOR/W, ALE, AEN, CLK, OSC, RESET,
-        ┌───────────────────────┴────IOCHRDY, IOCHCK, IRQ, DRQ/DACK, +5V, GND)
+        ┌───────────────────────┴────IOCHRDY, IOCHCK, IRQ, DRQ/DACK, +3V3, GND)
         │
   ┌─────┼───────┬──────────────┬──────────────┬───────────┬──────────────┐
-┌─┴──┐┌─┴──┐ ┌──┴─────────┐ ┌──┴─────────┐ ┌───┴────┐ ┌────┴─────┐  ┌─────┴──────┐
-│SRAM││SRAM│ │  BUS MCU   │ │  VIDEO MCU │ │PicoGUS │ │ 2×16C550 │  │ 60p (2×30) │
-│ #1 ││ #2 │ │  RP2350B   │ │  RP2350B   │ │ RP2040 │ │ +MAX3241 │  │ sidecar    │
-│512K││512K│ │ PIC/PIT/   │ │ CGA/MDA/   │ │ stock  │ │ COM1/2   │  │ (ISA bus   │
-│ ×8 ││ ×8 │ │ KBC/DMA/   │ │ Herc snoop │ │ AdLib/ │ └──────────┘  │  off-board)│
-└────┘└────┘ │ NMI/POST/  │ │ +mirror →  │ │ SB/GUS │ ┌──────────┐  └────────────┘
-   ▲         │ boot-master│ │ VGA + HDMI │ │chip-dwn│ │ XT-IDE   │
-   │         └──┬──────┬──┘ └────────────┘ └───┬────┘ │ + CF     │
- 74HC138        │      │ ▲  (owns video RAM)   │I2S   └──────────┘
- +NAND          │ glue:│ │UART link          PCM5102A  ┌──────────┐
- (SRAM /CE)     │ 5×'163│ │(2-wire,            audio    │ disc. LPT│
-                │ counter│ │ full-duplex)   PC-spkr ─┐  │ @0x378   │
-                │ '165   │ │                op-amp ──┴─►└──────────┘
-                │ IRQ-in │ ▼                summer → line-out
-                │     ┌──┴──────────┐
-                │     │ SUPERVISOR  │  USB-A host (kbd/mouse hub)
-                │     │   RP2040    │  setup UI · config (flash)
-                │     │ off the bus │  BIOS/opt-ROM images (flash)
-                │     │             │  console UART · POST display
-                │     └─────────────┘
-   DS12C887 RTC @0x70/71 · 2-digit hex POST @0x80 (Supervisor-driven) · 5V→3.3V buck
+      ┌─┴──┐ ┌──┴─────────┐ ┌──┴─────────┐ ┌───┴────┐ ┌────┴──────┐ ┌─────┴──────┐
+      │SRAM│ │  BUS MCU   │ │  VIDEO MCU │ │PicoGUS │ │ 2×TL16C550│ │ port bank  │
+      │1M×8│ │  RP2350B   │ │  RP2350B   │ │ RP2040 │ │ CPT+MAX3241│ │ (~9 LVC   │
+      │IS62│ │ GPIOs DIRECT│ │ 4x LVC245A │ │ stock  │ │ COM1/2    │ │ 245/244/  │
+      │WV.. │ │ on 3.3V bus│ │ PIO mux    │ │ AdLib/ │ └───────────┘ │ 2G07 pkgs)│
+      └────┘ │ (no local  │ │ (GPIO      │ │ SB/GUS │ ┌──────────┐  │ isolates  │
+         ▲   │ xceivers)  │ │ budget, NOT│ │chip-dwn│ │ XT-IDE   │  │ 5V ISA    │
+         │   └──┬──────┬──┘ │ level-shift)│└───┬────┘ │ + CF     │  │ header    │
+   74HC138       │      │ ▲  └────────────┘    │I2S   └──────────┘  │ (60p 2x30)│
+   +NAND         │ glue:│ │UART link          PCM5102A ┌──────────┐ └───────────┘
+   (SRAM /CE)    │5×'163│ │(2-wire,            audio   │ disc. LPT│  ┌──────────┐
+                 │counter│ │full-duplex)   PC-spkr ─┐   │ @0x378   │  │ RTL8019AS│
+                 │ '165  │ │  RTC sync   op-amp ─────┴──►└──────────┘  │ NIC: 5V │
+                 │IRQ-in │ ▼                summer → line-out         │ island, │
+                 │    ┌──┴──────────┐                                 │ gated   │
+                 │    │ SUPERVISOR  │  USB-A host (kbd/mouse hub)      │ LVC245/ │
+                 │    │   RP2040    │  setup UI · config (flash)       │ HC138   │
+                 │    │ off the bus │  BIOS/opt-ROM images (flash)     └─────────┘
+                 │    │ PCF8563 RTC │  console UART · POST display
+                 │    │ + CR2032    │  (Bus MCU emulates ports 0x70/71,
+                 │    └─────────────┘   synced from here over the link)
+   2-digit hex POST @0x80 (Supervisor-driven) · one 5V→3.3V buck carries nearly the whole board
 ```
 
 ---
@@ -143,107 +172,188 @@ own control signals) and **no 8087** (dropped; software FP emulation if ever nee
 since the clock no longer comes from an 8284, **no 8284 either**. Three vintage chips gone.
 
 ### 3.2 Single-oscillator clock tree
-One **14.31818 MHz** canned oscillator does everything:
+One **14.31818 MHz** canned oscillator does everything. **2026-07-14 update:** the
+whole tree now runs at 3.3V (canned 14.318 MHz oscillators are only stocked as
+3.3V parts at JLC) — plan-stage verification (`hardware/notes/3v3-verification.md`
+check 7) found plain HC-grade dividers fail their fmax margin at 3.3V (74HC74's
+guaranteed fmax interpolates to ~14.8 MHz, 74HC161 to ~11.1 MHz — both too close
+to or below the 14.318 MHz clock), so both dividers are **LVC-grade**:
 
-- **÷2 (74HC74)** → **7.15909 MHz**, clean 50 % duty → default CPU/bus clock.
-- **÷3 (74HC4017 Johnson counter, Q3→MR)** → **4.77273 MHz**, ~33 % duty → turbo-down.
-  A single flip-flop can't ÷3; the 4017 self-resetting at count 3 does it in one chip, and
-  the 33 % duty is within the V20's clock spec (it is exactly what the 8284 supplied the
-  original 8088). *(A 74HC161/163 preset to divide-by-3 is an equivalent substitute.)*
-- A **74HC157** (one section) selects 7.16 vs 4.77; **its select line is a chipset-MCU GPIO**.
+- **÷2 (74LVC74A)** → **7.15909 MHz**, clean 50 % duty → default CPU/bus clock.
+  (Spec'd 250 MHz — no margin question at 3.3V.)
+- **÷3 (74LVC161 preset-to-3, same topology as a '163)** → **4.77273 MHz**, ~33 %
+  duty (after the inverting 5V buffer stage below) → turbo-down. A single
+  flip-flop can't ÷3; the preset-reload counter does it in one chip, and the
+  33 % duty is within the V20's clock spec (it is exactly what the 8284 supplied
+  the original 8088). Spec'd 150 MHz at 3.3V — comfortable margin, but JLC stock
+  is thin (re-verify before ordering).
+- A **74HC157** (one section, now 3.3V-powered) selects 7.16 vs 4.77; **its
+  select line is a chipset-MCU GPIO**, driven directly (3.3V clears HC's Vih at
+  3.3V, so the old 5V inverting-select stage is gone).
 - **Speed is changed only in the MCU pre-BIOS boot menu**, while the V20 is held in reset —
   never live during execution. Because the mux select only ever moves while the CPU is in
   reset, the runt clock pulse a plain 74HC157 would produce on switching is harmless (no
   glitch-free PLD needed); the new divisor is settled before reset is released.
-- The raw 14.318 also drives the **ISA OSC pin (B30)** for any real card on the sidecar.
+- The raw 14.318 also drives the **ISA OSC pin (B30)** for any real card on the port bank —
+  re-buffered to 3.3V by a 74LVC125A (no 5V push-pull output may drive a shared bus net that
+  reaches a non-5V-tolerant GPIO).
 
-**CLK level note:** the V20 clock input wants a near-Vcc swing (Vih ≈ 0.7–0.8 × Vcc), so
-the mux output is buffered by a **5 V-powered 74-series gate** to meet it. This is also why
-the MCU cannot drive the CPU clock directly (its 3.3 V pins won't meet Vih).
+**CLK level note:** the V20 clock input wants a near-Vcc swing (datasheet-confirmed
+Vkh min = 0.8×Vdd = **4.0 V**, check 1), so the mux output is buffered by the board's
+**one remaining 5 V-powered 74HCT04 package** to meet it — the single 5V gate this
+design still needs, and it drives *only* the private V20 CLK net, never a shared bus
+line. This is also why the MCU cannot drive the CPU clock directly (its 3.3 V pins
+won't meet Vkh). **RESET, by contrast, does NOT need the 5V buffer** — the V20's
+general-input Vih (2.2V) is well within reach of 3.3V logic (check 1), so RESET and
+RESET_DRV are driven straight from 3.3V.
 
 Because the **PIT is emulated in the Bus MCU**, the all-important **1.193182 MHz**
 timer rate is synthesized internally and is *independent* of the CPU clock — none of the
 old colorburst divider math is needed. The video MCU likewise makes its own pixel clocks.
 
 ### 3.3 Reset
-A cold-start supervisor (TL7705A/MAX809) holds the board in reset until rails are stable.
-Thereafter the **Bus MCU sequences the V20's reset**: it holds the V20 in reset
+A cold-start supervisor (**TCM809, now 3.3V-powered**) holds the board in reset until rails
+are stable. Thereafter the **Bus MCU sequences the V20's reset**: it holds the V20 in reset
 through its own boot, the pre-BIOS menu, and the BIOS shadow-load, then releases it.
 
 ---
 
-## 4. The bus and the sidecar
+## 4. The bus and the buffered expansion port
 
-### 4.1 Buffered 8-bit XT/ISA backplane
-- **74HCT573 ×3** latch A0–A19 (gated by ALE); **74HCT245** buffers D0–D7.
-- **SRAM chip-select decode — discrete 74HC, no PLD.** The 128 KB memory-map boundaries
-  fall exactly on a **74HC138** (3→8) fed by latched **A17→A, A18→B, A19→C** (enables tied
-  active). Each output is one 128 KB block (Y0–Y3 = SRAM #1, Y4/Y6/Y7 = SRAM #2,
-  **Y5 = 0xA0000–0xBFFFF = video MCU**). The selects then reduce to almost nothing:
-  - **SRAM #1 /CE = latched A19** (direct wire — A19=0 is all of 0x00000–0x7FFFF).
-  - **SRAM #2 /CE = NAND(A19, Y5)** (one 74HC00 gate — low only when A19=1 *and* not the
-    video block).
-  - **Y5 is motherboard-internal** (it only feeds the SRAM #2 decode). The video subsystem
-    **self-decodes** its 0xA0000–0xBFFFF window from latched A17–A19, using **no signal that
-    isn't on the ISA bus**, so it stays a self-contained card that can be lifted to a
-    standalone ISA board unchanged (§8).
-  - Both SRAMs share latched A0–A18 and buffered D0–D7; **/OE = MEMR̄, /WE = MEMW̄**.
+**2026-07-14 update:** the internal backplane is now **3.3V end to end**. The V20's own
+address-latch/data-transceiver stage — re-specified as 74LVC parts — *is* the board's
+single 5V↔3.3V boundary (§4.2); no other on-board node needs a level shifter. A second,
+separate isolation/buffer bank sits only at the external **buffered expansion port**
+(§4.3, `sidecar` sheet) to keep it 5V-real-card-compatible.
+
+### 4.1 Buffered 3.3V internal XT/ISA backplane
+- **74LVC573A ×3** latch A0–A19 (gated by raw ALE, `cpu_core` U2–U4); **74LVC245A** buffers
+  D0–D7 (`cpu_core` U5). Both are 3.3V-powered with 5V-tolerant inputs, so they read the V20's
+  5V AD bus directly and drive a clean 3.3V bus on the other side.
+- **SRAM chip-select decode — a single 74HC138 + one 74HC00 package, no PLD.** With one SRAM
+  chip (below) the old two-chip NAND-select scheme collapses: `cpu_core` U6 (74HC138, 3.3V
+  input/output — every input is now 3.3V-driven, so plain HC, not HCT, is fine) still decodes
+  the 128 KB blocks from latched **A17→A, A18→B, A19→C**, but only its **Y5** output
+  (0xA0000–0xBFFFF = the video MCU window) is used; the SRAM's own `/CE` is simply
+  **NOT(Y5)** — one inverter (a spare gate in `cpu_core` U7, a 74HC00) — so the SRAM answers
+  the *entire* 1 MB address space except the video window. **Y5 is motherboard-internal**
+  (it only feeds the SRAM `/CE` inverter). The video subsystem still **self-decodes** its
+  0xA0000–0xBFFFF window from latched A17–A19, using no signal off the ISA bus, so it stays
+  liftable to a standalone ISA board unchanged (§8).
+  - SRAM `/OE = MEMR̄, /WE = MEMW̄` (direct — the read path's whole critical delay budget,
+    verified against the -55 SRAM's 25 ns tDOE at 7.16 MHz with wide margin,
+    `hardware/notes/3v3-verification.md` check 2).
   No I/O-cycle qualification is needed: during I/O cycles MEMR̄/MEMW̄ are inactive, so the
-  SRAM data pins stay high-Z even if a /CE happens to be asserted (no contention, no spurious
-  write). The decode reads *latched* address, so it is identical under V20 or bus-master
-  (MCU) ownership. This logic plus the latches/transceiver are in the **fast CPU critical
-  path** and stay as hardware. (Total memory decode: **one 74HC138 + one NAND gate.**)
-- In min mode the V20's `IO/M̄ + RD̄ + WR̄` are gated into `MEMR̄/MEMW̄/IOR̄/IOW̄`.
-- **Wait states:** each soft card pulls **IOCHRDY** to buy time on a read; the Bus MCU
-  (or a 74HC74) folds all IOCHRDY/ready signals back to the V20's READY input. 55 ns SRAM
-  runs 0 wait at 7.16 MHz.
+  SRAM data pins stay high-Z even with `/CE` asserted (no contention, no spurious write). The
+  decode reads *latched* address, so it is identical under V20 or bus-master (MCU) ownership.
+  (Total memory decode: **one 74HC138 + one inverter gate.**)
+- In min mode the V20's `IO/M̄ + RD̄ + WR̄` are gated into `MEMR̄/MEMW̄/IOR̄/IOW̄` by a
+  **74HCT32** (`cpu_core` U10) — this gate package stays on the 5V rail (it reads the raw 5V
+  V20 strobes directly) but its outputs cross to the 3.3V bus only through a tri-state
+  74LVC125A stage (U11, `~OE = HLDA`) — see §4.2.
+- **Wait states:** each soft card pulls **IOCHRDY** to buy time on a read; the Bus MCU folds
+  all IOCHRDY/ready signals back to the V20's READY input. The SRAM runs 0 wait at 7.16 MHz.
 
-### 4.2 Level shifting
-Every MCU is 3.3 V on a 5 V bus, so **each soft card has its own local level shifters**
-(74LVC-class / the PicoGUS pattern). This is self-contained per card and is what makes a
-card liftable to a standalone ISA board unchanged. **SN74LVC245A** octal transceivers are
-the workhorse: powered at 3.3 V with 5 V-tolerant inputs, their 3.3 V output-high still
-meets the bus's TTL Vih (2.0 V), so they drive a 5 V bus cleanly in both directions.
+### 4.2 Level shifting — the boundary is now at the V20, not per-card
+The old "every MCU is 3.3V on a 5V bus, so every soft card carries its own level shifters"
+picture is gone. With the whole internal bus at 3.3V, **the only 5V↔3.3V boundary on the
+board is the V20's own demux stage** (`cpu_core`):
 
-**Slave vs. master is the catch.** A pure-slave card (PicoGUS, the video MCU) only ever
-*drives the data bus on reads* and *receives* everything else — its shifters have fixed or
-simply-gated direction. The **Bus MCU is also a bus master** (boot shadow-load, sound
-DMA, pre-BIOS rendering): when it owns the bus it must *drive* A0–A19, MEMR̄/MEMW̄/IOR̄/IOW̄,
-and AEN that it otherwise only listens to. So the Bus MCU needs **bidirectional**
-transceivers on the address and control groups with a **DIR line that flips with bus role
-(master vs. slave)**, not just the data transceiver a slave card needs. Budget the extra
-'LVC245A channels and the role-driven DIR logic for the chipset node accordingly (it is by
-far the heaviest level-shifter consumer on the board).
+- **Address:** 3× 74LVC573A latches (5V-tolerant D inputs from the V20's muxed AD bus,
+  3.3V Q outputs onto A0–A19).
+- **Data:** 1× 74LVC245A transceiver (5V-tolerant CPU-side, 3.3V bus-side), `DIR = DT/R̄`.
+- **Strobes:** the 74HCT32 gates that combine `RD̄/WR̄ + IO/M̄` into `MEMR̄/MEMW̄/IOR̄/IOW̄`
+  stay on +5V (they read the raw 5V V20 strobes), but reach the 3.3V bus only through a
+  74LVC125A tri-state stage (`~OE = HLDA`, enabled only while the V20 owns the bus) — a 5V
+  push-pull output must never drive a shared bus net that reaches a non-5V-tolerant GPIO
+  (e.g. the port bank's RP2350B-adjacent side, or the expansion-port far side pre-buffer).
+  Pull-ups park the gated strobes inactive across the ownership handoff gap.
+- **BALE / CLK / OSC re-buffer (`cpu_core` U15, 74LVC125A):** these three bus copies were
+  historically driven straight off 5V logic (raw ALE, the CLK/OSC buffer below); they are
+  now re-buffered to a clean 3.3V swing before joining the shared bus, for the same
+  5V-push-pull-can't-drive-a-3.3V-only-net reason.
+- **CLK only** still needs a 5V driver: the V20's CLK input requires Vkh ≥ 0.8×Vdd = 4.0V
+  (datasheet-verified, unreachable from 3.3V) — the board's **one remaining 5V logic
+  package**, a 74HCT04 (`cpu_core` U13), whose *only* output is the private V20 CLK net (it
+  never touches a shared bus line). RESET does **not** need this treatment (Vih = 2.2V,
+  reachable from 3.3V directly).
 
-### 4.3 Sidecar expansion header
-Instead of on-board slots, a **60-pin (2×30) 2.54 mm header** carries the **full
-buffered 8-bit ISA signal set**, laid out as the **standard 8-bit ISA edge pinout**
-(the PicoGUS `Bus_ISA_8bit` arrangement) so the sidecar and the dev boards are
-pin-compatible with real 8-bit ISA cards:
+Everywhere else on the board, an MCU's GPIOs (or a 3.3V-native chip's pins) sit on the bus
+**directly** — no local transceiver:
+- **Bus MCU:** its six former 74LVC245A transceivers and role-driven DIR logic are deleted;
+  its RP2350B GPIOs tie 1:1 to the bus and tri-state natively for master/slave role changes
+  (a firmware property now, not a hardware DIR pin). It keeps its external 20-bit address
+  counter (§5.1) and its own 3× 74HC244 tri-state buffers (`cpu_core`-adjacent, `bus_mcu`
+  U14–U16) so the counter's outputs don't fight the CPU-side '573 latches on A0–A19 during
+  V20-owned cycles — those are tri-state control for the shared address bus, not level
+  shifters, and they stay.
+- **Video MCU:** keeps 4× 74LVC245A, but repurposed — the RP2350B doesn't have enough spare
+  GPIO to dedicate one pin per bus signal, so these chips are a **PIO-driven time-share
+  address/data mux**, not a voltage boundary (deleting them was never on the table; only the
+  sheet's *pure* buffer packages were removed).
+- **PicoGUS:** stays a stock RP2040 design; its former 3-package level-shift stage (address/
+  data mux excepted — that one is functional, not a shifter, see `questions-picogus.md`) is
+  gone now that the bus it sits on is already 3.3V.
+- **RTL8019AS NIC — the one deliberate exception.** The NIC chip itself is a genuine **5V
+  island**: its 8-bit data bus (SD0–7) is isolated from the 3.3V bus behind a **gated
+  74LVC245 + 74HC138 decode** (`network` U4/U5), and `AEN`/`INT0` cross through a 74LVC125A.
+  Its MAC EEPROM is on the same 5V island. This is the one place outside the V20 boundary
+  and the expansion port where a real level-shift/isolation stage still exists, because the
+  chip itself is unavoidably 5V.
 
-- A0–A19, D0–D7
-- MEMR̄/MEMW̄/IOR̄/IOW̄, BALE, AEN
-- CLK (7.16), OSC (14.318), RESET DRV
+### 4.3 The buffered expansion port (`sidecar` sheet)
+The only other 5V↔3.3V crossing on the board is a dedicated **isolation/buffer bank**
+between the 3.3V internal bus and a **60-pin (2×30) 2.54 mm external ISA header**, laid out
+as the **standard 8-bit ISA edge pinout** (the PicoGUS `Bus_ISA_8bit` arrangement) so it —
+and any dev card built to it (`hardware/cards/`) — is pin-compatible with real 8-bit ISA
+cards. It would exist even on an all-3.3V board (isolation against load/fault/contention
+from a plugged card); LVC parts make it 5V-card-compatible for free.
+
+The bank is **~9 packages**, all 74LVC-class, 3.3V-powered with 5V-tolerant inputs:
+
+| Group | Parts | Direction |
+|-------------------------------------|-----------|-------------------------------------|
+| A0–A19 + BALE/AEN/CLK/OSC (24 lines) | 3× 74LVC245A | out, DIR strapped permanently outbound |
+| Command strobes (10 lines: MEMR̄/MEMW̄/IOR̄/IOW̄/RESET_DRV/TC/DACK1-3̄/REFRESH̄) | 2× 74LVC244A | out |
+| D0–D7 | 1× 74LVC245A | bidir, `DIR = EXP_DDIR` (Bus MCU-owned, defaults outbound via a pull-up) |
+| IRQ2–7 + DRQ1–3 (inbound, onto private `EXT_*` nets — see below) | 2× 74LVC244A | in |
+| IOCHRDY / IOCHCK̄ (open-drain, wired-AND) | 1× dual 74LVC2G07 | bidir (open-drain) |
+
+Header signals:
+- A0–A19, D0–D7; MEMR̄/MEMW̄/IOR̄/IOW̄, BALE, AEN; CLK (7.16), OSC (14.318), RESET DRV
 - IOCHRDY; the unused analog rails are reclaimed: pin 7 (−5 V) → **IOCHCK̄**,
-  pin 11 (−12 V) → extra GND, pin 15 (+12 V) → **IRQ8**
-- IRQ2–7 (+ IRQ8 as above), REFRESH̄ on its standard pin (driven by the Bus MCU)
-- DRQ1–3 / DACK1–3̄ / TC (wired to the Bus MCU so its emulated 8237 can service a real
-  DMA card)
-- +5 V and grounds. The motherboard feeds the header's +5 V through a **2 A
-  polyfuse + SMBJ5.0A clamp** (net `+5V_ISA`), so a faulted expansion trips its
-  own fuse instead of dropping — or back-driving — the board rail.
+  pin 11 (−12 V) and pin 15 (+12 V) → extra **GND** returns (IRQ8 was pulled off this header
+  entirely — see below — so pin 15 is no longer IRQ8)
+- IRQ2–7, REFRESH̄ on its standard pin (driven by the Bus MCU's internal refresh timer)
+- DRQ1–3 / DACK1–3̄ / TC (serviced by the Bus MCU's emulated 8237 for a real DMA card)
+- +5 V and grounds: the port feeds `+5V_ISA` through a **2 A polyfuse + SMBJ5.0A clamp**, so
+  a faulted expansion trips its own fuse instead of dropping — or back-driving — the board
+  rail.
 
-Development boards daisy-chain header-to-header on this pinout. Only two earn
-a **separate PCB** (`hardware/cards/`): **video** and the **isatest jig** (a
-Pico playing the bus *host* — the opposite role — so any card can be exercised
-with no motherboard present). **COM ×2, LPT, RTC and storage are
-motherboard-only** (§10/§11): each is still its own isolated soft-card sheet,
-and its enable/base-address/IRQ jumpers free the slot for a sidecar
-replacement.
+**IRQ2–7/DRQ1–3 land on private `EXT_IRQ*`/`EXT_DRQ*` nets, not the internal IRQ/DRQ nets** —
+the buffer bank's inbound 74LVC244A pair drives dedicated `EXT_*` signals so a floating or
+misbehaving external line can never contend with an internal driver. The Bus MCU's IRQ
+collector and DMA engine **merge** the `EXT_*` lines with their on-board sources in firmware
+(same collector shift-register hardware, extra input taps) — there is no separate hardware
+arbitration; a card and an on-board peripheral must still not be jumpered to the same line
+simultaneously. (IRQ8 was removed from the header on 2026-07-12, before this redesign — the
+RTC's interrupt is now firmware-internal to the Bus MCU's PIC emulation, so there is nothing
+for a header IRQ8 line to carry; `EXT_IRQ8` exists Bus-MCU-side for symmetry but has no
+physical header pin and idles low.)
 
-A future **backplane re-buffers** the bus to drive multiple slots, so the on-board
-245/573 only ever drive the cable + one re-buffer. At 7.16 MHz over a short ribbon this is
-comfortable. (±12 V for arbitrary ISA cards, if wanted, is brought by the backplane.)
+**Bus-master limitation, unchanged in spirit:** the port's outbound buffers have a
+**fixed, firmware-chosen direction** (`EXP_DDIR` for data; the address/control banks are
+permanently outbound). There is no request/grant arbitration to the port, so **an external
+card that wants to drive the bus itself (be a bus master) is not supported** — the same
+limitation the old sidecar design had, now stated explicitly against the new buffer bank.
+
+Only two soft cards earn a **separate PCB** (`hardware/cards/`): **video** and the
+**isatest jig** (a Pico playing the bus *host* — the opposite role — so any card can be
+exercised with no motherboard present). Both are now genuine **5V ISA cards** that plug into
+this port and keep their own local level shifters, same as any real period card would.
+**COM ×2, LPT, and storage are motherboard-only** (§10/§11): each is still its own isolated
+soft-card sheet, and its enable/base-address/IRQ jumpers free the slot for an expansion-port
+replacement. (The RTC no longer has an on-board ISA sheet at all — it moved off-bus, §11.3.)
 
 ---
 
@@ -392,8 +502,9 @@ CRC). Traffic:
    same menu to its **console UART**.
 5. **Hotkey within a timeout** → the **Supervisor** runs setup (CPU speed default, keyboard
    XT/AT, mouse serial/PS-2, IDE/boot options…); settings persist to **Supervisor flash**. For
-   DOS-relevant bits it sends **CMOS-write requests** to the Bus MCU, which writes the
-   **DS12C887** (only the Bus MCU can reach 0x70/71).
+   DOS-relevant bits it sends **CMOS-write requests** to the Bus MCU, which writes its
+   **emulated CMOS bytes** (only the Bus MCU answers 0x70/71; the values persist in
+   Supervisor flash, §11.3).
 6. On exit/timeout → the Supervisor **streams the BIOS + option-ROM images** (video BIOS
    @0xC0000, XTIDE @0xC8000) over the link; the Bus MCU **shadow-loads** them into SRAM, then
    **releases V20 reset**.
@@ -407,8 +518,16 @@ pre-BIOS menu rendering — all fed by the Supervisor over the §5.3 link.
 
 ## 7. Memory subsystem
 
-- **2× AS6C4008-55** (512 K×8 each). SRAM #1 = `0x00000–0x7FFFF`; SRAM #2 = `0x80000–
-  0x9FFFF` conventional top + optional **UMB**. Max conventional RAM = **640 KB**.
+- **One IS62WV51216BLL-55TLI** (512K×16, 2.5–3.6V, 55 ns, TSOP-II-44), wired **1M×8 via the
+  byte-lane trick** (2026-07-14 update — replaces the old 2× AS6C4008 pair + 2× DIP-32
+  sockets): system `A1–A19` address the chip's 19-bit word space; `A0` selects the byte lane
+  (`A0 → /LB` direct, `A0 → inverter → /UB`); **both `IO0-7` and `IO8-15` tie to the same
+  D0–D7**, and the `/LB`/`/UB` pair guarantees exactly one lane ever drives (verified against
+  the ISSI truth table, `hardware/notes/3v3-verification.md` check 2). `/CE` = NOT(latched
+  Y5) (§4.1) — the chip answers the **entire 1 MB** space except the 0xA0000–0xBFFFF video
+  window. Max conventional RAM (less the video window) = **1 MB**, still bounded by the
+  address decode the same way as before; the two "conventional/UMB" regions below are no
+  longer separate physical chips, just address ranges within the one SRAM.
 - **No flash IC** — the SST39SF010 is not used; BIOS lives in SRAM, written at boot by the
   **Bus MCU** from images the **Supervisor** holds in its QSPI flash (update via the
   Supervisor's USB/storage, not in-circuit reflash).
@@ -425,17 +544,17 @@ pre-BIOS menu rendering — all fed by the Supervisor over the §5.3 link.
 0xFFFFF ┌───────────────────────────┐
         │ System BIOS (64K, shadow) │ SRAM, MCU-loaded; reset vector @0xFFFF0
 0xF0000 ├───────────────────────────┤
-        │ reserved / optional UMB   │ SRAM #2
+        │ reserved / optional UMB   │ one SRAM chip, same /CE = NOT(Y5) block
 0xD0000 ├───────────────────────────┤
         │ XTIDE Univ. BIOS (32K)    │ SRAM, MCU-loaded option ROM @0xC8000
 0xC8000 ├───────────────────────────┤
         │ Video BIOS (32K)          │ SRAM, MCU-loaded option ROM @0xC0000
 0xC0000 ├───────────────────────────┤
-        │ Video window A000–BFFF    │ owned by the VIDEO MCU (not system SRAM)
+        │ Video window A000–BFFF    │ owned by the VIDEO MCU (not system SRAM; Y5 block)
 0xA0000 ├───────────────────────────┤
-        │ Conventional 80000–9FFFF  │ SRAM #2 (128K)
+        │ Conventional 80000–9FFFF  │ one SRAM chip (128K of its range)
 0x80000 ├───────────────────────────┤
-        │ Conventional 00000–7FFFF  │ SRAM #1 (512K)
+        │ Conventional 00000–7FFFF  │ one SRAM chip (512K of its range)
 0x00000 └───────────────────────────┘
 ```
 
@@ -609,40 +728,48 @@ space if a physical drive or Gotek must plug in; nothing else requires it.)*
 ## 11. Serial / parallel / RTC / input
 
 ### 11.1 Serial (2× COM)
-- **2× 16C550** (one `com_port` sheet, instanced twice): **COM1 0x3F8/IRQ4**,
-  **COM2 0x2F8/IRQ3** — the IRQs are **hardwired** per instance (the PC
-  convention; no strap to misconfigure). On-board only — no standalone COM
-  card — remaining jumpers: **J2** base address (0x3F8/0x2F8), **JP3** enable
-  (open parks the 16550's spare active-high CS1, so the port never decodes;
-  the IRQ driver is tri-state and MCR resets to 0, so a disabled port is
-  silent on every line — disabling a port is how you free its IRQ).
-- **MAX3241** per port — 3 drivers + 5 receivers = a **full DB9** (TXD/RTS/DTR out;
-  RXD/CTS/DSR/DCD/RI in), internal charge pump (single-supply, no ±12 V).
+- **2× TL16C550CPT** (LQFP-48, soldered directly at 3.3V — 2026-07-14 update: replaces the
+  socketed PLCC-44 16C550; zero JLC stock at either device revision, so this part is
+  **sourced elsewhere**, see `hardware/notes/jlcpcb-sourcing.md`) (one `com_port` sheet,
+  instanced twice): **COM1 0x3F8/IRQ4**, **COM2 0x2F8/IRQ3** — the IRQs are **hardwired**
+  per instance (the PC convention; no strap to misconfigure). On-board only — no standalone
+  COM card — remaining jumpers: **J2** base address (0x3F8/0x2F8), **JP3** enable (open
+  parks the UART's spare active-high CS1, so the port never decodes; the IRQ driver is
+  tri-state and MCR resets to 0, so a disabled port is silent on every line — disabling a
+  port is how you free its IRQ).
+- **MAX3241** per port (already 3.3V, unchanged) — 3 drivers + 5 receivers = a **full DB9**
+  (TXD/RTS/DTR out; RXD/CTS/DSR/DCD/RI in), internal charge pump (single-supply, no ±12 V).
 - **TTL console header** jumpered onto COM1 (ahead of the MAX3241) for headless bring-up.
-- (TL16C554 quad rejected: ~6× the cost for 4× ports; add COM3/4 on the sidecar later — note
-  **COM3 0x3E8 is reserved for the emulated serial mouse**, §11.4.) The 60-pin sidecar header
-  carries only the standard 8-bit ISA IRQ lines (IRQ2–7; IRQ8's old pin was reclaimed as a
-  ground return once the RTC moved on-board — IRQ8 is motherboard-internal now), so a
-  sidecar COM4 cannot use IRQ10+ — and the bus IRQ2 line is now hardwired to the
-  on-board NE2000 NIC (§9.1): **a sidecar COM4 (0x2E8) needs a freed line — disable
+- (TL16C554 quad rejected: ~6× the cost for 4× ports; add COM3/4 on the expansion port
+  later — note **COM3 0x3E8 is reserved for the emulated serial mouse**, §11.4.) The 60-pin
+  expansion-port header carries only the standard 8-bit ISA IRQ lines (IRQ2–7; IRQ8 has no
+  header pin at all — the RTC that once justified it is now firmware-emulated off-bus,
+  §11.3), so an expansion COM4 cannot use IRQ10+ — and the bus IRQ2 line is now hardwired to
+  the on-board NE2000 NIC (§9.1): **an expansion COM4 (0x2E8) needs a freed line — disable
   COM2 (JP3) for IRQ3, or the NIC (JP1) to reclaim IRQ2→9** — still avoiding the ISA
   edge-triggered IRQ-sharing problem. The virtual COM3 mouse keeps
   **IRQ4** (the convention mouse drivers expect), so it *does* share IRQ4 with COM1; in
   practice you use one or the other (most mouse use implies COM1 is free).
 
 ### 11.2 Parallel (LPT)
-Discrete **74HCT** ('574 data/control latches + '244/'245 status & read-back) —
-on-board only, jumper-configured: **JP1** base address (**0x378/0x278** — they
-differ only in A8; a spare NAND inverts it), **JP2** enable (open lifts the
+Discrete **74HC/74LVC** ('574 data/control latches + '244/'245 status & read-back, now
+3.3V-powered) — on-board only, jumper-configured: **JP1** base address (**0x378/0x278** —
+they differ only in A8; a spare NAND inverts it), **JP2** enable (open lifts the
 register-select '138's enable: no register can be read, written or latched —
 and frees the line). **IRQ7 is hardwired** (LPT1 convention). The IRQ driver
 is tri-state (asserted only for an enabled ACK̄ pulse), so the line stays
 shareable.
 
 ### 11.3 RTC
-**DS12C887** (integral battery + crystal, machined DIP-24 socket) @ **0x70/0x71** —
-on-board only; address and IRQ8 are fixed PC conventions, so it needs no straps.
-Holds CMOS config; pairs with Xi 8088's CMOS setup.
+**2026-07-14 update — RTC moved off-bus entirely; the DS12C887 and its ISA glue are
+deleted.** Ports **0x70/0x71 are emulated in the Bus MCU** (same as the PIC/PIT/KBC), so
+there is no longer an on-board `rtc` ISA sheet at all. Battery-backed timekeeping lives on
+the **Supervisor**: a **PCF8563 I2C RTC + CR2032 coin cell**, diode-ORed onto its own
+`VDD_RTC` rail so the coin cell only carries the load while the board is powered off. At
+boot the Supervisor reads the PCF8563 and sends the time to the Bus MCU over the existing
+UART link, which then answers 0x70/0x71 reads from its in-firmware CMOS-byte emulation
+(persisted in **Supervisor flash**, not battery-backed NVRAM). Holds CMOS config; pairs with
+Xi 8088's CMOS setup the same as before — only the hardware backing it changed.
 
 ### 11.4 Input — USB HID, mouse emulation
 - **Single USB-A host jack** on the **Supervisor** MCU. Keyboard plugs straight in; a mouse
@@ -681,7 +808,12 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 ---
 
 ## 13. Power
-- Single **5 V input** (USB-C) → on-board **3.3 V buck** for the four MCUs and USB.
+- Single **5 V input** (USB-C) → on-board **3.3 V buck** now carrying **nearly the whole
+  board** (2026-07-14 update): all four MCUs, USB, the SRAM, both UARTs, and essentially
+  every logic package except the V20, one 74HCT04 (V20 CLK buffer), and the expansion
+  port's far side. Re-budgeted (`hardware/notes/3v3-verification.md` check 5): worst-case
+  estimated load ≈486 mA, ~16% of the existing TPS563200's 3A rating — **no buck upsize
+  needed**, even doubling every estimate lands at ~33% of budget.
 - **No ±12 V** (MAX3241 charge pumps; PicoGUS audio is 3.3/5 V). 5 V must also source USB
   VBUS for the keyboard/hub, so the input has to supply the whole board *plus* a downstream
   USB device — the tight current loop to size for.
@@ -692,7 +824,8 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
   fixed-function PD sink controller (**CH224K** or **HUSB238**, ~$0.50, a few resistors, no
   firmware) to *guarantee* a 5 V/3 A contract from PD-only supplies that won't hand out 3 A
   on Rp alone. Higher PD voltages are unnecessary since nothing on board wants >5 V.
-- DS12C887 carries its own battery — no coin cell.
+- The RTC's **CR2032 coin cell** (on the Supervisor) is the board's only battery — the
+  DS12C887's integral battery is gone along with the chip (§11.3).
 
 ---
 
@@ -705,14 +838,14 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 | 0x020–0x021 / 0x0A0–0x0A1 | 8259 PIC master / slave (Bus MCU) |
 | 0x040–0x043 | 8254 PIT (Bus MCU) |
 | 0x060–0x064 | keyboard controller (Bus MCU; 8255 or 8042 mode); **0x061 bit 4 = refresh toggle** |
-| 0x070–0x071 | DS12C887 RTC; **0x070 bit 7 = NMI mask** (AT-style) |
+| 0x070–0x071 | **RTC, emulated in the Bus MCU** (PCF8563-backed, synced from the Supervisor); **0x070 bit 7 = NMI mask** (AT-style) |
 | 0x080–0x083 | DMA page regs; **0x080 POST latch** (snooped → hex display) |
 | 0x201 | (unused — no gameport; HID via the Supervisor, §11.4) |
 | 0x220.../0x240.../0x330/0x388 | PicoGUS (SB / GUS / MPU / OPL) |
-| 0x2F8 / 0x3F8 | COM2 / COM1 (16C550) |
+| 0x2F8 / 0x3F8 | COM2 / COM1 (TL16C550CPT) |
 | 0x3E8 | **COM3 — emulated serial mouse** (Bus MCU, IRQ4) |
 | 0x3F0–0x3F7 | (reserved) **firmware floppy** tier-2 registers, §10.1 (Bus MCU) |
-| 0x2E8 | COM4 (sidecar; needs a freed IRQ — see §11.1) |
+| 0x2E8 | COM4 (expansion port; needs a freed IRQ — see §11.1) |
 | 0x300–0x31F | XT-IDE (JP1 re-straps to 0x320; JP2 disables) |
 | 0x340–0x35F | NE2000 NIC (RTL8019AS, §9.1; IRQ2→9; JP1 disables) |
 | 0x378 | LPT1 (JP1 re-straps to 0x278; JP2 disables) |
@@ -721,20 +854,20 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 ### IRQ (AT-style, 15 lines via cascaded soft-PIC)
 | IRQ | Use | | IRQ | Use |
 |---|---|---|---|---|
-| 0 | Timer | | 8 | RTC |
+| 0 | Timer | | 8 | RTC — **firmware-internal only** (Bus MCU soft-PIC event; no expansion-port pin) |
 | 1 | Keyboard (USB-HID) | | 9 | IRQ2 redirect (on-board NE2000 NIC) |
 | 2 | cascade → slave | | 10 | spare (no line on 8-bit header) |
 | 3 | COM2 | | 11 | spare (no line on 8-bit header) |
 | 4 | COM1 (+ COM3 mouse, shared) | | 12 | PS/2 mouse (if used) |
 | 5 | **PicoGUS (hardwired, sole driver)** | | 13 | (FPU — unused) |
-| 6 | firmware floppy (virtual, §10.1) / sidecar spare | | 14 | **XT-IDE (hardwired)** — internal line |
+| 6 | firmware floppy (virtual, §10.1) / expansion-port spare | | 14 | **XT-IDE (hardwired)** — internal line |
 | 7 | LPT1 (hardwired) | | 15 | spare (no line on 8-bit header) |
 
 ### DMA
 | Ch | Use | | Ch | Use |
 |---|---|---|---|---|
 | 0 | (refresh — unused, SRAM) | | 2 | (firmware floppy needs none, §10.1) |
-| 1 | **PicoGUS (SB/GUS)** | | 3 | sidecar / spare |
+| 1 | **PicoGUS (SB/GUS)** | | 3 | expansion port / spare |
 
 ---
 
@@ -742,37 +875,39 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
 
 > Concrete JLCPCB/LCSC part numbers for everything below live in
 > `hardware/tools/parts.py` (applied to the schematics as `LCSC Part Num`
-> properties); sourcing decisions and stock-forced substitutions ('374→'574,
-> '163→'161, '157→HC157, '02→HC02, TCM809→MCP809, baud osc→crystal) are in
-> `hardware/notes/jlcpcb-sourcing.md`.
+> properties); sourcing decisions and stock-forced substitutions are in
+> `hardware/notes/jlcpcb-sourcing.md`. **2026-07-14 update:** the board's internal
+> bus moved to 3.3V (below); TL16C550CPT has zero JLC stock and is sourced elsewhere.
 
 | Function | Period part | This build |
 |---|---|---|
 | CPU | 8088 | **NEC V20 (µPD70108, 9 MHz grade, on hand)** — min mode; ≥8 MHz part required for the 7.16 MHz default |
-| Clock gen | 8284A + 14.318 xtal | **14.318 osc + 74HC74 (÷2) + 74HC4017 (÷3) + 74HC157 sel** |
+| Clock gen | 8284A + 14.318 xtal | **14.318 osc (3.3V) + 74LVC74A (÷2) + 74LVC161 (÷3) + 74HC157 sel** — LVC-grade for 3.3V fmax margin |
 | Bus controller | 8288 | **(none — min mode)** |
 | Math | 8087 | **(none — software FP)** |
-| Address latch / xceiver | 8282 / 8286 | 74HCT573 ×3 / 74HCT245 |
-| Decoder | 74LS138 | 74HC138 + 74HC00 (SRAM /CE) |
-| PIC / PIT / KBC / DMA | 8259 / 8253 / 8042 / 8237 | **Bus MCU: RP2350B (soft-emulated)** |
-| Chipset Supervisor | (part of the chipset) | **RP2040** — USB host, setup UI, config + BIOS-image flash, console, POST |
-| Bus-master address | (8237 internal + 74LS612 page) | **5× 74HC163** loadable counter (Bus MCU drives load/count) |
+| Address latch / xceiver | 8282 / 8286 | **74LVC573A ×3 / 74LVC245A** (3.3V, 5V-tolerant inputs) — the board's one 5V↔3.3V boundary |
+| Decoder | 74LS138 | 74HC138 + 74HC00 inverter (single-SRAM `/CE = NOT(Y5)`) |
+| PIC / PIT / KBC / DMA / RTC | 8259 / 8253 / 8042 / 8237 / MC146818 | **Bus MCU: RP2350B (soft-emulated)**, GPIOs direct on the 3.3V bus (no local transceivers) |
+| Chipset Supervisor | (part of the chipset) | **RP2040** — USB host, setup UI, config + BIOS-image flash, console, POST, battery-backed RTC |
+| Bus-master address | (8237 internal + 74LS612 page) | **5× 74HC161** loadable counter + 3× 74HC244 tri-state (Bus MCU drives load/count) |
 | IRQ collector | (8259 internal) | **74HCT165** shift register (IRQ2–8, 14 → 3 pins) |
 | Chipset link | — | **2-wire UART** (Bus MCU ↔ Supervisor) |
-| RAM | 9× 4164 + parity | **2× AS6C4008-55 SRAM** |
+| RAM | 9× 4164 + parity | **1× IS62WV51216BLL-55TLI** (512K×16, 3.3V) wired 1M×8 via the byte-lane trick |
 | ROM / BIOS | mask ROM / 2764 | **none — shadow-loaded into SRAM by the Bus MCU (image from Supervisor flash)** |
-| Video | MC6845 + discrete + RGBI | **RP2350B (soft CGA/MDA/Herc) → VGA + HDMI** |
+| Video | MC6845 + discrete + RGBI | **RP2350B (soft CGA/MDA/Herc) → VGA + HDMI**; 4× 74LVC245A PIO-mux (GPIO budget, not level-shift) |
 | FM / digital audio | AdLib / Sound Blaster | **on-board PicoGUS (RP2040, stock fw)** |
+| Network | (none, period) | **on-board RTL8019AS NE2000 NIC** — 5V island, isolated behind gated 74LVC245 + 74HC138 |
 | Game port | discrete 558 | **(none — USB HID on the Supervisor)** |
-| UART | 8250 | **2× 16C550** |
-| RS-232 | 1488/1489 | **MAX3241 (full DB9)** |
-| LPT | discrete TTL | 74HC374 + 244 |
-| RTC | MC146818 | **DS12C887** |
+| UART | 8250 | **2× TL16C550CPT** (LQFP-48, 3.3V, soldered — sourced elsewhere, no JLC stock) |
+| RS-232 | 1488/1489 | **MAX3241 (full DB9, 3.3V)** |
+| LPT | discrete TTL | 74HC/74LVC '574 + '244 (3.3V) |
+| RTC | MC146818 | **Emulated in the Bus MCU** (ports 0x70/71) + **PCF8563 I2C RTC + CR2032** on the Supervisor for battery-backed time |
 | Storage | ST-506 + WD ctrl | **XT-IDE + CompactFlash** |
 | Keyboard | 8048 + 8255 + 74LS322 | **USB-HID host on the Supervisor MCU** |
 
 **Out-of-production ICs eliminated vs. the period build:** 8284, 8288, 8087, 8259, 8253,
-8237, 8255/8042, MC6845, YM3812/YM3014, and the BIOS ROM. **Remaining vintage part: the V20.**
+8237, 8255/8042, MC6845, YM3812/YM3014, MC146818/DS12C887, and the BIOS ROM.
+**Remaining vintage part: the V20.**
 
 ---
 
@@ -794,11 +929,13 @@ Holds CMOS config; pairs with Xi 8088's CMOS setup.
   option-ROM integration; confirm 8042 vs 8255 keyboard expectations.
 - **PicoGUS integration** — copy the reference schematic faithfully; wire DRQ/DACK to the
   Bus MCU; route audio mixing.
-- **Level-shifter selection** — per-card SN74LVC245A channel counts; the Bus MCU is the
-  heaviest (bidirectional address/control groups with role-driven DIR for master vs. slave).
+- ~~**Level-shifter selection**~~ — **resolved by the 2026-07-14 3.3V redesign**: the
+  boundary collapsed to the V20's own demux stage plus one buffer bank at the expansion
+  port (§4.2/§4.3); the Bus MCU no longer carries any level shifters at all.
 - **Setup menu** — define the stored settings (CPU speed, kbd mode, mouse mode, boot order)
   and the **Supervisor-flash** format.
-- **Power budget** — 5 V rail sizing incl. USB VBUS; 3.3 V buck current for 4 MCUs. Decide
-  whether 5.1 kΩ CC pulldowns alone suffice or a CH224K/HUSB238 PD sink is warranted to
-  guarantee 5 V/3 A.
+- ~~**Power budget**~~ — **resolved by the 2026-07-14 3.3V redesign's verification pass**:
+  worst-case estimate ≈486 mA against the existing 3A buck (~16%, 6× headroom); no upsize
+  needed (`hardware/notes/3v3-verification.md` check 5). USB-C CC-pulldown-only vs.
+  CH224K/HUSB238 PD sink remains a build-time choice, not a sizing risk.
 ```
