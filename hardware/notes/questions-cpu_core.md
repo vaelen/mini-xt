@@ -34,6 +34,39 @@ Format: question / why / options / pick. Appended as decisions are made.
   on the LVC parts' 5 V-tolerant inputs. Note U9's ÷3 is a 74HC161-style preset-
   reload scheme on the mini-xt:74HCT163 body (NOT a 4017, as some docs say).
 
+### Q8. Re-buffer BALE / CLK / OSC at 3.3 V (review fix, commit f6d0d34 finding).
+- **Why:** review found three ISA bus nets driven at 5 V. The board's internal
+  ISA bus is 3.3 V and reaches the non-5V-tolerant sidecar RP2040; NO 5 V push-
+  pull output may drive a shared bus net. The offenders were: **BALE** (V20 ALE
+  pin, 5 V push-pull, drove the bus net directly); **CLK** (U13 74HCT04 @ +5V
+  buffered CLK7 → bus CLK); **OSC** (U13 @ +5V buffered OSC_3V3 → bus OSC). U13
+  also *fed* the dividers via the 5 V OSC net — but OSC has no legitimate 5 V
+  consumer (the V20 gets CPUCLK, not OSC), and the LVC dividers read 3.3 V fine.
+- **Options:** (a) level-shift each net; (b) re-buffer all three at 3.3 V behind
+  a single 74LVC125A (5 V-tolerant inputs, 3.3 V bus output); reuse a spare gate
+  if one exists.
+- **Pick:** (b). No spare 3.3 V buffer gate is free (U11 '125 and U7 '00 are
+  full; the only buffer-capable spares are HC157 mux sections, which are NOT
+  5 V-tolerant so can't take BALE's 5 V input) → placed ONE new **U15 74LVC125A
+  @ +3V3**, ~OE tied low (always enabled):
+  - **BALE** = buf(ALE_RAW). V20 ALE now labels the private `ALE_RAW` net which
+    feeds the latch LE pins DIRECTLY (un-delayed latch timing, per the brief) and
+    the U15 buffer input; only the buffered copy reaches the BALE bus pin. BALE's
+    input is the raw 5 V ALE → the buffer MUST be LVC (5 V-tolerant input).
+  - **CLK** = buf(CLK7). Kept the FIXED-7.16 MHz source (CLK7, not CLK_MUX): the
+    speed mux only retimes the private CPUCLK; ISA CLK stays 7.16 MHz (existing
+    turbo-down design intent). Input is 3.3 V.
+  - **OSC** = buf(OSC_3V3). The ÷2/÷3 dividers now clock off OSC_3V3 (the raw
+    3.3 V oscillator) directly, so the 5 V OSC net is deleted entirely.
+  U13 keeps its ONE essential 5 V gate (CLK_MUX → CPUCLK, the V20's private clock
+  needing Vkh = 4.0 V) plus the two internal inverters (DIV3_TC→~PE, IO/~M→INV);
+  its three now-free gates are parked. Non-inverting re-buffer (vs U13's old
+  inverting path) is fine — ISA CLK/OSC polarity is unspecified.
+- **Evidence (hardware/mini-xt.net):** CLK = {J1201.37, U115.6, +consumers} (no
+  U113/U101); OSC = {J1201.57, U115.8} (no U113/U101); BALE = {J1201.53, U115.3,
+  +consumers} (no V20); ALE_RAW = {U101.25 ALE, U102/103/104.11 LE, U115.2};
+  CPUCLK = {U101.19 CLK, U113.2} exactly.
+
 ### Q4. Strobe-path boundary — which package crosses 5 V→3.3 V, and does U10 move?
 - **Why:** the brief frames U13 as "the one 5 V package," but U10 (74HCT32 strobe
   OR-combiner) reads the RAW 5 V V20 strobes (~RD/~WR/IO~M) — a 3.3 V 74HC there
@@ -45,6 +78,10 @@ Format: question / why / options / pick. Appended as decisions are made.
   becomes 74LVC125A @ +3V3, the strobe half of the boundary. So there are in fact
   TWO surviving 5 V packages (U10 '32 + U13 '04) plus the V20 — the brief's "one
   package" prose refers only to the glue being *converted*, not U10.
+  **Amended (Q8):** the surviving 5 V outputs must ALSO never drive a shared bus
+  net. U13 now drives ONLY the private CPUCLK; its old bus CLK/OSC drives (and the
+  V20's raw ALE → BALE) were re-buffered to 3.3 V behind U15 (74LVC125A). U10's
+  outputs were already contained behind the U11 '125 tri-state boundary.
 
 ### Q5. SPEED_SEL select routing after U12 mux moves to 3.3 V?
 - **Why:** U12 (74HC157 speed mux) moves to +3V3. Its select was driven by a
