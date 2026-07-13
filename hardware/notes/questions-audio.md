@@ -75,6 +75,21 @@ summer and AC-coupling are unchanged -- the chipdown mix network's 2.2uF
 couplers in series with our 1uF give ~0.7uF into the 10k summing input,
 a ~23 Hz corner, fine for line audio.
 
+## 7. 3.3V bus redesign (2026-07-14) -- no shifter on this sheet
+**Question:** Task 6 asks to find and delete this sheet's LVC/shifter part
+(same treatment as video.py/picogus.py), without reworking the op-amp
+summer or its rail.
+**Why:** `grep -n "LVC" hardware/sheets/audio.py` matches only a comment
+(referencing the 74LVC245A value-override *pattern*, used elsewhere, as the
+precedent for this sheet's own TL072->MCP6002 value override) -- there is no
+digital IC, level shifter, or bus-facing chip on this sheet at all. audio.py
+is pure analog: PC-speaker RC reconstruction, PicoGUS AC-coupling, and the
+MCP6002 op-amp summer, none of which touch the ISA bus directly (SPKR/PG_L/
+PG_R arrive as already-analog signals from bus_mcu/picogus).
+**Pick:** No code change. Nothing to delete or direct-connect; the op-amp
+stage and its +5V/VREF rail are untouched, per the brief's explicit
+instruction not to rework the analog stage.
+
 ## Summer headroom + line-node bleed (design review 2026-07-12)
 PG_L/PG_R summing resistors changed 10k -> 20k (0.5x each): the PCM5102A is
 2.1 Vrms/channel full-scale, and a unity L+R sum of correlated (mono-ish)

@@ -14,17 +14,26 @@ Structure:
   * Core2350B module (M1, RP2350B) -- self-powers 3V3 from +5V (onboard LDO);
     D1 (SS34 Schottky) is the VBUS diode-OR so module-USB flashing never
     back-powers the +5V rail.
-  * Local 74LVC245A level shifters between the 3.3 V MCU and the 5 V bus:
-      U2  data transceiver  D0-D7  (bidirectional, DIR=DDIR, OE=DOE)
-      U3  address snoop     A0-A7  (B->A, OE=AOE_LO)
-      U4  address snoop     A8-A15 (B->A, OE=AOE_MID)
-      U5  address snoop     A16-A19(B->A, OE=AOE_HI)
-      U6  control snoop     MEMR/MEMW/IOR/IOW/BALE/AEN/CLK/RESET_DRV (B->A)
-      U7  IOCHRDY driver    one channel, A->B, OE=RDY_OE (tri-state when idle)
-    The address+data shifters share one 8-bit MCU "snoop bus" SB0-SB7; the PIO
-    enables one '245 at a time (see questions-video.md #2) -- this is what fits
-    the wide bus + two video stages onto 48 GPIO. R32-R37 park the shifter
-    control nets while the MCU is Hi-Z (BOOTSEL flashing / reset-to-init).
+  * 3.3V bus redesign (2026-07-14): the ISA bus itself is now 3.3V-native, so
+    the 74LVC245A block that used to bridge 3.3V MCU <-> 5V bus split into two
+    fates (see questions-video.md #10):
+      KEPT -- U2 data transceiver D0-D7 (bidirectional, DIR=DDIR, OE=DOE),
+      U3/U4/U5 address snoop A0-A7/A8-A15/A16-A19 (B->A, OE=AOE_LO/MID/HI).
+      These four time-share one 8-bit MCU "snoop bus" SB0-SB7 (GPIO0-7) via
+      PIO-controlled output-enables -- a GPIO-BUDGET multiplexer (questions-
+      video.md #2), not a voltage bridge: direct-wiring A0-19+D0-7 would need
+      28 dedicated GPIO instead of 8, and this part is already at 47/48 GPIO.
+      Kept as-is, still 3.3V-3.3V on 3V3_VID.
+      DELETED -- U6 control snoop MEMR/MEMW/IOR/IOW/BALE/AEN/CLK/RESET_DRV
+      (B->A, always enabled, fixed direction: no mux to preserve) and U7
+      IOCHRDY driver (one channel, A->B, OE=RDY_OE: the RP2350B GPIO
+      tri-states natively, so the dedicated OE-controlled buffer added
+      nothing once the bus stopped needing a voltage bridge). Both
+      direct-connected 1:1 instead.
+    R32-R36 still park U2-U5's control nets while the MCU is Hi-Z (BOOTSEL
+    flashing / reset-to-init); R37 (the old RDY_OE park) is gone with U7 --
+    IOCHRDY floating during Hi-Z is caught by the shared bus pull-up on the
+    Bus MCU sheet (R2, idle-high), same as every other soft card.
   * HDMI (J1): RP2350 HSTX drives the 3 TMDS data pairs + clock pair straight out
     of GPIO12-19 through 270R series resistors -- no transmitter chip.
   * VGA  (J2): resistor-ladder DAC, 3R-3G-2B, from GPIO to an HD15 connector,
@@ -78,25 +87,26 @@ def build(sch, lib, expose=True):
     # ---- snoop bus + bus interface GPIO ----
     for i in range(8):
         L(M1, "GPIO%d" % i, "SB%d" % i, dx=-2.54)            # GPIO0-7 snoop bus
-    L(M1, "GPIO8", "MEMR_M", dx=-2.54); L(M1, "GPIO9", "MEMW_M", dx=-2.54)
-    L(M1, "GPIO10", "IOR_M", dx=-2.54); L(M1, "GPIO11", "IOW_M", dx=-2.54)
+    L(M1, "GPIO8", "~{MEMR}", dx=-2.54); L(M1, "GPIO9", "~{MEMW}", dx=-2.54)
+    L(M1, "GPIO10", "~{IOR}", dx=-2.54); L(M1, "GPIO11", "~{IOW}", dx=-2.54)
     # HDMI HSTX TMDS pairs on GPIO12-19 (RP2350 HSTX block)
     for g, net in [(12, "TMDS_D0M"), (13, "TMDS_D0P"), (14, "TMDS_CKM"),
                    (15, "TMDS_CKP"), (16, "TMDS_D1M"), (17, "TMDS_D1P"),
                    (18, "TMDS_D2M"), (19, "TMDS_D2P")]:
         L(M1, "GPIO%d" % g, net, dx=2.54)
-    L(M1, "GPIO20", "BALE_M", dx=-2.54); L(M1, "GPIO21", "AEN_M", dx=-2.54)
+    L(M1, "GPIO20", "BALE", dx=-2.54); L(M1, "GPIO21", "AEN", dx=-2.54)
     L(M1, "GPIO22", "AOE_LO", dx=-2.54); L(M1, "GPIO23", "AOE_MID", dx=-2.54)
     L(M1, "GPIO24", "AOE_HI", dx=-2.54); L(M1, "GPIO25", "DOE", dx=-2.54)
-    L(M1, "GPIO26", "DDIR", dx=-2.54); L(M1, "GPIO27", "IOCHRDY_DRV", dx=-2.54)
+    L(M1, "GPIO26", "DDIR", dx=-2.54)
+    L(M1, "GPIO27", "IOCHRDY", dx=-2.54)  # direct (was IOCHRDY_DRV via U7); GPIO tri-states natively when not waiting
     # VGA DAC drive on GPIO28-37
     for g, net in [(28, "VR0"), (29, "VR1"), (30, "VR2"),
                    (31, "VG0"), (32, "VG1"), (33, "VG2"),
                    (34, "VB0"), (35, "VB1"), (36, "HSYNC"), (37, "VSYNC")]:
         L(M1, "GPIO%d" % g, net, dx=2.54)
-    L(M1, "GPIO38", "CLK_M", dx=2.54)
-    L(M1, "GPIO39", "RST_M", dx=2.54)               # module user LED on GPIO39 (still usable)
-    L(M1, "GPIO40", "RDY_OE", dx=2.54)
+    L(M1, "GPIO38", "CLK", dx=2.54)
+    L(M1, "GPIO39", "RESET_DRV", dx=2.54)            # module user LED on GPIO39 (still usable)
+    sch.no_connect(M1.pin_xy("GPIO40"))              # freed: U7 deleted (was RDY_OE); IOCHRDY (GPIO27) tri-states natively
     L(M1, "GPIO41", "HDMI_HPD", dx=2.54)      # 5V-level from sink; RP2350 IO is 5V-tolerant
     L(M1, "GPIO42", "VID_EN", dx=2.54)        # boot strap: low = card enabled
     L(M1, "GPIO43", "VID_BASE", dx=2.54)      # boot strap: low = CGA, high = MDA
@@ -130,13 +140,14 @@ def build(sch, lib, expose=True):
 
     # MCU-Hi-Z parking (BOOTSEL flashing / reset-to-init window): every
     # bus-facing '245 enable defaults OFF and the data direction defaults to
-    # bus->MCU sense, so an unconfigured MCU never drives the 5 V bus.
+    # bus->MCU sense, so an unconfigured MCU never drives the 3.3V bus. (R37,
+    # the old RDY_OE park, is gone with U7 -- IOCHRDY floating during Hi-Z is
+    # caught by the Bus MCU sheet's shared idle-high pull-up, R2.)
     for ref, net, rail, x in [("R32", "DDIR", "GND", 33.02),
                              ("R33", "DOE", "3V3_VID", 48.26),
                              ("R34", "AOE_LO", "3V3_VID", 63.5),
                              ("R35", "AOE_MID", "3V3_VID", 78.74),
-                             ("R36", "AOE_HI", "3V3_VID", 93.98),
-                             ("R37", "RDY_OE", "3V3_VID", 109.22)]:
+                             ("R36", "AOE_HI", "3V3_VID", 93.98)]:
         r = sch.place("Device:R", ref, "10k", at=(x, 287.02))
         sch.net(r, "1", rail, kind="label", dx=0, dy=-2.54)
         sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
@@ -160,7 +171,8 @@ def build(sch, lib, expose=True):
     sch.net(r, "1", "3V3_VID", kind="label", dx=0, dy=-2.54)
     sch.net(r, "2", "VID_BASE", kind="label", dx=0, dy=2.54)
 
-    # ================= level shifters (74LVC245A) =================
+    # ============= kept 74LVC245A: GPIO-budget snoop-bus mux =============
+    # (U6 control-snoop and U7 IOCHRDY-driver deleted below -- direct-connected.)
     def shifter(ref, at):
         u = sch.place("mini-xt:74LVC245A", ref, "74LVC245A", at=at)
         L(u, "VCC", "3V3_VID", dx=0, dy=-2.54)
@@ -194,24 +206,11 @@ def build(sch, lib, expose=True):
         sch.no_connect(U5.pin_xy("A%d" % i))
         sch.no_connect(U5.pin_xy("B%d" % i))
 
-    # U6: control snoop (B->A)
-    U6 = shifter("U6", (63.5, 243.84))
-    L(U6, "A->B", "GND"); L(U6, "CE", "GND")                # always enabled
-    ctrl = [("~{MEMR}", "MEMR_M"), ("~{MEMW}", "MEMW_M"), ("~{IOR}", "IOR_M"),
-            ("~{IOW}", "IOW_M"), ("BALE", "BALE_M"), ("AEN", "AEN_M"),
-            ("CLK", "CLK_M"), ("RESET_DRV", "RST_M")]
-    for i, (busnet, mcunet) in enumerate(ctrl):
-        L(U6, "B%d" % i, busnet)
-        L(U6, "A%d" % i, mcunet, dx=-2.54)
-
-    # U7: IOCHRDY driver (A->B), tri-stated unless the card is waiting
-    U7 = shifter("U7", (109.22, 243.84))
-    L(U7, "A->B", "3V3_VID"); L(U7, "CE", "RDY_OE")
-    L(U7, "A0", "IOCHRDY_DRV", dx=-2.54)
-    L(U7, "B0", "IOCHRDY")
-    for i in range(1, 8):
-        sch.no_connect(U7.pin_xy("A%d" % i))
-        sch.no_connect(U7.pin_xy("B%d" % i))
+    # U6 (control snoop) and U7 (IOCHRDY driver) DELETED: both were pure
+    # buffers (fixed direction, no muxing) with nothing left to do once the
+    # bus is 3.3V-native -- GPIO8-11/20/21/38/39/27 now sit on
+    # ~{MEMR}/~{MEMW}/~{IOR}/~{IOW}/BALE/AEN/CLK/RESET_DRV/IOCHRDY directly
+    # (see the GPIO block above and questions-video.md #10).
 
     # ================= VGA aperture PSRAM =================
     # On the Core2350B module (8MB QSPI PSRAM, CS=GPIO47) -- no external part.

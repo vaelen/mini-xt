@@ -102,3 +102,48 @@ DRQ3/~{DACK3} remain available on the header for a future/alternate host but
 won't work with this motherboard's current Bus MCU. IRQ5 is called out as the
 recommended IRQ pick since the storage sheet's default is IRQ14 (see
 `questions-storage.md`) -- don't strap both cards to IRQ5.
+
+## Q6. 3.3V bus redesign (2026-07-14) -- which gates are level shifters?
+**Question:** Task 6 brief: delete this sheet's LVC245s, keep U7 (74AHC14)/
+U8,U9 (74LVC00)/U10 (LVC2G06) if they have a real non-level-shift function.
+This sheet has no bare 74LVC245A -- what plays that role, and which of
+U7-U10 actually needs deleting?
+**Why / evaluation, per chip** (cross-checked against 3v3-verification.md
+check 6, which pre-verified this exact GPIO map):
+  - **U4/U5 (CB3T3257, "address/data mux"): KEEP.** A genuine 2:1 FET-switch
+    mux -- the RP2040 only has 8 GPIO for AD0-7 and time-shares them between
+    address and data roles via ADS (select) / ~{BUSOE} (gate). This is a
+    GPIO-budget contract independent of bus voltage (check 6 already flagged
+    it "must be preserved as-is even at 3.3V"). Unchanged.
+  - **U6 (CB3T3245, "misc level shift"): DELETE.** Unlike U4/U5, U6 has NO
+    mux -- 6 single-direction always-passthrough channels (A8/A9 sense in,
+    TC sense in, IRQ5/DRQ drive out). Check 6 called this out by name as
+    "the piece that becomes removable once the bus is 3.3V-native." Deleted;
+    GPIO17/18/31/32/34 now label directly onto A8/A9/TC/IRQ5/DRQ (gpio_map
+    updated, comment table added per the brief's "preserve exactly" ask).
+  - **U7 (74HCT04 body, value 74AHC14): KEEP.** Real combinational/sequential
+    logic: inverts ~{IOR}/~{IOW} to active-high, inverts DACK to ~{RDACK},
+    forms a 2-stage RESET_DRV inversion (reset-delay chain feeding U9), and
+    inverts ADS for the BUSOE latch (U9). None of this is a voltage bridge --
+    it already ran on 3V3_PGUS before this task, unaffected by the redesign.
+  - **U8 (74HCT00 body, value 74LVC00): KEEP.** NAND(AEN,DACK)=IOMASK gates
+    ~{RIOR}/~{RIOW} so the card ignores I/O strobes during a DMA cycle it
+    isn't acknowledging (check 6's "qualified via U7/U8 gates" masking).
+    Already on 3V3_PGUS; not a level shifter.
+  - **U9 (74HCT00 body, value 74LVC00): KEEP.** Forms the BUSOE set-reset-
+    like latch (keyed off ADS toggling, per Q1) and the post-reset-delay RUN
+    enable. Sequential glue logic, not a voltage bridge.
+  - **U10 (74LVC2G06): KEEP.** Open-drain buffer for IOCHRDY's wired-AND bus
+    semantics -- check 6: "stays regardless of voltage domain." Unchanged.
+  So: only U6 falls in the "was purely 3.3V<->5V buffering" bucket this task
+  targets; U4/U5/U7/U8/U9/U10 all have real non-level-shift jobs and stay.
+**Also fixed while auditing for stray 5V nets touching RP2040-reachable
+logic (brief: "confirm every net it now touches is 3.3V-only"):** R9 (15k
+pull-up parking DACK idle-high when no DMA jumper is fitted) was tied to
+`+5V`, even though DACK feeds U7/U8 gate inputs that are entirely on
+3V3_PGUS and one hop from RP2040 GPIO6/7 (~{RIOR}/~{RIOW}) -- a real
+5V-domain node reaching 3.3V-domain logic. Repointed to `3V3_PGUS`, matching
+the R7/R8 pull-up convention already used elsewhere on this sheet. Audited
+every other `+5V` use on the sheet (U3 regulator input, C7/C9 decoupling on
+that same input) -- all are the AMS1117's 5V supply-side, not logic, so no
+further changes needed.

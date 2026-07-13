@@ -9,6 +9,18 @@ this exact hardware -- there is no "reasonable substitute" here the way there
 is for, say, a generic 74HCT245 buffer.
 
 Deviations from the reference (logged in hardware/notes/questions-picogus.md):
+  * 3.3V bus redesign (2026-07-14): U6 (CB3T3245, "misc level shift") DELETED
+    -- it was pure fixed-direction buffering (A8/A9 in, TC in, IRQ5/DRQ out,
+    no muxing) with nothing left to do once the ISA bus is 3.3V-native; its
+    6 channels are now direct GPIO<->net connections (gpio_map below). U4/U5
+    (CB3T3257) are KEPT -- they are a genuine 2:1 GPIO-budget mux (8 GPIO
+    serving both AD0-7 and A0-7/D0-7 via ADS/~{BUSOE} time-sharing), not a
+    voltage bridge; deleting them would need 8 more GPIO the RP2040 doesn't
+    have. U7/U8/U9/U10 are KEPT -- all four were already real logic (Schmitt
+    reset-delay/inversion, AEN-masking NANDs, the BUSOE set-reset latch, an
+    open-drain IOCHRDY driver) on 3V3_PGUS already, never doing 3.3V->5V
+    buffering, so the voltage-domain change doesn't touch them. See
+    questions-picogus.md Q6.
   * No ISA edge connector -- the bus arrives by net name (A0-A9, D0-D7, control
     strobes) like every other soft card, not a physical 60-pin/98-pin edge.
   * No USB-A joystick port -- the Supervisor sheet owns USB HID.
@@ -80,14 +92,37 @@ def build(sch, lib):
     L(U1, "26", "RUN", dx=2.54)                           # RUN
 
     # ---- stock-firmware GPIO map (mini-xt/picogus/hw-chipdown/chipdown.net) ----
+    # PRESERVED EXACTLY from 3v3-verification.md check 6 -- stock PicoGUS
+    # firmware depends on this GPIO<->function assignment; do not renumber.
+    #
+    # GPIO | Sheet net   | ISA-facing signal          | Path / notes
+    # -----|-------------|-----------------------------|---------------------
+    # 8,9,11-16 | AD0-AD7 | A0-A7 / D0-D7 (time-shared)| U4/U5 CB3T3257 mux,
+    #           |         |                            | select=ADS(39), gate=~{BUSOE}
+    # 17   | A8 (was RA8)| A8 (address only)          | DIRECT (U6 CB3T3245 deleted)
+    # 18   | A9 (was RA9)| A9                         | DIRECT (U6 deleted)
+    # 6    | ~{RIOW}     | ~{IOW}, qualified          | U7/U8 gates, masked on AEN unless DACK
+    # 7    | ~{RIOR}     | ~{IOR}, qualified          | same masking
+    # 30   | ~{RDACK}    | ~{DACK1} or ~{DACK3} (jumpered J1) | senses jumpered DMA ack
+    # 31   | TC (was RTC_LS) | TC (ISA terminal count, in) | DIRECT (U6 deleted)
+    # 32   | IRQ5 (was RIRQ) | IRQ5 (out, hardwired free line) | DIRECT (U6 deleted)
+    # 34   | DRQ (was RDRQ)  | DRQ1 or DRQ3 (out, jumpered J1) | DIRECT (U6 deleted)
+    # 38   | RIOCHRDY    | IOCHRDY (out, open-drain)  | U10 74LVC2G06 (kept: wired-AND semantics)
+    # 39   | ADS         | (internal mux select/timing, not ISA) | drives U4/U5/U9
+    # 26   | RUN         | (internal BUSOE-latch gating, U9) | not ISA-facing
+    # 2,3,4,5 | SPI_*    | (not ISA -- APS6404L sample RAM SPI) | unaffected
+    # 27,28,29 | DIN,BCK,LRCK | (not ISA -- PCM5102A I2S DAC) | unaffected
+    # 35   | LED_A       | (not ISA -- status LED)    | unaffected
+    # 36,37,40 | RV_DATA,RV_CLK,MIDI_TX | (not ISA -- documented dangling, wavetable/MIDI removed 2026-07-11) | unaffected
+    # 41   | GND         | board-detect strap         | unaffected
     gpio_map = [
         ("2", "SPI_RX"), ("3", "~{SPI_CS}"), ("4", "SPI_SCK"), ("5", "SPI_TX"),
         ("6", "~{RIOW}"), ("7", "~{RIOR}"),
         ("8", "AD0"), ("9", "AD1"), ("11", "AD2"), ("12", "AD3"),
         ("13", "AD4"), ("14", "AD5"), ("15", "AD6"), ("16", "AD7"),
-        ("17", "RA8"), ("18", "RA9"),
+        ("17", "A8"), ("18", "A9"),                        # direct (was RA8/RA9 via U6)
         ("27", "DIN"), ("28", "BCK"), ("29", "LRCK"),
-        ("30", "~{RDACK}"), ("31", "RTC_LS"), ("32", "RIRQ"), ("34", "RDRQ"),
+        ("30", "~{RDACK}"), ("31", "TC"), ("32", "IRQ5"), ("34", "DRQ"),  # direct (was RTC_LS/RIRQ/RDRQ via U6)
         ("35", "LED_A"), ("36", "RV_DATA"), ("37", "RV_CLK"),
         ("38", "RIOCHRDY"), ("39", "ADS"), ("40", "MIDI_TX"), ("41", "GND"),
     ]
@@ -214,19 +249,10 @@ def build(sch, lib):
     L(U5, "4A", "AD6", dx=2.54); L(U5, "4B1", "A6", dx=-2.54); L(U5, "4B2", "D6", dx=-2.54)
 
     # ==================================================== 4. misc level shift ===
-    U6 = sch.place("mini-xt:CB3T3245", "U6", at=(254.0, 152.4))
-    L(U6, "1OE", "~{BUSOE}", dx=-2.54)
-    L(U6, "2OE", "~{BUSOE}", dx=-2.54)
-    L(U6, "VCC", "3V3_PGUS", dx=0, dy=-2.54)
-    L(U6, "GND", "GND", dx=0, dy=2.54)
-    L(U6, "1A0", "TC", dx=-2.54);  L(U6, "1Y0", "RTC_LS", dx=2.54)
-    L(U6, "1A1", "GND", dx=-2.54); sch.no_connect(U6.pin_xy("1Y1"))
-    L(U6, "1A2", "A8", dx=-2.54);  L(U6, "1Y2", "RA8", dx=2.54)
-    L(U6, "1A3", "A9", dx=-2.54);  L(U6, "1Y3", "RA9", dx=2.54)
-    L(U6, "2A0", "RDRQ", dx=-2.54); L(U6, "2Y0", "DRQ", dx=2.54)
-    L(U6, "2A1", "RIRQ", dx=-2.54); L(U6, "2Y1", "IRQ5", dx=2.54)  # hardwired (free line)
-    L(U6, "2A2", "GND", dx=-2.54);  sch.no_connect(U6.pin_xy("2Y2"))
-    L(U6, "2A3", "GND", dx=-2.54);  sch.no_connect(U6.pin_xy("2Y3"))
+    # U6 (CB3T3245) DELETED (3.3V bus redesign, 2026-07-14): it was pure
+    # fixed-direction buffering (no muxing) for A8/A9 (in), TC (in), IRQ5/DRQ
+    # (out) -- nothing left to do once the ISA bus is 3.3V-native. GPIO17/18/
+    # 31/32/34 now sit directly on A8/A9/TC/IRQ5/DRQ (see gpio_map above).
 
     # ========================================================= 5. glue logic ===
     U7 = sch.place("mini-xt:74HCT04", "U7", "74AHC14", at=(355.6, 63.5))
@@ -273,8 +299,13 @@ def build(sch, lib):
     L(R8, "1", "3V3_PGUS", dx=0, dy=-2.54); L(R8, "2", "RUN", dx=0, dy=2.54)
     C20 = sch.place("Device:C", "C20", "100nF", at=(266.7, 25.4))
     L(C20, "1", "RUN", dx=0, dy=-2.54); L(C20, "2", "GND", dx=0, dy=2.54)
+    # R9 pulls DACK (idle-high = deasserted) to 3V3_PGUS, not +5V: DACK feeds
+    # U7/U8 gate inputs on the 3V3_PGUS domain, and with no jumper installed
+    # it must not park at a stray 5V while everything reading it is 3.3V
+    # (3.3V bus redesign, 2026-07-14 -- matches the R7/R8 pull-up convention
+    # on this sheet).
     R9 = sch.place("Device:R", "R9", "15k", at=(279.4, 25.4))
-    L(R9, "1", "+5V", dx=0, dy=-2.54); L(R9, "2", "DACK", dx=0, dy=2.54)
+    L(R9, "1", "3V3_PGUS", dx=0, dy=-2.54); L(R9, "2", "DACK", dx=0, dy=2.54)
     sch.text("BUSOE latch: ~{BUSOE} parks HIGH (buffers off) through bus reset,\n"
               "latches LOW (buffers on) once firmware first toggles ADS.",
               at=(355.6, 215.9))

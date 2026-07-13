@@ -80,5 +80,37 @@ port. R32-R37 park the shifter controls while the MCU is Hi-Z (BOOTSEL /
 pre-init): DOE/AOE_LO/AOE_MID/AOE_HI/RDY_OE pulled to 3V3_VID (OEs are
 active-low -> buffers disabled), DDIR pulled low (bus->MCU sense). Before
 this, those enables floated whenever the MCU wasn't driving them.
+
+## 10. 3.3V bus redesign (2026-07-14) -- keep/delete per shifter, not en masse
+**Question:** Task 6 brief says delete "the 3x LVC245A loop (~line 165)" and
+direct-connect the RP2350B GPIOs, mirroring bus_mcu's Task 5 deletion of its
+six 74LVC245A. Does that apply uniformly to all six shifters on this sheet
+(U2-U7)?
+**Why:** U2/U3/U4/U5 (data + 3x address snoop) don't just level-shift -- they
+share ONE 8-bit MCU "snoop bus" SB0-SB7 (GPIO0-7), with the PIO enabling only
+one '245 at a time via AOE_LO/AOE_MID/AOE_HI/DOE (decision #2, above). That
+is a GPIO-BUDGET time-division mux, driven by the RP2350B having only 48
+GPIO for A0-19(20)+D0-7(8)+6 ctrl+IOCHRDY+VGA(10)+HDMI(8)+straps, not by the
+5V/3.3V voltage split. Direct-wiring A0-19+D0-7 would need 28 dedicated GPIO
+instead of the current 8 (SB0-7) + 5 (AOE_LO/MID/HI, DOE, DDIR) = 13; after
+freeing GPIO40 (RDY_OE, see below) this part sits at 47/48 GPIO with zero
+slack for a 15-pin increase. Deleting U2-U5 is not possible without a
+redesign outside this task's scope.
+U6 (control snoop, 8 channels, always enabled CE=GND, fixed direction
+A->B=GND) and U7 (IOCHRDY driver, 1 channel, fixed direction, OE=RDY_OE) have
+NO muxing role -- U6's 8 channels are all always-on 1:1 passthroughs, and
+U7's tri-state-on-demand behavior is exactly what an RP2350B GPIO does
+natively (as established by bus_mcu's HOLD/HLDA/strobe direct-connect,
+commit 63580f1). Both add nothing once both sides of the bus are 3.3V.
+**Pick:** KEEP U2/U3/U4/U5 (still 74LVC245A on 3V3_VID, now serving purely as
+the GPIO-budget mux, not a level shifter -- functionally unchanged).
+DELETE U6 and U7: GPIO8/9/10/11/20/21/38/39 now label directly onto
+~{MEMR}/~{MEMW}/~{IOR}/~{IOW}/BALE/AEN/CLK/RESET_DRV; GPIO27 labels directly
+onto IOCHRDY (GPIO tri-states it natively when not asserting a wait state).
+GPIO40 (ex-RDY_OE) is freed -> no_connect. R37 (RDY_OE park) removed; IOCHRDY
+floating during MCU Hi-Z is caught by the Bus MCU sheet's shared idle-high
+pull-up (R2), same reliance every other soft card already has on that net.
+This matches bus_mcu's own precedent of keeping U14-U16 (its '244s) because
+they were the address counter's only tri-state, not level shifters.
 </content>
 </invoke>
