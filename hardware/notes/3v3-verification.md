@@ -120,11 +120,11 @@ from `ti.com/lit/ds/symlink/tl16c550c.pdf`):
 0 units** in `jlc_stock_check` (live API), package LQFP-48(7×7), $3.30/$3.66
 1-piece price when available. Per the brief's own instruction ("If JLC has no
 stock, put it on the sourced-elsewhere list like the V20"): **TL16C550CPT is
-sourced-elsewhere** (TI direct / Mouser / Digi-Key), alongside the V20 and the
-two SRAM sockets, in `hardware/notes/jlcpcb-sourcing.md`'s "NOT available at
-JLC" list. (The PLCC-44 `TL16C550CIFNR`, C2653193, does show 10 in stock at
-JLC if a socketed fallback is ever wanted, but decision #3 in the spec is
-soldered LQFP-48, not socketed.)
+sourced-elsewhere** (TI direct / Mouser / Digi-Key). ACTION for the docs task:
+add it to `hardware/notes/jlcpcb-sourcing.md`'s "NOT available at JLCPCB" section
+alongside notes on sourcing strategy. (The PLCC-44 `TL16C550CIFNR`, C2653193,
+does show 10 in stock at JLC if a socketed fallback is ever wanted, but
+decision #3 in the spec is soldered LQFP-48, not socketed.)
 
 Sources: TI `tl16c550c.pdf` (SLLS177I) §4 Table 4-1, §5.2, §5.5;
 `mcp__pcbparts__jlc_stock_check` query "TL16C550CPTR" (2026-07-14).
@@ -217,6 +217,7 @@ summary); ISSI SRAM datasheet (check 2); TI TL16C550C datasheet (check 3).
 ## Check 6 — PicoGUS GPIO map (must be preserved exactly)
 
 **VERDICT: N/A pass/fail — map documented below for Task 6.**
+Verdict N/A by design: this check documents a mapping for downstream preservation; there is nothing to pass or fail.
 
 Read `hardware/sheets/picogus.py` in full. The RP2040's `gpio_map` list
 (lines 83–93) plus the fixed pin assignments, translated through the two
@@ -276,7 +277,7 @@ strap pin from the comment.
 **VERDICT: FAIL for HC-grade at 3.3V on both dividers — use LVC-grade for both.**
 
 **Correction to the check's own premise:** the design doc's summary/block-diagram
-(§1, §5.1, table p.752 of `docs/xt-mcu-sbc-design.md`) and this task's brief both
+(§1, §5.1, table line 752 of `docs/xt-mcu-sbc-design.md`) and this task's brief both
 describe the ÷3 stage as "74HC4017" — but `hardware/notes/open-questions.md`
 ("Post-review change: standardize 5V glue on 74HCT") already records that the
 ÷3 was changed from 74HC4017 to a **74HC161 preset-to-3 scheme** (no HCT-grade
@@ -338,7 +339,7 @@ worth re-checking before an order.
 
 | Role | MPN | LCSC | Package | Price (1pc) | Stock |
 |---|---|---|---|---|---|
-| SRAM 512K×16 | IS62WV51216BLL-55TLI | C11315 | TSOP-II-44 | — | deep (existing pick, re-confirmed 2.5–3.6V, 55ns, byte-lane valid — check 2) |
+| SRAM 512K×16 | IS62WV51216BLL-55TLI | C11315 | TSOP-II-44 | $11.54 | 1913 (existing pick, re-confirmed 2.5–3.6V, 55ns, byte-lane valid — check 2) |
 | Octal latch, 3.3V, 5V-tol inputs | 74LVC573APW,118 | C6096 | TSSOP-20 | $0.28 | 18,681 |
 | Octal buffer, 3.3V, 5V-tol | 74LVC244APW,118 | C6079 | TSSOP-20 | $0.29 | 23,742 |
 | Octal D-FF for parallel.py | 74LVC574AT20-13 | C842658 | TSSOP-20 | $0.34 | 88 **thin** |
