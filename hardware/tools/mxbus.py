@@ -8,11 +8,13 @@ buffered ISA backplane. Using the SAME canonical names below is what makes the
 independently-authored sheets connect.
 
 Two classes of interface, mirroring design doc S2/S8:
-  * ISA backplane signals  -- the portability contract; any soft card may use
-    ONLY these. Naming a private signal here would be an isolation leak.
-  * PRIVATE motherboard signals -- side channels the class-1 motherboard MCUs may
-    use (UART link, speed select, address-counter strobes, bus-master handshake).
-    Drawn as separate pins so leaks are visible.
+  * ISA backplane signals  -- the canonical bus contract and firmware-portability
+    guideline for card sections (spec 2026-07-14; one integrated board, not
+    separate XT and cards).
+  * PRIVATE motherboard signals -- side channels the motherboard MCUs may use
+    (UART link, speed select, address-counter strobes, bus-master handshake,
+    expansion-port isolation). Drawn as separate pins for visibility, not
+    enforcement.
 
 Active-low signals use KiCad overbar syntax ~{NAME}.
 """
@@ -79,6 +81,14 @@ PRIV_PWR = ["PD_PG"]
 PRIV_PROG = ["PGUS_USB_DP", "PGUS_USB_DM"]
 # cross-MCU UART link (Bus MCU <-> Supervisor), full-duplex
 PRIV_LINK = ["LINK_B2S", "LINK_S2B"]   # Bus->Super TX, Super->Bus TX
+# Expansion-port isolation bank (sidecar <-> Bus MCU). The port's inward
+# lines land on DEDICATED nets, never the internal IRQ/DRQ nets: a floating
+# external line must not fight an internal driver. The soft-PIC/soft-8237
+# merge EXT_* with the internal lines in firmware. EXP_DDIR: Bus MCU drives
+# the port data transceiver direction (inward only for reads it knows are
+# externally decoded; default outward).
+PRIV_EXP = ["EXP_DDIR", "EXT_DRQ1", "EXT_DRQ2", "EXT_DRQ3"] + \
+           ["EXT_IRQ%d" % i for i in range(2, 9)]
 # Supervisor -> POST display + console
 PRIV_SUPER = ["POST_A", "POST_B", "POST_C", "POST_D", "POST_E", "POST_F", "POST_G",
               "POST_DP", "POST_DIG0", "POST_DIG1", "CONSOLE_TX", "CONSOLE_RX"]
