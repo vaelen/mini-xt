@@ -88,6 +88,14 @@ def build(sch, lib, expose=True):
             g, k = i // 4 + 1, i % 4
             sch.net(u, "%dA%d" % (g, k), inn, kind="label", dx=-2.54)
             sch.net(u, "%dY%d" % (g, k), out, kind="label", dx=2.54)
+        # These '244s are ALWAYS enabled (both ~OE = GND), so any unused channel's
+        # A input must not float on the real chip -- tie it GND, NC its Y output
+        # (same convention as bus_mcu's spare '165/'244 pins). Fixes the floating
+        # A-input pads flagged on U5 (6 spare) and U8 (7 spare) in review.
+        for i in range(len(pairs), 8):
+            g, k = i // 4 + 1, i % 4
+            sch.net(u, "%dA%d" % (g, k), "GND", kind="label", dx=-2.54)
+            sch.no_connect(u.pin_xy("%dY%d" % (g, k)))
         sch.net(u, "1OE", "GND", kind="label", dy=-2.54)
         sch.net(u, "2OE", "GND", kind="label", dy=2.54)
         sch.net(u, "VCC", "+3V3", kind="label", dx=2.54, dy=-2.54)

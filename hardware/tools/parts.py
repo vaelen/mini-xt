@@ -29,16 +29,19 @@ Conventions (see CLAUDE.md "Fabrication constraints"):
 
 Substitutions forced by JLC stock (all verified same-pinout):
   * 74HCT374 -> 74HCT574 (no '374 stocked; sheets rewired for the '574)
-  * 74HCT157 -> 74HC157 + HCT-buffered 3.3 V selects (I0/I1 swapped)
+  * 74HCT157 -> 74HC157, +3.3 V (speed mux): SPEED_SEL drives the select
+    DIRECTLY off the 3.3 V MCU GPIO now (clears HC Vih 2.31 V), so the old
+    5 V HCT select-inverter is gone and I0a/I1a are UN-swapped (see cpu_core Q5)
   * TCM809   -> TCM809TENB713 (SOT-23, 3.08 V threshold -- 3.3V-rail grade;
     the -450I/TT (4.375 V) pick was wrong, chosen back when this part
     monitored +5V; see notes/questions-cpu_core.md Q9)
   * 2N3904   -> MMBT3904 (SOT-23)
   * TL072    -> MCP6002 (RRIO; pin-identical dual op-amp)
   * 1.8432 MHz canned osc -> crystal on the 16C550's XIN/XOUT
-  * 14.31818 MHz osc: only 3.3 V parts stocked -> powered from 3V3, squared
-    up through a spare HCT gate (pre-3.3V-redesign 5V clock tree; whoever
-    rewires cpu_core.py's clock tree onto the 3.3V rail may drop this gate)
+  * 14.31818 MHz osc: only 3.3 V parts stocked -> powered from 3V3. The clock
+    tree is now the 3.3 V single-board design: OSC_3V3 clocks the LVC /2+/3
+    dividers directly; the U13 HCT04 (still +5 V) squares CLK_MUX up to the
+    V20's 5 V CPUCLK and re-buffers READY/HOLD (Task-10). No stale 5 V OSC net.
 
 3.3V single-board redesign (2026-07-14, see notes/3v3-verification.md):
   * DS12C887 + its ISA glue deleted -- RTC emulated in the Bus MCU (ports
@@ -142,6 +145,12 @@ PART_MAP = {
     # input is 3.3V-driven -- HCT itself needs 4.5-5.5V and no longer works) ----
     ("mini-xt:74HCT00", "74HC00"):    E("C699445", "74HC00D", "SOIC-14", SOIC14),
     ("mini-xt:74HCT04", "74HC04"):    E("C86613", "74HC04D", "SOIC-14", SOIC14),
+    # 5V-tolerant-input inverter on the '04 body (Task-10 fix): bus_mcu U17
+    # inverts the V20's 5V HLDA while itself powered at +3V3 -- plain HC04 is
+    # NOT 5V-tolerant; LVC04A is. Same standard '04 pinout, SO-14 like the HC/HCT.
+    ("mini-xt:74HCT04", "74LVC04A"):  E("C282341", "74LVC04AD,118", "SO-14", SOIC14,
+                                        "5V-tolerant-input hex inverter (Nexperia); "
+                                        "U17 inverts the V20's 5V HLDA at +3V3 VCC"),
     ("mini-xt:74HCT32", "74HC32"):    E("C52140395", "74HC32D", "SOP-14L", SOIC14,
                                         "verify SOIC-14 footprint match at layout"),
     ("mini-xt:74HCT138", "74HC138"):  E("C5602", "74HC138D,653", "SOIC-16", SOIC16),

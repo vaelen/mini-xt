@@ -104,7 +104,16 @@ that bridges U1's domain onto the shared 3.3V bus.
 **Pick:** (b). U3 (IRQ/AEN gate) is the only chip converted --
 `74LVC125A @ +3V3` (LVC specifically because its input, U1's INT0 pin, is a
 5V signal). R6 (U3's own OE pull-up) moved to +3V3 to match U3's rail; R7
-(AEN_CHIP pull, feeds U1's own AEN input) stays +5V, matching U1's domain.
+(AEN_CHIP park) -- see the Task-10 correction below (moved +5V -> +3V3).
+
+**Task-10 correction -- R7 (AEN_CHIP park) moves +5V -> +3V3.** The original
+pick parked AEN_CHIP to +5V "matching U1's domain," but AEN_CHIP does NOT feed
+only U1: it also drives **U5's ~{E0}** (the 0x340-decode 74HC138 @ +3V3, added
+in Q8). A +5V park would push that 3.3V-powered '138 input above its own rail.
++3V3 satisfies U1's AEN input either way -- the RTL8019AS AEN is a **5V-TTL
+input (Vih 2.0V)**, so a 3.3V park reads as a valid logic high. So with JP1 open,
+R7 now parks AEN_CHIP at 3.3V: U1 still sees "AEN high -> ignore all I/O" AND U5
+is no longer over-driven. Netlist: R1307 (R7) pin2 -> +3V3; pin1 -> AEN_CHIP.
 Every other 5V tie on this sheet (R1/R2/R8/R9 straps, U2's VCC/ORG, the bulk
 decoupling row, C15) is directly wired to U1 or U2 and is unaffected.
 **Correction (review fix, see Q8):** the original claim here -- that "5V

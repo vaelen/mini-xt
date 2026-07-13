@@ -53,7 +53,7 @@ and `hardware/notes/3v3-verification.md`.
 | Config | **Pre-BIOS setup menu** (Supervisor MCU), shown on **video + MCU console**, entered by keypress |
 | BIOS | **Xi 8088** (Sergey Kiselev), expected to be **forked** for our chipset |
 | Debug | **2-digit hex POST display** (port 0x80), MCU console, logic-analyzer header |
-| Power | Single **5 V in** (USB-C) → on-board **3.3 V buck** carrying nearly the whole board; no ±12 V. Only three 5V presences remain: the V20, one 74HCT04 package (V20 CLK only), and the expansion port's far side |
+| Power | Single **5 V in** (USB-C) → on-board **3.3 V buck** carrying nearly the whole board; no ±12 V. 5V presences that remain: V20; cpu_core U10 (74HCT32 strobe combiner); cpu_core U13 (74HCT04 — V20 CLK + READY/HOLD buffers); the RTL8019AS NIC island; the fused +5V_ISA port feed; the audio MCP6002 (analog). MAX3241s are 3.3V |
 
 **MCU count: 2× RP2350B** (Bus MCU, video) **+ 2× RP2040** (Supervisor, PicoGUS).
 The chipset is deliberately split across two MCUs (§5) for clean separation: the **Bus MCU**
@@ -199,11 +199,15 @@ to or below the 14.318 MHz clock), so both dividers are **LVC-grade**:
   reaches a non-5V-tolerant GPIO).
 
 **CLK level note:** the V20 clock input wants a near-Vcc swing (datasheet-confirmed
-Vkh min = 0.8×Vdd = **4.0 V**, check 1), so the mux output is buffered by the board's
-**one remaining 5 V-powered 74HCT04 package** to meet it — the single 5V gate this
-design still needs, and it drives *only* the private V20 CLK net, never a shared bus
-line. This is also why the MCU cannot drive the CPU clock directly (its 3.3 V pins
-won't meet Vkh). **RESET, by contrast, does NOT need the 5V buffer** — the V20's
+Vkh min = 0.8×Vdd = **4.0 V**, check 1), so the mux output is buffered by a
+**5 V-powered 74HCT04 package (U13)** to meet it. The same U13 package also
+re-buffers the V20's **READY/HOLD** inputs (Task-10: their Vih ≈ 0.6×Vdd = 3.0 V
+is barely met by a 3.3 V MCU drive — HOLD via one *inverting* gate, so firmware
+drives HOLD active-low). All U13 outputs drive *only* private V20 nets, never a
+shared bus line. (U13 and U10's 74HCT32 strobe combiner are this design's two
+surviving 5 V logic packages.) This is also why the MCU cannot drive the CPU
+clock directly (its 3.3 V pins won't meet Vkh). **RESET, by contrast, does NOT
+need the 5V buffer** — the V20's
 general-input Vih (2.2V) is well within reach of 3.3V logic (check 1), so RESET and
 RESET_DRV are driven straight from 3.3V.
 
@@ -737,7 +741,9 @@ space if a physical drive or Gotek must plug in; nothing else requires it.)*
   parks the UART's spare active-high CS1, so the port never decodes; the IRQ driver is
   tri-state and MCR resets to 0, so a disabled port is silent on every line — disabling a
   port is how you free its IRQ).
-- **MAX3241** per port (already 3.3V, unchanged) — 3 drivers + 5 receivers = a **full DB9**
+- **MAX3241** per port (3.3V — Task-10 moved it onto the 3.3V rail so its receiver
+  outputs no longer swing 5V into U1's non-5V-tolerant inputs; caps resized to the
+  datasheet 3.0–3.6V column) — 3 drivers + 5 receivers = a **full DB9**
   (TXD/RTS/DTR out; RXD/CTS/DSR/DCD/RI in), internal charge pump (single-supply, no ±12 V).
 - **TTL console header** jumpered onto COM1 (ahead of the MAX3241) for headless bring-up.
 - (TL16C554 quad rejected: ~6× the cost for 4× ports; add COM3/4 on the expansion port

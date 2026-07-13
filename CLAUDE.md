@@ -91,9 +91,13 @@ Boards are fabbed and assembled at JLCPCB. Rules that shape every sheet:
 - **Voltage domains matter for substitutions**: 74HCT reads 3.3 V inputs at
   5 V; plain 74HC does NOT (Vih ≈ 3.5 V) and is only used where every input
   is 5 V-driven or the part itself runs at 3.3 V. The board is now 3.3V almost
-  everywhere — only the V20 and one 74HCT04 package (V20 CLK buffer) stay on
-  the 5 V rail; the expansion port's isolation bank and the network sheet's
-  RTL8019AS 5V-island buffer are the only other 5V↔3.3V crossings. When JLC
+  everywhere; the remaining 5 V presences are: the **V20**; `cpu_core` **U10**
+  (74HCT32 strobe combiner, reads the raw 5 V V20 strobes); `cpu_core` **U13**
+  (74HCT04 — V20 CLK buffer, and now also the READY/HOLD 5 V re-buffers);
+  the **RTL8019AS + AT93C46** NIC island (isolated behind a gated 74LVC245 +
+  74HC138); the fused **+5V_ISA** expansion-port feed; and the **audio MCP6002**
+  op-amp (analog +5 V). The MAX3241 RS-232 transceivers are now genuinely 3.3 V.
+  When JLC
   stock forces an HC-grade part into a 3.3 V-driven position, buffer the
   input through a spare HCT gate, or use LVC-grade if fmax margin is tight
   (the clock dividers needed this — plain HC fails its 3.3V fmax spec at

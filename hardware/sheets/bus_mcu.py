@@ -119,6 +119,11 @@ GPIO_NET.update({
     16: "~{IOR}", 17: "~{IOW}", 18: "~{MEMR}", 19: "~{MEMW}",  # strobes direct (were M_* via U6)
     20: "BALE", 21: "AEN", 22: "SPKR",     # BALE sense + AEN drive direct (were via U5/U13); SPKR: PIT ch2 / port-61h
     23: "IOCHRDY", 24: "~{IOCHCK}",                 # direct input sense
+    # GPIO25 HOLD: ***FIRMWARE MUST DRIVE HOLD INVERTED (active-low here)*** --
+    # cpu_core re-buffers this net through ONE inverting U13 '04 gate to reach the
+    # V20's 5V-class HOLD input at a clean full swing (Task-10 fix), so a bus-master
+    # request = GPIO25 LOW.  The mxbus "HOLD" contract NAME is unchanged; only its
+    # active sense flips.  See questions-bus_mcu.md + questions-cpu_core.md Q10.
     25: "HOLD", 26: "HLDA",                         # HLDA also feeds U17 -> ~{HLDA} ('244 ~OE)
     27: "INTR", 28: "~{INTA}", 29: "NMI",
     30: "IRQ_LOAD", 31: "IRQ_CLK", 32: "IRQ_SER",   # '165 scan chain
@@ -271,7 +276,11 @@ def build(sch, lib):
     # cpu_core '573s (OE = HLDA) for a contention-free address handoff.  These
     # STAY in the 3.3V design: the '163 counter has no output enable, so without
     # them the counter would fight the '573 latches on A0-A19 during CPU cycles.
-    inv = sch.place("mini-xt:74HCT04", "U17", "74HC04", at=(236.22, 233.68))
+    # U17 value = 74LVC04A (NOT plain 74HC04): its INPUT is the V20's HLDA, a 5V
+    # push-pull output (cpu_core U1 runs at +5V), while U17 itself is +3V3-powered.
+    # Plain 74HC04 is NOT 5V-tolerant (Task-10 fix); the LVC04A is (5V-tolerant in,
+    # standard '04 pinout on the same HCT04 body).
+    inv = sch.place("mini-xt:74HCT04", "U17", "74LVC04A", at=(236.22, 233.68))
     N(inv, "VCC", "+3V3", length=2.54)
     N(inv, "GND", "GND", length=2.54)
     N(inv, "P1", "HLDA")

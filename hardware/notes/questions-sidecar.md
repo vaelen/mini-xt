@@ -80,3 +80,20 @@ Built a filtered COPY of `isa_conn.ISA_PINS` (never mutated -- card_video /
 card_isatest import it unchanged). Dropped every IRQ*/DRQ* (now buffered onto
 private EXT_*); kept IOCHRDY / ~{IOCHCK} (our 2G07s drive the internal nets);
 added the PRIV_EXP pins (EXP_DDIR input, EXT_* outputs, verbatim from mxbus).
+
+## Q5 -- floating inputs on the always-enabled '244s (Task-10 fix)
+
+**Finding (reviewer-verified):** `buf244()` only wired the channels it was
+handed, so the partially-filled '244s left their unused **A inputs floating** on
+the real chip -- and these '244s are ALWAYS enabled (both ~OE = GND), so a
+floating CMOS input is a real hazard (oscillation / crowbar current), not just
+ERC noise. Two banks were short: the outbound command-strobe '244 U5 (10 strobes
+across 2 chips -> U5 carries 2, **6 spare channels**) and the inbound IRQ/DRQ
+'244 U8 (9 lines across 2 chips -> U8 carries 1, **7 spare channels**).
+
+**Pick:** for every unused channel, tie the **A input to GND** and **no_connect
+the Y output** -- the same convention bus_mcu uses for its spare '165/'244 pins.
+Done generically inside `buf244()` (loop `range(len(pairs), 8)`), so it also
+covers any future short bank. Netlist (post-fix): the only remaining
+`unconnected-(U1105-* / U1108-*` nets are the deliberately-NC'd **Y outputs**;
+**zero A-input pads float** -- all A pads (U1105: 6, U1108: 7) are on GND.

@@ -11,8 +11,10 @@ the board is the V20 itself.
 The buffered **8-bit XT/ISA bus is the integration contract**. The V20 plus
 minimal 74HCT glue creates a real XT bus; every other function hangs off it
 either as a real chip (16C550 UARTs, XT-IDE + CompactFlash) or as
-an MCU **"soft card"** that talks the bus exactly as a period ISA card would —
-each with its own local level shifters, PicoGUS-style. Soft cards may use *only*
+an MCU **"soft card"** that talks the bus exactly as a period ISA card would.
+Since the 3.3V single-board redesign the internal bus is 3.3V end-to-end, so a
+soft card's MCU sits on it directly (no per-card level shifters); real 5V ISA
+cards attach only through the buffered expansion port. Soft cards may use *only*
 signals that exist on the ISA bus, which keeps each one independently
 developable and liftable onto a standalone ISA card unchanged.
 
@@ -128,9 +130,11 @@ replace:
   status bit 7, IRQ7 hardwired (tri-state driver, silent until enabled), JP2
   enable gates the register-select '138 (open also frees IRQ7). DB25 out.
 - **RTC** — emulated in the Bus MCU (like the PIC/PIT/KBC) at the
-  PC-standard 0x70/0x71, NMI mask on 0x70 bit 7, IRQ8 hardwired; battery-backed
-  timekeeping comes from a **PCF8563 I2C RTC + CR2032** on the Supervisor,
-  synced to the Bus MCU over the existing UART link at boot.
+  PC-standard 0x70/0x71, NMI mask on 0x70 bit 7. The RTC periodic/alarm IRQ8 is
+  emulated in the **soft-PIC** (fired in firmware) — the physical ISA IRQ8 line
+  is undriven/reserved, not hardwired. Battery-backed timekeeping comes from a
+  **PCF8563 I2C RTC + CR2032** on the Supervisor, synced to the Bus MCU over the
+  existing UART link at boot.
 - **PicoGUS** — a faithful on-board copy of polpo's PicoGUS 2.0 "chip-down"
   design (CERN-OHL-P): a bare RP2040 running **stock PicoGUS firmware**
   (AdLib/SB/GUS/MPU-401/CMS/Tandy), with the reference's ADS-muxed shared
@@ -183,7 +187,9 @@ MDA-strapped `card_video`.
 ## Fabrication
 
 Boards are fabricated and assembled at **JLCPCB**: SMD construction so each
-sub-board fits the cheap ≤100 × 100 mm tier, with through-hole only for
+standalone dev card fits the cheap ≤100 × 100 mm tier (the merged single-board
+motherboard is larger — the tier target applies to the individually-buildable
+cards), with through-hole only for
 connectors/headers and for the fab-installed **sockets** that carry the
 irreplaceable parts (the V20 and the MCU modules — the SRAM and RTC are now
 SMD, no longer socketed). Every schematic component carries an `LCSC Part Num` property —

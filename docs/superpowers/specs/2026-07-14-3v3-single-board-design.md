@@ -41,21 +41,30 @@ not.
 
 ## Voltage architecture
 
-3.3V everywhere, with exactly three 5V presences:
+3.3V everywhere, with these 5V presences (post Task-10 final review — the
+early "exactly three" count missed U10, the NIC island, and the audio op-amp,
+and wrongly kept the MAX3241s at 5V):
 
 1. **V20** (DIP-40, socketed as before) on the 5V rail.
-2. **One 74HCT04 package at 5V.** HCT reads 3.3V inputs (TTL Vih 2.0V) and
-   its CMOS outputs swing to the 5V rail — needed only for the V20 **CLK**
-   pin (Vih ≈ 0.7×Vcc, unreachable from 3.3V). Spare gates in the package
-   cover RESET (and anything else the datasheet check flags as
-   higher-than-TTL Vih).
-3. **Expansion port far side**: fused `+5V_ISA` rail and card-driven 5V
-   signals, isolated behind the port bank.
+2. **`cpu_core` U10 (74HCT32) at 5V** — the min-mode strobe combiner; it reads
+   the raw 5V V20 `RD̄/WR̄/IO-M̄` strobes directly, so it stays on the 5V rail
+   (its outputs cross to the 3.3V bus only through the U11 74LVC125A tri-state).
+3. **`cpu_core` U13 (74HCT04) at 5V.** HCT reads 3.3V inputs (TTL Vih 2.0V) and
+   its CMOS outputs swing to the 5V rail — needed for the V20 **CLK** pin
+   (Vih ≈ 0.7×Vcc, unreachable from 3.3V) and, after Task-10, to re-buffer the
+   V20's **READY/HOLD** 5V-class inputs up from the 3.3V MCU drive (HOLD via one
+   inverting gate → firmware drives HOLD active-low; see the plan/notes).
+4. **RTL8019AS + AT93C46 NIC island at 5V**, isolated from the 3.3V bus behind a
+   gated 74LVC245 + 74HC138 decode (data), and 74LVC125A (AEN/INT0).
+5. **Expansion port far side**: fused `+5V_ISA` rail and card-driven 5V signals,
+   isolated behind the port bank.
+6. **Audio MCP6002 op-amp at 5V** (analog: single +5V supply, +2.5V virtual
+   ground — an RRIO part chosen for that rail).
 
-Everything else — clock dividers, decode/glue, SRAM, UARTs, MAX3241s, all
-four MCUs, PicoGUS chip-down, audio, network, storage, LPT logic — runs at
-3.3V. The 5V rail shrinks to V20 + HCT04 + port feed; the 3.3V buck carries
-nearly the whole board (re-budget at plan stage).
+Everything else — clock dividers, decode/glue, SRAM, UARTs, **MAX3241s (now
+genuinely 3.3V)**, all four MCUs, PicoGUS chip-down digital, network glue,
+storage, LPT logic — runs at 3.3V. The 3.3V buck carries nearly the whole board
+(re-budget at plan stage).
 
 ### Signal-level rules replacing the old per-card shifter pattern
 
@@ -96,8 +105,9 @@ One **IS62WV51216BLL-55TLI** as 1M×8:
 
 ## Peripherals
 
-- **COM1/COM2:** TL16C550CPT (LQFP-48) ×2, soldered, 3.3V. MAX3241s
-  unchanged (already 3.3V). No sockets.
+- **COM1/COM2:** TL16C550CPT (LQFP-48) ×2, soldered, 3.3V. MAX3241s at 3.3V
+  (Task-10 moved them from 5V onto the 3.3V rail — caps resized to the
+  datasheet 3.0-3.6V column, all 0.1µF). No sockets.
 - **RTC:** sheet's ISA interface deleted. Bus MCU emulates ports 0x70/71.
   I2C RTC (PCF8563/RX8025 class, chosen from JLC stock at plan stage) +
   CR2032 holder on the Supervisor. Boot-time sync over the existing 2-wire

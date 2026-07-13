@@ -18,7 +18,7 @@ inside the Bus MCU's AT-style soft PIC.
 | IRQ5  | physical | PicoGUS — hardwired                | sole driver; pgusinit sets the firmware to match                                 |
 | IRQ6  | physical | Firmware floppy (virtual event)    | no physical FDC (design doc §10.1); the physical line stays free for the sidecar |
 | IRQ7  | physical | LPT ~Ack (0x378) — hardwired       | tri-state, silent unless IRQ_EN set; LPT JP2 (disable) frees it                  |
-| IRQ8  | physical | RTC periodic/alarm — hardwired     | motherboard-internal (not on the header)                                         |
+| IRQ8  | virtual  | RTC periodic/alarm — soft-PIC      | fired in Bus-MCU firmware; the physical ISA IRQ8 line is undriven/reserved       |
 | IRQ12 | virtual  | PS/2 mouse option                  | Bus MCU firmware (default is the COM3 mouse on IRQ4)                             |
 | IRQ14 | physical | XT-IDE INTRQ — hardwired           | motherboard-internal; poll vs interrupt = XTIDE UB config, wired either way      |
 

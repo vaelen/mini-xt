@@ -173,3 +173,26 @@ Hi-Z-window parks (R1=AEN low, R17=TC low) are kept; HLDA park (R18) kept
 because HLDA also gates the '244s. C6/C7/C8 (decoupling for the deleted
 data/addr/AEN '245s) removed; C10/C12-C15 moved +5V -> +3V3; C18/C19 added for
 U19/U20.
+
+## Task 10 final-review fixes (2026-07-14)
+
+### F1. U17 (HLDA inverter) -> 74LVC04A: 5V input on a 3.3V part.
+U17 ('04 @ +3V3) inverts HLDA to ~{HLDA} for the '244 ~OE. Its INPUT is HLDA,
+which is a **5V push-pull output of the V20** (cpu_core U1 @ +5V). Plain 74HC04
+is NOT 5V-tolerant -> value override to **74LVC04A** (5V-tolerant input, standard
+'04 pinout on the same HCT04 body; parts.py binds C282341, Nexperia 74LVC04AD,118,
+SO-14, ~1700 stock). Netlist: HLDA net includes U217.1; U217 value = 74LVC04A.
+
+### F2. FIRMWARE CONTRACT -- HOLD is now ACTIVE-LOW at GPIO25.
+cpu_core re-buffers the V20's READY/HOLD 5V-class inputs up from the 3.3V GPIO
+drive through its spare U13 '04 gates (questions-cpu_core.md Q10). READY goes
+through TWO gates (net non-inverting, no change). **HOLD goes through ONE
+INVERTING gate**, so the V20 sees HOLD inverted. Therefore:
+
+  ***FIRMWARE MUST DRIVE GPIO25 (HOLD) INVERTED -- assert a bus-master request
+  by driving GPIO25 LOW, release by driving it HIGH.***
+
+The mxbus "HOLD" contract NAME is intact bus-side (both sheets still call the
+interface net HOLD; mxbus.PRIV_CPU unchanged) -- only the active SENSE flips.
+Prominent comments are at the GPIO25 map entry here and at cpu_core U13. Netlist:
+/HOLD = {M201.26 (GPIO25), U113.13 (U13 gate input)}.

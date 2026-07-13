@@ -99,11 +99,17 @@ card_com's own JP2 was deleted (the sheet's strap comes along for free).
 - **U6 IRQ buffer -> 74LVC125A, +3V3** (brief-specified): tri-state driver
   onto the shared COM_IRQ line, LVC grade for speed/5V-tolerant-input margin
   matching the port-bank convention used elsewhere in this redesign.
-- **MAX3241 (U2) left completely untouched** per spec 2026-07-14 ("MAX3241s
-  unchanged, already 3.3V-compatible") -- still +5V, same caps, same DE9
-  wiring. Its TTL-side inputs (T1IN/T2IN/T3IN) now see 3.3V logic from U1
-  instead of 5V; MAX3241's TTL inputs read valid-high at 3.3V (comfortably
-  above its ~0.8V/2.0V-class threshold at 5V VCC), so no compatibility issue.
+- **MAX3241 (U2) -> +3V3 (Task-10 final-review fix).** The spec said "leave it,
+  already 3.3V-compatible," and it WAS left at +5V -- but that created an
+  un-dispositioned overstress path: at +5V the MAX3241's receiver outputs
+  (R*OUT) swing 0-5V straight into U1's TL16C550 TTL inputs, which are now
+  +3V3-VCC and NOT 5V-tolerant. Fix: move U2 to +3V3 (the part is rated
+  3.0-5.5V and makes valid RS-232 swings from 3.3V via its charge pumps). Now
+  both sides of the TTL interface share +3V3 -- no cross-domain swing. Also
+  moved: ~{SHDN} tie (VCC rail), the C2 decouple, and the C13 bulk, all +5V ->
+  +3V3. **This sheet now has NO +5V rail at all** (netlist-verified). Charge-pump
+  caps resized to the datasheet **3.0-3.6V column: all four = 0.1uF** (were the
+  5V column's C1=47nF, C2-C4=330nF). Netlist: U502/U602 VCC (+SHDN) on +3V3.
 - **Every net that ties directly to a U1 (3.3V) logic pin was moved from
   +5V to +3V3**, not just U1's own VCC: CS0 (tied high), the JP3 port-enable
   pull (feeds CS1), the JP1/R2 SIN idle pull-up, and J3's TTL console

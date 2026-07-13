@@ -145,3 +145,34 @@ Format: question / why / options / pick. Appended as decisions are made.
   value string is unchanged (`place()` defaults value to `"TCM809"`, the
   bare lib_id suffix — the threshold binding lives only in `parts.py`'s
   (lib_id, value) → LCSC map, per the generic-schematic convention).
+
+### Q10. V20 READY + HOLD 3.3V drive vs the 0.6·Vdd input threshold (Task 10 fix).
+- **Found by:** Task 10 final review. The V20's READY and HOLD are general-input
+  pins in the higher-Vih (CMOS-ish) class — Vih ≈ 0.6·Vdd = **3.0 V** at Vdd = 5 V.
+  Both are driven straight from a 3.3 V Bus-MCU GPIO (READY = GPIO44, HOLD =
+  GPIO25). 3.3 V clears 3.0 V by only 0.3 V — no noise margin, and a marginal
+  high read on HOLD/READY is a hang-class fault (missed bus grant / stuck wait).
+- **READY fold check (asked in the brief):** does READY reach the V20 as a single
+  driver or a wired-OR fold? **Finding: single push-pull driver.** IOCHRDY and all
+  soft-card ready sources are folded into READY **inside Bus-MCU firmware**; they
+  emerge on ONE GPIO (GPIO44). Netlist confirms the pre-gate READY net =
+  {M201.45 (MCU), U113.11} only — no pull-up, no second driver. So READY is safe
+  to buffer straight through (no fold point to preserve; buffer on the V20 side).
+- **Pick:** re-buffer both through cpu_core U13's three previously-parked HCT04
+  gates (74HCT04 @ +5V: HCT input reads the 3.3 V MCU level at Vih ≈ 2 V, CMOS
+  output swings the full 5 V the V20 wants). **Zero package cost** — all three
+  spares were idle.
+  - **READY: TWO gates in series** (P11→P10, then P3→P4). Double inversion = net
+    NON-INVERTING, no logic change. Netlist: READY_V20 = {U101.22 (V20 READY),
+    U113.4}; READY_MID = {U113.10, U113.3}.
+  - **HOLD: ONE gate** (P13→P12) = **INVERTING**. The V20 therefore sees HOLD
+    inverted, so **FIRMWARE MUST DRIVE HOLD INVERTED (active-low at bus_mcu
+    GPIO25)** — a bus-master request is now GPIO25 LOW. The mxbus "HOLD" contract
+    NAME is unchanged (both sheets still name the interface net HOLD); only its
+    active sense flips. Netlist: HOLD_V20 = {U101.31 (V20 HOLD), U113.12}; the
+    interface net /HOLD = {M201.26 (MCU GPIO25), U113.13}. Also logged in
+    questions-bus_mcu.md; commented loudly at both the U13 gate and GPIO25.
+- **Placement note:** U13 nudged x 147.32 → 152.4 mm so its left-edge input stubs
+  clear U12 (74HC157 speed-mux) output column at x=130.81 — at the old x, P3's
+  READY_MID stub landed exactly on U12's Zd no_connect (no_connect_connected).
+- **All three U13 spare gates are now used** — the old "parked" comment is gone.

@@ -20,8 +20,9 @@ V20 runs at 5 V, everything past the boundary latches is a 3.3 V bus.
     1 MB less the 0xA0000-0xBFFFF video window.
   * single-oscillator clock tree: 14.318 osc -> /2 (74LVC74A) and /3 (74LVC161
     preset-to-3, 3.3 V for fmax margin), 74HC157 select (SPEED_SEL direct),
-    74HCT04 5 V buffer (U13) -> V20 CLK ONLY (the one gate package that MUST stay
-    5 V: V20 CLK needs Vkh = 4.0 V, unreachable from 3.3 V). U13 drives no bus net.
+    74HCT04 5 V buffer (U13) -> V20 CLK, plus 5 V re-buffering of the V20's
+    READY/HOLD handshake inputs (the one gate package that MUST stay 5 V: V20 CLK
+    needs Vkh = 4.0 V, unreachable from 3.3 V). U13 drives only private V20 nets.
   * 74LVC125A bus re-buffer (U15, 3.3 V): the BALE/CLK/OSC bus copies are buffered
     to 3.3 V here -- no 5 V push-pull output may drive a shared bus net (they reach
     the non-5V-tolerant sidecar RP2040). BALE's input is the raw 5 V V20 ALE (LVC
@@ -98,8 +99,13 @@ def build(sch, lib):
     # drive the shared bus (non-5V-tolerant RP2040 on the sidecar). See Q8.
     L(U1, "ALE", "ALE_RAW")
     L(U1, "~{WR}", "~{WR}"); L(U1, "IO/~{M}", "IO/~{M}")   # (~{RD} stubbed once, below)
-    P(U1, "HOLD", "HOLD", shape="input"); P(U1, "HLDA", "HLDA", shape="output")
-    P(U1, "READY", "READY", shape="input")
+    # HOLD/READY are re-buffered through U13's spare '04 gates (Task-10 fix, below):
+    # the V20's HOLD/READY inputs are 5V-CMOS-class (Vih ~ 0.6*Vdd = 3.0V at 5V),
+    # which a 3.3V MCU drive barely reaches. U13 ('04 @ +5V) gives them a clean 5V
+    # swing. READY_V20 = two-gate (non-inverting) buffer of READY; HOLD_V20 =
+    # one-gate INVERTING buffer of HOLD (firmware drives HOLD active-low -- see U13).
+    L(U1, "HOLD", "HOLD_V20"); P(U1, "HLDA", "HLDA", shape="output")
+    L(U1, "READY", "READY_V20")
     P(U1, "INTR", "INTR", shape="input"); P(U1, "~{INTA}", "~{INTA}", shape="output")
     P(U1, "NMI", "NMI", shape="input")
     L(U1, "RESET", "V_RESET")
@@ -292,20 +298,33 @@ def build(sch, lib):
     # THE one gate package that MUST stay +5V: V20 CLK needs Vkh = 0.8*Vdd = 4.0V
     # (Task1 check 1), unreachable from a 3.3V rail. HCT-grade so it reads the 3.3V
     # CLK_MUX input (Vih_HCT ~ 2V) yet outputs the 5V swing CPUCLK needs. Do NOT
-    # downgrade to 74HC04 and do NOT move to +3V3. Its ONLY output is CPUCLK, the
-    # V20's PRIVATE clock net -- U13 must NOT drive any shared bus net (review fix
-    # Q8): the 5V push-pull output would reach the non-5V-tolerant sidecar RP2040.
+    # downgrade to 74HC04 and do NOT move to +3V3. Every U13 output (CPUCLK, and
+    # -- Task-10 -- the V20's READY_V20/HOLD_V20 handshake buffers) drives ONLY
+    # PRIVATE V20 nets; U13 must NOT drive any shared bus net (review fix Q8): the
+    # 5V push-pull output would reach the non-5V-tolerant sidecar RP2040.
     # The bus CLK/OSC copies are re-buffered at 3.3V by U15 below.
-    buf = sch.place("mini-xt:74HCT04", "U13", at=(147.32, 76.2))  # 5V buffer to CPU CLK
+    # Placed at x=152.4 (was 147.32): its left-edge input stubs must clear U12
+    # mux's output pin column at x=130.81 -- at the old x, P1/P3's dx=-2.54 stubs
+    # landed exactly on U12 Zc/Zd (a no_connect_connected once P3 carries READY_MID).
+    buf = sch.place("mini-xt:74HCT04", "U13", at=(152.4, 76.2))  # 5V buffer to CPU CLK
     L(buf, "VCC", "+5V", dx=0, dy=-2.54); L(buf, "GND", "GND", dx=0, dy=2.54)
     L(buf, "P1", "CLK_MUX"); L(buf, "P2", "CPUCLK")
     L(buf, "P5", "DIV3_TC"); L(buf, "P6", "DIV3_LD")  # spare gate inverts TC -> ~PE
     L(buf, "P9", "IO/~{M}", dx=-2.54); L(buf, "P8", "IOM_INV")  # for the ~IOR/~IOW gates
-    # Three U13 gates now free (SPEED_SEL, ex-bus-CLK, ex-bus-OSC): the 5V bus
-    # drives moved to U15. Park each spare input to GND; NC each output.
-    for pin_in, pin_out in (("P11", "P10"), ("P3", "P4"), ("P13", "P12")):
-        L(buf, pin_in, "GND", dx=-2.54)
-        sch.no_connect(buf.pin_xy(pin_out))
+    # Task-10 fix -- V20 READY + HOLD 5V-CMOS-class inputs (Vih ~ 0.6*Vdd = 3.0V at
+    # Vdd=5V) buffered up from the 3.3V MCU drive through U13's three ex-parked '04
+    # gates (HCT input reads 3.3V; 5V output = clean full-swing edge to the V20):
+    #  * READY: a SINGLE push-pull driver from the Bus MCU (GPIO44) -- IOCHRDY is
+    #    folded into READY in MCU FIRMWARE, so this is NOT a wired-OR net (no pull-up
+    #    on it) and it is safe to buffer straight through. TWO gates in series (P11->
+    #    P10, then P3->P4) = net NON-INVERTING, no logic change: READY -> READY_V20.
+    #  * HOLD: ONE gate (P13->P12) = INVERTING. The V20 therefore sees HOLD inverted,
+    #    so ***FIRMWARE MUST DRIVE HOLD INVERTED (active-low at bus_mcu GPIO25)***.
+    #    The mxbus "HOLD" contract NAME is kept intact bus-side; only its active
+    #    sense flips. Logged in questions-cpu_core.md Q10 + questions-bus_mcu.md.
+    P(buf, "P11", "READY", shape="input", dx=-2.54); L(buf, "P10", "READY_MID")
+    L(buf, "P3", "READY_MID", dx=-2.54); L(buf, "P4", "READY_V20")
+    P(buf, "P13", "HOLD", shape="input", dx=-2.54); L(buf, "P12", "HOLD_V20")
 
     # ---------------- 3.3V bus re-buffers (BALE / CLK / OSC) -- review fix Q8 ----
     # No 5V push-pull output may drive a shared ISA bus net: those nets reach the

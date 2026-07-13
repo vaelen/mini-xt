@@ -10,7 +10,8 @@ to reuse the IRQ for something else, disable the whole port with JP3.
 Structure:
   * U1  16C550 UART (mini-xt:TL16C550PT, LQFP-48, soldered, +3V3) -- 8-bit ISA slave
   * U2  MAX3241 single-supply RS-232 transceiver (3 drivers + 5 receivers),
-        +5V, unchanged (spec 2026-07-14: "already 3.3V"-compatible, no swap)
+        +3V3 (Task-10 fix): rated 3.0-5.5V, makes valid RS-232 from 3.3V; caps
+        resized to the datasheet 3.0-3.6V column. This sheet has no +5V rail.
   * J1  DE9 male, full DTE port (TXD/RTS/DTR out; RXD/CTS/DSR/DCD/RI in)
   * J2  base-address strap (0x3F8 vs 0x2F8, selects A8 polarity in the decode)
   * J3  TTL console header tapped ahead of the MAX3241 (populated on COM1 only)
@@ -19,8 +20,11 @@ Structure:
   * Y1  1.8432 MHz baud crystal on XIN/XOUT; ~{BAUDOUT} -> RCLK
 
 3.3V single-board redesign (spec 2026-07-14): U1 replaces the old PLCC-44
-socketed 16550 with a soldered 3.3V LQFP-48 part; U3-U6 move to +3V3. MAX3241
-and the DE9/RS-232 side are untouched. Soft card: uses ISA bus signals +
+socketed 16550 with a soldered 3.3V LQFP-48 part; U3-U6 move to +3V3. The
+MAX3241 (U2) also moves to +3V3 (Task-10 fix -- it was left at +5V, whose 5V
+R*OUT swing into U1's non-5V-tolerant 3.3V-VCC receiver inputs was an
+un-dispositioned overstress path); the DE9/RS-232 side is otherwise
+unchanged. Soft card: uses ISA bus signals +
 power (isolation now a firmware-portability guideline, not a hard rule --
 see mxbus.py).
 """
@@ -83,9 +87,9 @@ def build(sch, lib, expose=True):
     L(U1, "XOUT", "BAUD_XO", dx=2.54)
     L(U1, "RCLK", "BAUDOUT_N", dx=-2.54)
     L(U1, "~{BAUDOUT}", "BAUDOUT_N", dx=2.54)
-    # modem control / status -> TTL side of MAX3241 (3.3V logic swing; the
-    # MAX3241's TTL-side inputs read valid-high well below its own 5V VCC, see
-    # questions-com_port.md)
+    # modem control / status -> TTL side of MAX3241 (both sides now 3.3V: U1 and
+    # the MAX3241 share the +3V3 rail after the Task-10 fix, so T*IN inputs and
+    # R*OUT outputs all swing 0-3.3V -- see questions-com_port.md)
     L(U1, "SOUT", "UART_TXD"); L(U1, "SIN", "UART_RXD")
     L(U1, "~{RTS}", "UART_RTS"); L(U1, "~{DTR}", "UART_DTR")
     L(U1, "~{CTS}", "UART_CTS"); L(U1, "~{DSR}", "UART_DSR")
@@ -164,8 +168,14 @@ def build(sch, lib, expose=True):
         sch.no_connect(U6.pin_xy(op))
 
     # ---------------- U2: MAX3241 transceiver ----------------
+    # +3V3 (Task-10 fix, was +5V): the MAX3241 is rated 3.0-5.5V and makes valid
+    # RS-232 swings from a 3.3V supply via its charge pumps. Running it at +3V3
+    # (a) matches U1's 3.3V TTL logic on the T*IN/R*OUT side -- removing the
+    # previously un-dispositioned 5V-swing MAX3241 R*OUT -> TL16C550 (3.3V VCC,
+    # non-5V-tolerant) receiver path -- and (b) leaves this sheet with NO +5V rail
+    # at all. Charge-pump caps resized to the datasheet 3.0-3.6V column below.
     U2 = sch.place("mini-xt:MAX3241", "U2", at=(228.6, 101.6))
-    L(U2, "VCC", "+5V", dx=0, dy=-2.54); L(U2, "GND", "GND", dx=0, dy=2.54)
+    L(U2, "VCC", "+3V3", dx=0, dy=-2.54); L(U2, "GND", "GND", dx=0, dy=2.54)
     # TTL side <-> UART
     L(U2, "T1IN", "UART_TXD", dx=-2.54)
     L(U2, "T2IN", "UART_RTS", dx=-2.54)
@@ -189,7 +199,7 @@ def build(sch, lib, expose=True):
     # enable / status (real MAX3241 control set, verified vs LCSC C406859:
     # SHDN# high = transceiver running; EN# low = receiver outputs enabled;
     # R1OUTB/R2OUTB are the always-active wake-up receiver outputs, unused)
-    L(U2, "~{SHDN}", "+5V", dx=-2.54)
+    L(U2, "~{SHDN}", "+3V3", dx=-2.54)   # tied to VCC rail (now +3V3)
     L(U2, "~{EN}", "GND", dx=-2.54)
     sch.no_connect(U2.pin_xy("R1OUTB"))
     sch.no_connect(U2.pin_xy("R2OUTB"))
@@ -203,11 +213,12 @@ def build(sch, lib, expose=True):
         sch.net(c, "1", na, kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", nb, kind="label", dx=0, dy=2.54)
 
-    # MAX3241 at 5V: C1=47nF, C2-C4=330nF (datasheet table); 100nF-everywhere was undersized
-    cap("C3", "47nF", (251.46, 152.4), "C1P", "C1N")     # flying cap 1
-    cap("C4", "330nF", (266.7, 152.4), "C2P", "C2N")      # flying cap 2
-    cap("C5", "330nF", (281.94, 152.4), "MAX_VP", "GND")  # V+ reservoir
-    cap("C6", "330nF", (297.18, 152.4), "MAX_VN", "GND")  # V- reservoir
+    # MAX3241 at 3.3V (Task-10 fix): the datasheet 3.0V-3.6V column wants all four
+    # charge-pump caps = 0.1uF (was the 5V column's C1=47nF, C2-C4=330nF).
+    cap("C3", "100nF", (251.46, 152.4), "C1P", "C1N")     # flying cap 1
+    cap("C4", "100nF", (266.7, 152.4), "C2P", "C2N")      # flying cap 2
+    cap("C5", "100nF", (281.94, 152.4), "MAX_VP", "GND")  # V+ reservoir
+    cap("C6", "100nF", (297.18, 152.4), "MAX_VN", "GND")  # V- reservoir
 
     # ---------------- J1: DE9 male, full DTE ----------------
     J1 = sch.place("Connector:DE9_Pins", "J1", at=(330.2, 101.6))
@@ -261,13 +272,13 @@ def build(sch, lib, expose=True):
 
     # ---------------- decoupling ----------------
     decouple("C1", (109.22, 50.8), rail="+3V3")   # U1
-    decouple("C2", (210.82, 50.8))                # U2 (MAX3241, stays +5V -- untouched)
+    decouple("C2", (210.82, 50.8), rail="+3V3")   # U2 (MAX3241, now +3V3)
     decouple("C9", (60.96, 271.78), rail="+3V3")    # U3
     decouple("C10", (76.2, 271.78), rail="+3V3")    # U4
     decouple("C11", (91.44, 271.78), rail="+3V3")   # U5
     decouple("C12", (106.68, 271.78), rail="+3V3")  # U6
-    C13 = sch.place("Device:C", "C13", "10uF", at=(121.92, 271.78))   # MAX3241 (+5V) bulk
-    sch.net(C13, "1", "+5V", kind="label", dx=0, dy=-2.54)
+    C13 = sch.place("Device:C", "C13", "10uF", at=(121.92, 271.78))   # MAX3241 (+3V3) bulk
+    sch.net(C13, "1", "+3V3", kind="label", dx=0, dy=-2.54)
     sch.net(C13, "2", "GND", kind="label", dx=0, dy=2.54)
     C14 = sch.place("Device:C", "C14", "10uF", at=(137.16, 271.78))   # UART+glue (+3V3) bulk
     sch.net(C14, "1", "+3V3", kind="label", dx=0, dy=-2.54)

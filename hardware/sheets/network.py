@@ -197,7 +197,11 @@ def build(sch, lib):
     R6 = sch.place("Device:R", "R6", "10k", at=(342.9, 190.5))
     L(R6, "1", "~{NET_EN}", dx=0, dy=-2.54); L(R6, "2", "+3V3", dx=0, dy=2.54)  # U3's own rail
     R7 = sch.place("Device:R", "R7", "10k", at=(355.6, 190.5))
-    L(R7, "1", "AEN_CHIP", dx=0, dy=-2.54); L(R7, "2", "+5V", dx=0, dy=2.54)  # U1's own rail (AEN_CHIP feeds U1's AEN pin)
+    # AEN_CHIP park (JP1 open): +3V3, NOT +5V (Task-10 fix). AEN_CHIP fans out to
+    # BOTH U1's AEN pin (5V-TTL input, Vih 2.0V -- reads a 3.3V park as high) AND
+    # U5's ~{E0} (74HC138 @ +3V3): a +5V park would drive the 3.3V '138 input above
+    # its own rail. +3V3 satisfies U1's TTL threshold without over-driving U5.
+    L(R7, "1", "AEN_CHIP", dx=0, dy=-2.54); L(R7, "2", "+3V3", dx=0, dy=2.54)
     R8 = sch.place("Device:R", "R8", "1k", at=(368.3, 254.0))
     L(R8, "1", "+5V", dx=0, dy=-2.54); L(R8, "2", "LNK_A", dx=0, dy=2.54)
     R9 = sch.place("Device:R", "R9", "1k", at=(381.0, 254.0))
