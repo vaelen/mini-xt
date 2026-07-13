@@ -41,7 +41,7 @@ Rows still live in the current (3.3V, single-board) design:
 |---------------|------------------------|----------|----------------|
 | 74HCT163      | 74HC161 (bus_mcu address counter, card_isatest) | C5610    | same pinout; async ~MR tied inactive; 3.3V-domain part, no cross-voltage concern |
 | 74HCT157      | 74HC157 (clock mux, now 3.3V-powered)  | C5609    | direct 3.3V select drive — no HCT-inverter stage needed any more (§3.2) |
-| TCM809        | MCP809T-450I/TT        | C511285  | same SOT-23 pinout, **but 4.375 V threshold — WRONG for the 3.3V rail it now monitors** (cpu_core.py's TCM809 moved from +5V to +3V3; see open item below) |
+| TCM809        | TCM809TENB713          | C47195   | same family/SOT-23 pinout, **-T grade, 3.08 V threshold** — correct for the 3.3V rail it now monitors (was wrongly bound to the 4.375V -450I/TT grade; fixed Task 10, see Q9 in questions-cpu_core.md) |
 | 2N3904        | MMBT3904               | C20526   | SMD version of the same die |
 | TL072→MCP6002 | (already swapped, H6)  | C7377    | RRIO, pin-identical |
 | 1.8432 MHz XO | crystal on the UART's XIN/XOUT | C47345430 | canned XOs at this frequency are 3.3 V-only; now drives the TL16C550CPT's crystal pins instead of the old 16C550's |
@@ -55,14 +55,15 @@ Rows still live in the current (3.3V, single-board) design:
   is deleted along with the RTC sheet. `parts.py` keeps the mapping (harmless,
   unreferenced) in case a future sheet needs plain 3.3V-domain 74HC02.
 
-**OPEN ITEM (flagged, not resolved by the docs pass):** the TCM809 substitute
-MCP809T-450I has a **4.375 V** reset threshold, chosen when the part monitored
-the **5V** rail. `cpu_core.py`'s reset supervisor now runs on **+3V3**
-(`hardware/sheets/cpu_core.py` U14, comment: *"Threshold variant (e.g. TCM809T
-~3.08V for a 3.3V rail) is a parts.py concern"*) — a 4.375V threshold can never
-be satisfied by a healthy 3.3V rail, so as specified the supervisor would hold
-reset permanently. Whoever next touches `parts.py` should re-pick a ~3.0–3.1V
-threshold variant (e.g. an MCP809T-300 series part) for this entry.
+**RESOLVED (Task 10):** the TCM809 substitute was bound to MCP809T-450I, a
+**4.375 V** reset threshold chosen when the part monitored the **5V** rail.
+`cpu_core.py`'s reset supervisor runs on **+3V3**, so a 4.375V threshold could
+never be satisfied by a healthy 3.3V rail — the supervisor held reset
+permanently, and the board could never start. Rebound to **TCM809TENB713**
+(C47195, real TCM809-family part, SOT-23, **3.08 V** threshold, stock 94):
+3.08V sits safely below a 3.3V rail at -2% regulation tolerance (3.234V) with
+~150 mV of margin, while still tripping well above ground. See
+`hardware/notes/questions-cpu_core.md` Q9 for the full margin arithmetic.
 
 **HC-at-3.3V-vs-5V voltage-domain rule (superseded picture):** the old
 "plain 74HC at 5V cannot read a 3.3V high" caveat drove several of the

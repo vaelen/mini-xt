@@ -30,7 +30,9 @@ Conventions (see CLAUDE.md "Fabrication constraints"):
 Substitutions forced by JLC stock (all verified same-pinout):
   * 74HCT374 -> 74HCT574 (no '374 stocked; sheets rewired for the '574)
   * 74HCT157 -> 74HC157 + HCT-buffered 3.3 V selects (I0/I1 swapped)
-  * TCM809   -> MCP809T-450I (SOT-23, 4.375 V threshold)
+  * TCM809   -> TCM809TENB713 (SOT-23, 3.08 V threshold -- 3.3V-rail grade;
+    the -450I/TT (4.375 V) pick was wrong, chosen back when this part
+    monitored +5V; see notes/questions-cpu_core.md Q9)
   * 2N3904   -> MMBT3904 (SOT-23)
   * TL072    -> MCP6002 (RRIO; pin-identical dual op-amp)
   * 1.8432 MHz canned osc -> crystal on the 16C550's XIN/XOUT
@@ -196,8 +198,9 @@ PART_MAP = {
     ("Memory_Flash:W25Q128JVS", "W25Q128JVS"): E("C97521", "W25Q128JVSIQ", "SOIC-8",
         "Package_SO:SOIC-8_5.3x5.3mm_P1.27mm", "208-mil wide body"),
     ("mini-xt:TL072", "MCP6002"):     E("C7377", "MCP6002T-I/SN", "SOIC-8", SOIC8),
-    ("Power_Supervisor:TCM809", "TCM809"): E("C511285", "MCP809T-450I/TT", "SOT-23", SOT23,
-                                             "4.375 V threshold, push-pull ~RST"),
+    ("Power_Supervisor:TCM809", "TCM809"): E("C47195", "TCM809TENB713", "SOT-23", SOT23,
+                                             "3.08 V threshold, push-pull ~RST -- 3.3V-rail grade "
+                                             "(was wrongly the 4.375V -450I/TT, see Q9)"),
     ("Regulator_Switching:TPS563200", "TPS563200"): E("C97253", "TPS563200DDCR", "TSOT-23-6",
         "Package_TO_SOT_SMD:TSOT-23-6"),
     ("Interface_USB:CH224K", "CH224K"): E("C970725", "CH224K", "ESSOP-10-150mil-1mm",

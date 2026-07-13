@@ -112,3 +112,36 @@ Format: question / why / options / pick. Appended as decisions are made.
   layout = the removed SRAM's decoupling). Two explicit +5V caps (C24/C25) for the
   surviving 5 V parts; C27 +5V bulk kept. Decoupling adequacy is not ERC-checked
   at this fidelity — this just keeps the rails honest.
+
+### Q9. Reset supervisor threshold wrong for the 3.3V rail (Task 10 fix).
+- **Found by:** Task 10's implementer, doing a final sweep before the 3.3V
+  redesign shipped. `parts.py` bound U14 (`Power_Supervisor:TCM809`) to
+  MCP809T-450I/TT — a **4.375 V** threshold — left over from when this part
+  monitored the board's old +5V rail. U14's `VCC` moved to +3V3 in this same
+  redesign (§ comment at cpu_core.py:333), but the LCSC binding didn't follow:
+  a healthy 3.3V rail can never cross 4.375 V, so `~{PWRGOOD}` never
+  deasserts and the board would sit in reset forever — a full no-boot bug,
+  not cosmetic.
+- **Why 4.5V-grade was wrong:** the -450I/TT grade's 4.375V threshold is
+  ~1.14x the 3.3V nominal rail; even the buck's absolute max output can't
+  reach it under any normal fault. It was the *correct* grade for the old
+  +5V rail (4.375V is a sane brown-out point for 5V, ~87.5% of nominal) and
+  simply never got re-picked when the rail it watches changed.
+- **Pick:** `TCM809TENB713` (LCSC C47195, real Microchip TCM809 family — not
+  a substitute — SOT-23-3, `-T` grade, **3.08 V** threshold, extended
+  library, stock 94 at query time). Netlist-verified same pinout/footprint
+  as the part it replaces (VCC/GND/~{RESET} only, footprint unchanged —
+  `Package_TO_SOT_SMD:SOT-23`). Considered MCP809T-300I/TT (2.925V, C556907,
+  stock 51) and MCP809T-270I/TT (2.625V, C145693, stock 58) as MCP809-family
+  alternatives; picked the TCM809-family part instead since it's literally
+  the wanted part (no substitution needed) and has the highest stock of the
+  in-range candidates.
+- **Margin arithmetic:** TPS563200 buck output regulation is ~±2%, so the
+  3.3V rail's worst-case floor under normal operation is 3.3 × 0.98 =
+  **3.234 V**. Threshold 3.08V is 0.154V (≈4.7% of nominal) below that floor
+  — comfortably inside "asserts only on a real droop, stays deasserted
+  through normal ripple/tolerance." It's also well above 0V/noise floor, so
+  it still catches a genuine brown-out rather than never tripping. Sheet
+  value string is unchanged (`place()` defaults value to `"TCM809"`, the
+  bare lib_id suffix — the threshold binding lives only in `parts.py`'s
+  (lib_id, value) → LCSC map, per the generic-schematic convention).

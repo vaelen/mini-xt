@@ -34,7 +34,7 @@ them if a 16-bit source ever appears.
 | 0x20/21, 0xA0/A1          | Dual 8259A PIC (AT-style)                    | Bus MCU emulated (soft PIC fed by the '165)                             |
 | 0x40–0x43                 | 8254 PIT                                     | Bus MCU emulated; ch2 → speaker                                         |
 | 0x60/0x61(/0x64)          | KBC — XT 8255 or AT 8042 mode                | Bus MCU emulated, software-selectable                                   |
-| 0x70/0x71                 | DS12C887 RTC + NMI mask (bit 7)              | real chip, fixed decode; on-board only                                  |
+| 0x70/0x71                 | RTC (Bus MCU-emulated) + NMI mask (bit 7)    | PCF8563 I2C RTC on the Supervisor backs the time; UART-synced at boot   |
 | 0x80                      | POST display                                 | Bus MCU snoops → Supervisor's 2-digit hex                               |
 | 0x220/0x240/0x330/0x388 … | PicoGUS personality (one at a time)          | SB/GUS/MPU-401/AdLib etc. via pgusinit; IRQ5, DMA1                      |
 | 0x278 / 0x378             | LPT (0x378 default)                          | JP1 base strap; JP2 enable; IRQ7 hardwired                              |
@@ -51,7 +51,7 @@ them if a 16-bit source ever appears.
 
 | Range           | Contents                                                       |
 |-----------------|----------------------------------------------------------------|
-| 0x00000–0x7FFFF | SRAM #1 (AS6C4008)                                             |
-| 0x80000–0x9FFFF | SRAM #2 (AS6C4008; gated around the video hole)                |
+| 0x00000–0x7FFFF | SRAM (IS62WV51216BLL, 1M×8 via byte-lane trick)                |
+| 0x80000–0x9FFFF | SRAM (same chip; gated around the video hole)                  |
 | 0xA0000–0xBFFFF | Video aperture (module PSRAM; CGA 0xB8000 / MDA 0xB0000 strap) |
 | 0xC8000         | XTIDE Universal BIOS, shadow-loaded by the Bus MCU             |
