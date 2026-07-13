@@ -3,14 +3,17 @@
   - V20         : NEC uPD70108, copied from the stock 8088_Min_Mode symbol
                   (pin-compatible) and relabelled. The signature vintage part.
   - MAX3241     : RS-232 transceiver, 3 drivers + 5 receivers (authored).
-  - DS12C887    : RTC/CMOS with integral battery+crystal (authored).
 
-Pin numbers for the two authored parts were VERIFIED against JLCPCB/EasyEDA
-symbol data on 2026-07-03 (MAX3241EEAI+T = LCSC C406859, DS12C887+ = C9869):
-the original best-effort numbering was wrong on almost every MAX3241 pin (and
-used MAX3243-style FORCEON/FORCEOFF names -- the real MAX3241 has SHDN#/EN#
-plus two always-on receiver outputs) and on four DS12C887 pins (DS=17,
-RESET#=18, IRQ#=19, SQW=23). See notes/jlcpcb-sourcing.md.
+Pin numbers for MAX3241 were VERIFIED against JLCPCB/EasyEDA symbol data on
+2026-07-03 (MAX3241EEAI+T = LCSC C406859): the original best-effort numbering
+was wrong on almost every pin (and used MAX3243-style FORCEON/FORCEOFF names
+-- the real MAX3241 has SHDN#/EN# plus two always-on receiver outputs). See
+notes/jlcpcb-sourcing.md.
+
+DS12C887 (RTC) was authored here too, but the 3.3V single-board redesign
+deleted it in favor of an emulated RTC (PCF8563 + Bus-MCU 0x70/71 emulation,
+see docs/superpowers/specs/2026-07-14-3v3-single-board-design.md) -- removed
+2026-07-14, no sheet ever placed it again after that point.
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
@@ -143,27 +146,6 @@ max3241 = make_ic(
             ("2", "C2-", "passive")],
     description="RS-232 transceiver, 3 drivers / 5 receivers, charge pump (full DB9). MAX3241EEAI SSOP-28",
     datasheet="https://www.analog.com/media/en/technical-documentation/data-sheets/MAX3222-MAX3241.pdf")
-
-# ---- DS12C887: RTC/CMOS, MC146818-compatible, integral battery+crystal (24-pin) ----
-ds12c887 = make_ic(
-    "DS12C887",
-    left=[
-        ("4", "AD0", "bidirectional"), ("5", "AD1", "bidirectional"),
-        ("6", "AD2", "bidirectional"), ("7", "AD3", "bidirectional"),
-        ("8", "AD4", "bidirectional"), ("9", "AD5", "bidirectional"),
-        ("10", "AD6", "bidirectional"), ("11", "AD7", "bidirectional"),
-    ],
-    right=[
-        # numbers verified vs DS12C887+ (LCSC C9869): DS=17, RESET#=18,
-        # IRQ#=19, SQW=23 (16/20/21/22 are NC on the encapsulated module)
-        ("14", "AS", "input"), ("17", "DS", "input"), ("15", "R/~{W}", "input"),
-        ("13", "~{CS}", "input"), ("18", "~{RESET}", "input"),
-        ("19", "~{IRQ}", "output"), ("23", "SQW", "output"), ("1", "MOT", "input"),
-    ],
-    top=[("24", "VCC", "power_in")],
-    bottom=[("12", "GND", "power_in")],
-    description="RTC + 113B NVRAM, MC146818-compatible, integral battery and crystal",
-    datasheet="https://www.analog.com/media/en/technical-documentation/data-sheets/DS12885-DS12C887A.pdf")
 
 # ---- IS62WV51216BLL: 512Kx16 async SRAM, TSOP-II-44 (3.3V bus redesign) ----
 # Pins VERIFIED against jlc_get_pinout for LCSC C11315 (IS62WV51216BLL-55TLI) on
@@ -553,7 +535,7 @@ rj45_led = make_ic(
     datasheet="https://www.lcsc.com/product-detail/C386757.html")
 
 lib = ["kicad_symbol_lib", ["version", 20241209], ["generator", "mxsch"],
-       ["generator_version", "9.0"], v20, max3241, ds12c887, core2350b, pico,
+       ["generator_version", "9.0"], v20, max3241, core2350b, pico,
        cb3t3257, cb3t3245, lvc2g06, pcm5102a, m62429, aps6404l,
        rtl8019as, at93c46, lan_xfmr, rj45_led,
        is62wv51216, tl16c550pt, pcf8563] + glue_syms
