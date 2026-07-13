@@ -58,6 +58,11 @@ Verified against JLCPCB/EasyEDA symbol data and the Maxim datasheets:
 | Core2350B module ×2  | 2.54 mm female headers C2897411 | Waveshare (consign) |
 | Pico module          | 2.54 mm female headers C2897411 | Raspberry Pi — official Pico stocked at JLC (C7203002, ~$8; Pico W C7203003) |
 
+**Header caveat (found 2026-07-13):** C2897411 is specifically the
+PM254-2-10-Z-8.5, a **2×10** female strip. That suits the Core2350B's
+dual-row rings, but the Pico needs 2× **1×20** strips — pick a 1×N part
+(same PM254 family) at order time.
+
 Module mounting (verified 2026-07-03 from the photos in
 `hardware/Core2350B0-details-size.jpg` / `-inter.jpg`):
 - **Core2350B has NO castellated edges** — it is a 25.4 × 25.4 mm

@@ -600,9 +600,12 @@ class Schematic:
                   ["effects", ["font", ["size", 1.27, 1.27]]]])
         n.append(["property", "Value", c.value, ["at", c.at[0], c.at[1] + 5.08, 0],
                   ["effects", ["font", ["size", 1.27, 1.27]]]])
-        n.append(["property", "Footprint", "", ["at", c.at[0], c.at[1], 0],
+        n.append(["property", "Footprint", c.props.get("Footprint", ""),
+                  ["at", c.at[0], c.at[1], 0],
                   ["effects", ["font", ["size", 1.27, 1.27]], ["hide", Sym("yes")]]])
         for k in sorted(c.props):
+            if k == "Footprint":
+                continue
             n.append(["property", k, c.props[k], ["at", c.at[0], c.at[1], 0],
                       ["effects", ["font", ["size", 1.27, 1.27]],
                        ["hide", Sym("yes")]]])
