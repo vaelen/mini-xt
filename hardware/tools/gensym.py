@@ -165,6 +165,85 @@ ds12c887 = make_ic(
     description="RTC + 113B NVRAM, MC146818-compatible, integral battery and crystal",
     datasheet="https://www.analog.com/media/en/technical-documentation/data-sheets/DS12885-DS12C887A.pdf")
 
+# ---- IS62WV51216BLL: 512Kx16 async SRAM, TSOP-II-44 (3.3V bus redesign) ----
+# Pins VERIFIED against jlc_get_pinout for LCSC C11315 (IS62WV51216BLL-55TLI) on
+# 2026-07-14, cross-checked against the ISSI 62WV51216ALL.pdf pin-configuration
+# diagram (44-pin TSOP-II) -- both agree exactly. The 44-pin package brings out
+# only CS1# (named ~{CE} here); CS2 is a 48-pin-BGA-only pin, tied active
+# internally, not present on this package.
+is62wv51216 = make_ic(
+    "IS62WV51216",
+    left=[(str(n), "A%d" % a, "input") for n, a in [
+        (5, 0), (4, 1), (3, 2), (2, 3), (1, 4), (44, 5), (43, 6), (42, 7),
+        (27, 8), (26, 9), (25, 10), (24, 11), (22, 12), (21, 13), (20, 14),
+        (19, 15), (18, 16), (23, 17), (28, 18)]],
+    right=[(str(n), "IO%d" % i, "bidirectional") for n, i in [
+        (7, 0), (8, 1), (9, 2), (10, 3), (13, 4), (14, 5), (15, 6), (16, 7),
+        (29, 8), (30, 9), (31, 10), (32, 11), (35, 12), (36, 13), (37, 14),
+        (38, 15)]] + [
+        ("6", "~{CE}", "input"), ("41", "~{OE}", "input"), ("17", "~{WE}", "input"),
+        ("39", "~{LB}", "input"), ("40", "~{UB}", "input"),
+    ],
+    top=[("11", "VDD", "power_in"), ("33", "VDD", "power_in")],
+    bottom=[("12", "GND", "power_in"), ("34", "GND", "power_in")],
+    description="IS62WV51216BLL 512Kx16 async SRAM, TSOP-II-44, 2.5-3.6V. Pins verified vs LCSC C11315 + ISSI datasheet 2026-07-14.",
+    datasheet="https://www.issi.com/WW/pdf/62WV51216ALL.pdf")
+
+# ---- TL16C550PT: TL16C550C UART, LQFP-48 (PT package) (3.3V bus redesign) ----
+# Pin numbers are the NO.PT column of TI SLLS177I Table 4-1 -- DISTINCT from the
+# DIP-40/PLCC-44 numbering the existing mini-xt:16550 symbol uses (do not reuse
+# those numbers). Verified against jlc_get_pinout for LCSC C181382
+# (TL16C550CPTR) on 2026-07-14 -- both sources agree exactly, pin for pin.
+tl16c550pt = make_ic(
+    "TL16C550PT",
+    left=[
+        ("43", "D0", "bidirectional"), ("44", "D1", "bidirectional"),
+        ("45", "D2", "bidirectional"), ("46", "D3", "bidirectional"),
+        ("47", "D4", "bidirectional"), ("2", "D5", "bidirectional"),
+        ("3", "D6", "bidirectional"), ("4", "D7", "bidirectional"),
+        ("28", "A0", "input"), ("27", "A1", "input"), ("26", "A2", "input"),
+        ("24", "~{ADS}", "input"),
+        ("9", "CS0", "input"), ("10", "CS1", "input"), ("11", "~{CS2}", "input"),
+        ("19", "~{RD1}", "input"), ("20", "RD2", "input"),
+        ("16", "~{WR1}", "input"), ("17", "WR2", "input"),
+    ],
+    right=[
+        ("7", "SIN", "input"), ("8", "SOUT", "output"),
+        ("5", "RCLK", "input"), ("12", "~{BAUDOUT}", "output"),
+        ("14", "XIN", "bidirectional"), ("15", "XOUT", "bidirectional"),
+        ("22", "DDIS", "output"), ("23", "~{TXRDY}", "output"),
+        ("29", "~{RXRDY}", "output"), ("30", "INTRPT", "output"),
+        ("35", "MR", "input"),
+        ("34", "~{OUT1}", "output"), ("31", "~{OUT2}", "output"),
+        ("32", "~{RTS}", "output"), ("33", "~{DTR}", "output"),
+        ("38", "~{CTS}", "input"), ("39", "~{DSR}", "input"),
+        ("40", "~{DCD}", "input"), ("41", "~{RI}", "input"),
+    ],
+    top=[("42", "VCC", "power_in")],
+    bottom=[("18", "VSS", "power_in")] + [
+        (str(n), "NC", "no_connect") for n in (1, 6, 13, 21, 25, 36, 37, 48)],
+    description="TL16C550C UART, LQFP-48 (PT). Pins = TI SLLS177I Table 4-1 NO.PT column, verified vs LCSC C181382 2026-07-14.",
+    datasheet="https://www.ti.com/lit/ds/symlink/tl16c550c.pdf")
+
+# ---- PCF8563: I2C RTC, SO-8 (3.3V bus redesign -- replaces DS12C887) ----
+# jlc_get_pinout for LCSC C7440 mis-numbers this part (reports OSCI as pin "9"
+# on an 8-pin package, and omits pin 1 entirely -- an EasyEDA data bug). Pin
+# numbers below are instead taken directly from the NXP PCF8563 datasheet
+# ("7.2 Pin description" Table 3, SO8/TSSOP8 column), fetched via the Wayback
+# Machine mirror on 2026-07-14 after nxp.com 404'd: OSCI=1, OSCO=2, INT#=3,
+# VSS=4, SDA=5, SCL=6, CLKOUT=7, VDD=8.
+pcf8563 = make_ic(
+    "PCF8563",
+    left=[
+        ("1", "OSCI", "input"), ("2", "OSCO", "output"),
+        ("3", "~{INT}", "open_collector"), ("5", "SDA", "bidirectional"),
+    ],
+    right=[("6", "SCL", "input"), ("7", "CLKOUT", "open_collector")],
+    top=[("8", "VDD", "power_in")],
+    bottom=[("4", "VSS", "power_in")],
+    description="PCF8563T I2C RTC, SO-8. Pins verified vs NXP datasheet (Wayback mirror) 2026-07-14 -- jlc_get_pinout mis-numbered this part.",
+    datasheet="https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf")
+
 # ---- flat single-body versions of multi-unit glue chips ----
 # (clearer for an architecture schematic; connectivity is by pin number).
 from mxsch import SymbolLib  # noqa: E402
@@ -476,7 +555,8 @@ rj45_led = make_ic(
 lib = ["kicad_symbol_lib", ["version", 20241209], ["generator", "mxsch"],
        ["generator_version", "9.0"], v20, max3241, ds12c887, core2350b, pico,
        cb3t3257, cb3t3245, lvc2g06, pcm5102a, m62429, aps6404l,
-       rtl8019as, at93c46, lan_xfmr, rj45_led] + glue_syms
+       rtl8019as, at93c46, lan_xfmr, rj45_led,
+       is62wv51216, tl16c550pt, pcf8563] + glue_syms
 
 out = os.path.join(HW, "mini-xt.kicad_sym")
 open(out, "w").write(dump(lib) + "\n")

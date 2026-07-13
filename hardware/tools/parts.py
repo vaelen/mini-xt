@@ -1,5 +1,7 @@
 """JLCPCB/LCSC sourcing map for mini-xt (verified against the JLC parts DB,
-2026-07-03; footprints + package re-check 2026-07-13).
+2026-07-03; footprints + package re-check 2026-07-13; 3.3V single-board
+rebind 2026-07-14 -- see docs/superpowers/specs/2026-07-14-3v3-single-board-design.md
+and hardware/notes/3v3-verification.md for the picks/rationale).
 
 Applied at build time by build.py: every placed component gets an
 'LCSC Part Num' property looked up by (lib_id, value), falling back to lib_id
@@ -19,41 +21,63 @@ Conventions (see CLAUDE.md "Fabrication constraints"):
   * SMD everywhere possible (boards must fit 100x100 mm); THT only for
     connectors/headers/jumpers and the socketed vintage parts.
   * Socketed parts (fab installs the SOCKET; chip goes in by hand): V20
-    (DIP-40), 2x AS6C4008-55 SRAM (DIP-32), DS12C887 RTC (DIP-24 600 mil).
-    For these the LCSC number IS the socket; the chip is listed in `note`.
+    (DIP-40) only, as of the 3.3V redesign -- the AS6C4008 SRAM and DS12C887
+    RTC sockets are gone (SRAM -> IS62WV51216BLL SMD TSOP-44; RTC -> Bus-MCU-
+    emulated + small I2C PCF8563, see below). For V20 the LCSC number IS the
+    socket; the chip is listed in `note`.
   * Modules (Core2350B, Pico) mount on 2.54 mm female headers.
 
 Substitutions forced by JLC stock (all verified same-pinout):
   * 74HCT374 -> 74HCT574 (no '374 stocked; sheets rewired for the '574)
-  * 74HCT163 -> 74HC161 at 3.3 V (bus_mcu counters) / 5 V (dividers)
   * 74HCT157 -> 74HC157 + HCT-buffered 3.3 V selects (I0/I1 swapped)
-  * 74HCT02  -> 74HC02 (RTC decode -- all inputs are 5 V address lines)
   * TCM809   -> MCP809T-450I (SOT-23, 4.375 V threshold)
   * 2N3904   -> MMBT3904 (SOT-23)
   * TL072    -> MCP6002 (RRIO; pin-identical dual op-amp)
   * 1.8432 MHz canned osc -> crystal on the 16C550's XIN/XOUT
   * 14.31818 MHz osc: only 3.3 V parts stocked -> powered from 3V3, squared
-    up through a spare HCT gate
+    up through a spare HCT gate (pre-3.3V-redesign 5V clock tree; whoever
+    rewires cpu_core.py's clock tree onto the 3.3V rail may drop this gate)
+
+3.3V single-board redesign (2026-07-14, see notes/3v3-verification.md):
+  * DS12C887 + its ISA glue deleted -- RTC emulated in the Bus MCU (ports
+    0x70/71); hardware timekeeping is now a PCF8563 I2C RTC + CR2032 on the
+    Supervisor, synced over the existing UART link at boot.
+  * AS6C4008-55 (DIP-32, user-stock 5V SRAM) -> IS62WV51216BLL (TSOP-44,
+    SMD, 2.5-3.6V, in stock at JLC -- no more socket needed).
+  * 74HCT163 -> 74LVC161 for the /3 clock divider, 74HCT74 -> 74LVC74A for
+    /2 (check 7: neither HC- nor HCT-grade meets fmax margin at 3.3V/
+    14.318 MHz; LVC does with wide margin).
+  * 74HCT02 -> 74HC02 substitution above is now vestigial (its only prior
+    use, RTC decode, is deleted) -- left in place since another sheet may
+    still reference plain 74HC02 in the pure-3.3V domain.
+  * Octal latches/buffers/FFs needing 5V-tolerant inputs move to LVC grade
+    (74LVC573A/244A/574A/125A/245A); pure-3.3V-domain small gates (00/04/32/
+    138, plus the already-present 08/165) move to plain HC grade on the same
+    HCT-body symbols -- HCT itself needs 4.5-5.5V and no longer works once
+    everything is 3.3V.
 
 NOT available at JLC (flagged, no LCSC number):
   * NEC V20 (vintage; user stock)         -> DIP-40 socket placed instead
-  * AS6C4008-55 (5 V SRAM; user stock)    -> DIP-32 sockets placed instead
+  * TL16C550CPT (LQFP-48): 0 stock at JLC (both TL16C550CPTR/PTRG4) as of
+    2026-07-14 -> source TI direct/Mouser/Digi-Key, like the V20 (but NOT
+    socketed -- still a soldered SMD reflow part, just not JLC-supplied)
   * 8-bit ISA card-edge slot (card_isatest J1) -> consign / other distributor
   * VGA HD15 (DE15) connector             -> other distributor (THT)
 
-Thin stock (check before ordering): TL16C550DPTR (~18), DB25 (~10),
-MAX3241EEAI+T (~175), DS12C887+ (~573), TPS563200DDCR (4!! -- re-verify before
-ordering or switch to a TPS5632xx sibling).
+Thin stock (check before ordering): DB25 (~10), MAX3241EEAI+T (~175),
+TPS563200DDCR (4!! -- re-verify before ordering or switch to a TPS5632xx
+sibling), 74LVC574AT20-13 (~88), 74LVC161PW,118 (~100).
 
 Known part/footprint caveats (all deliberate, resolve at layout):
-  * 16550: DIP-40 SYMBOL, PLCC-44 SMD-socket footprint -- pin maps differ,
-    remap when the PCB is routed (note on the entry).
   * C2897411 female headers are 2x10 strips: right for the Core2350B's
     double-ring PGA, but the Pico needs 2x 1x20 -- swap/add a 1xN part at
     order time.
   * Clone connectors (SHOU HAN USB-C/USB-A/HDMI, XKB barrel, Ckmtw D-sub):
     stock KiCad footprint assigned where the pattern is industry-standard;
     verify against the LCSC drawing before fab.
+  * CR2032 holder: no stock KiCad footprint exactly matches CR2032-BS-6;
+    a same-family Keystone 1x2032 SMD holder footprint is assigned as a
+    placeholder -- verify against the LCSC drawing at layout.
 """
 
 # (lib_id, value) -> entry; or lib_id -> entry as a fallback for all values.
@@ -111,23 +135,62 @@ PART_MAP = {
     ("mini-xt:74HCT08", "74HC08"):    E("C5593", "74HC08D,653", "SOIC-14", SOIC14),
     ("mini-xt:74HCT165", "74HC165"):  E("C5613", "74HC165D,653", "SOIC-16", SOIC16,
                                         "3.3 V domain (HCT is 4.5-5.5 V only)"),
+    # ---- 3.3V single-board redesign (2026-07-14 spec): pure-3.3V-domain HC
+    # re-buys on the existing HCT bodies (no cross-voltage concern once every
+    # input is 3.3V-driven -- HCT itself needs 4.5-5.5V and no longer works) ----
+    ("mini-xt:74HCT00", "74HC00"):    E("C699445", "74HC00D", "SOIC-14", SOIC14),
+    ("mini-xt:74HCT04", "74HC04"):    E("C86613", "74HC04D", "SOIC-14", SOIC14),
+    ("mini-xt:74HCT32", "74HC32"):    E("C52140395", "74HC32D", "SOP-14L", SOIC14,
+                                        "verify SOIC-14 footprint match at layout"),
+    ("mini-xt:74HCT138", "74HC138"):  E("C5602", "74HC138D,653", "SOIC-16", SOIC16),
+    # ---- 3.3V redesign: LVC-grade rebinds (5V-tolerant-input octal parts) ----
+    ("mini-xt:74HCT573", "74LVC573A"): E("C6096", "74LVC573APW,118", "TSSOP-20", TSSOP20),
+    ("mini-xt:74HCT244", "74LVC244A"): E("C6079", "74LVC244APW,118", "TSSOP-20", TSSOP20),
+    ("mini-xt:74HCT574", "74LVC574A"): E("C842658", "74LVC574AT20-13", "TSSOP-20", TSSOP20,
+                                         "thin stock (~88) -- re-verify before order"),
+    ("mini-xt:74HCT125", "74LVC125A"): E("C6057", "74LVC125AD,118", "SOIC-14", SOIC14),
+    ("mini-xt:74HCT245", "74LVC245A"): E("C6082", "74LVC245APW,118", "TSSOP-20", TSSOP20,
+                                         "fallback if a sheet overrides this body's value "
+                                         "instead of placing mini-xt:74LVC245A directly"),
+    # HC-grade alternates for the same three roles (kept alongside the LVC
+    # picks above in case a future sheet places the plain HC value instead)
+    ("mini-xt:74HCT125", "74HC125"):  E("C52140399", "74HC125D", "SOP-14L", SOIC14,
+                                        "verify SOIC-14 footprint match at layout"),
+    ("mini-xt:74HCT244", "74HC244"):  E("C52140409", "74HC244D", "SOP-20L", SOIC20W,
+                                        "verify SOIC-20 footprint match at layout"),
+    ("mini-xt:74HCT245", "74HC245"):  E("C2675537", "74HC245D", "SOIC-20-300mil", SOIC20W),
+    # ---- clock dividers move to LVC grade at 3.3V (check 7: HC-grade fmax
+    # margin fails at 14.318 MHz on both the 5V and 3.3V rail once moved) ----
+    ("mini-xt:74HCT74", "74LVC74A"):  E("C6100", "74LVC74APW,118", "TSSOP-14", TSSOP14),
+    ("mini-xt:74HCT163", "74LVC161"): E("C548136", "74LVC161PW,118", "TSSOP-16", TSSOP16,
+                                        "thin stock (~100) -- re-verify before order"),
+    # 74LVC2G07 (non-inverting open-drain buffer) is pin-identical to the
+    # 74LVC2G06 body already authored (same SOT-23-6 pin roles) -- reuse it via
+    # value override rather than a new symbol.
+    ("mini-xt:74LVC2G06", "74LVC2G07"): E("C24478", "74LVC2G07GW,125", "SOT-23-6", SOT236,
+                                          "open-drain: IOCHRDY/IOCHCK (motherboard, distinct "
+                                          "role from PicoGUS's 2G06 instance)"),
+    # ---- new ICs (3.3V single-board redesign) ----
+    ("mini-xt:IS62WV51216", "IS62WV51216BLL"): E("C11315", "IS62WV51216BLL-55TLI",
+        "TSOP-II-44", "Package_SO:TSOP-II-44_10.16x18.41mm_P0.8mm"),
+    ("mini-xt:TL16C550PT", "TL16C550C"): E("", "TL16C550CPTR", "LQFP-48(7x7mm)",
+        "Package_QFP:LQFP-48_7x7mm_P0.5mm",
+        "0 JLC stock 2026-07-14 (LQFP-48 TL16C550CPTR/PTRG4 both 0) -- source "
+        "TI direct/Mouser/Digi-Key like the V20; reflows in the normal SMD pass "
+        "once procured (not socketed -- decision is soldered LQFP-48)"),
+    ("mini-xt:PCF8563", "PCF8563T"): E("C7440", "PCF8563T/5,518", "SO-8", SOIC8,
+        "I2C RTC; Bus MCU emulates ports 0x70/71, time synced over the "
+        "existing UART link at boot"),
+    ("Device:Battery_Cell", "CR2032"): E("C22363833", "CR2032-BS-6", "SMD",
+        "Battery:BatteryHolder_Keystone_1058_1x2032",
+        "RTC backup cell; verify exact clip footprint against the LCSC "
+        "drawing at layout (no exact BS-6 stock footprint)"),
     # ---- 3.3 V logic ----
     ("mini-xt:74LVC245A", "74LVC245A"): E("C6082", "74LVC245APW,118", "TSSOP-20", TSSOP20),
     ("74xx:74HC595", "74HC595"):      E("C5947", "74HC595D,118", "SOIC-16", SOIC16),
     # ---- ICs ----
     ("mini-xt:MAX3241", "MAX3241"):   E("C406859", "MAX3241EEAI+T", "SSOP-28",
                                         "Package_SO:SSOP-28_5.3x10.2mm_P0.65mm"),
-    # 16550: fab places an SMD PLCC-44 SOCKET (reflows with everything else);
-    # the UART itself is a TL16C550CFNR (PLCC-44, Active at Mouser ~$4-6, or
-    # JLC C2653193 TL16C550CIFNR) installed by hand. One footprint accepts
-    # new TI parts, NOS tubes, and period NS16550AFN pulls, and a suspect
-    # UART is diagnosed by swap. (MaxLinear's PLCC ST16C550CJ44-F is EOL.)
-    ("Interface_UART:16550", "16550"): E("C2828044", "Nextron Z-15144001280000",
-                                         "PLCC-44 SMD socket",
-                                         "Package_LCC:PLCC-44_SMD-Socket",
-                                         "chip = TL16C550CFNR (consign/global "
-                                         "sourcing); PLCC-44 pin map differs "
-                                         "from the DIP-40 symbol -- map at layout"),
     ("MCU_RaspberryPi:RP2040", "RP2040"): E("C2040", "RP2040", "LQFN-56",
         "Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm"),
     ("Memory_Flash:W25Q128JVS", "W25Q128JVS"): E("C97521", "W25Q128JVSIQ", "SOIC-8",
@@ -175,15 +238,6 @@ PART_MAP = {
                                         "DIP-40 THT machined",
                                         "Package_DIP:DIP-40_W15.24mm_Socket",
                                         "NEC uPD70108 (user stock) installs in socket"),
-    ("Memory_RAM:AS6C4008-55PCN", "AS6C4008-55PCN"): E("C2874017",
-                                        "XFCN IC254V-12-32-0743-P1524",
-                                        "DIP-32 THT machined",
-                                        "Package_DIP:DIP-32_W15.24mm_Socket",
-                                        "AS6C4008-55PC (user stock) installs in socket"),
-    ("mini-xt:DS12C887", "DS12C887"): E("C2684765", "XKB X5621FV-2x12-C1524D7430",
-                                        "DIP-24 THT machined",
-                                        "Package_DIP:DIP-24_W15.24mm_Socket",
-                                        "DS12C887+ chip = LCSC C9869 (extended)"),
     # ---- clock ----
     ("Oscillator:ACO-xxxMHz", "14.31818MHz"): E("C49330311",
                                         "XOS32014318CT00351005", "SMD3225-4P",
