@@ -1,30 +1,38 @@
-"""cpu_core -- CPU, memory, clock, reset, and the buffered-bus core (5 V domain).
+"""cpu_core -- CPU, memory, clock, reset, and the buffered-bus core.
 
-Design doc S3/S4/S7. This is the motherboard's hard-real-time critical path:
-  * NEC V20 (mini-xt:V20) in min mode
-  * 3x 74HCT573 address latches (AD0-7 + A8-A19 -> A0-A19), LE = ALE (BALE),
-    OE = HLDA -> released during Bus-MCU master cycles (address handoff)
-  * 74HCT245 data transceiver (D0-D7), DIR = DT/~R, ~OE = DEN (so INTA cycles
-    pass the vector bus->CPU, and the '245 goes Z while the V20 is in HOLD)
-  * 74HCT32 strobe gates (~RD/~WR + IO/~M -> MEMR/W, IOR/W) behind a 74HCT125
-    tri-state stage (~OE = HLDA) so the Bus MCU can drive the strobes as master;
-    pull-ups park strobes + raw V20 lines inactive across the handoff gap
-  * 74HCT138 + 74HCT00 SRAM chip-select decode (Y5 = video block, kept internal);
-    spare '00 gates NAND the active-low reset sources into V20 RESET + RESET_DRV
-  * 2x AS6C4008-55 SRAM (512Kx8 each) -> 640 KB + UMB
-  * single-oscillator clock tree: 14.318 osc -> /2 (74HCT74) and /3 (74HCT163 preset-to-3),
-    74HCT157 select (SPEED_SEL), 74HCT04 5 V buffer -> V20 CLK
-  * TCM809 reset supervisor (cold start)
+Design doc S3/S4/S7 + 3.3 V single-board redesign (spec 2026-07-14). The V20 and
+its demux latches/transceiver ARE the board's single 5 V<->3.3 V boundary: the
+V20 runs at 5 V, everything past the boundary latches is a 3.3 V bus.
+  * NEC V20 (mini-xt:V20) in min mode -- 5 V
+  * 3x 74LVC573A address latches (AD0-7 + A8-A19 -> A0-A19), LE = ALE (BALE),
+    OE = HLDA -> released during Bus-MCU master cycles (address handoff).
+    3.3 V-powered, 5 V-tolerant inputs => the address half of the boundary.
+  * 74LVC245A data transceiver (D0-D7), DIR = DT/~R, ~OE = DEN -- the data half
+    of the boundary (5 V-tolerant CPU side, 3.3 V bus side).
+  * 74HCT32 strobe gates (~RD/~WR + IO/~M -> MEMR/W, IOR/W) stay on +5V (they
+    read the raw 5 V V20 strobes) behind a 74LVC125A tri-state stage (~OE = HLDA,
+    3.3 V bus out) -- the strobe half of the boundary; pull-ups park the bus
+    strobes inactive across the handoff gap.
+  * 74HC138 + 74HC00 (3.3 V) SRAM chip-select decode (Y5 = video block, internal);
+    spare '00 gates NAND the active-low reset sources into V20 RESET + RESET_DRV,
+    and invert A0 (-> UB) and Y5 (-> RAM /CE).
+  * 1x IS62WV51216BLL 512Kx16 SRAM used as 1Mx8 via the byte-lane trick -> full
+    1 MB less the 0xA0000-0xBFFFF video window.
+  * single-oscillator clock tree: 14.318 osc -> /2 (74LVC74A) and /3 (74LVC161
+    preset-to-3, 3.3 V for fmax margin), 74HC157 select (SPEED_SEL direct),
+    74HCT04 5 V buffer -> V20 CLK (the one gate package that MUST stay 5 V:
+    V20 CLK needs Vkh = 4.0 V, unreachable from 3.3 V).
+  * TCM809 reset supervisor (cold start) -- 3.3 V so its reset net is clean 3.3 V.
 
 Exposes the buffered ISA backplane plus the private V20<->Bus-MCU side channels.
-The Y5 video-block strobe stays internal (SRAM #2 decode only) -- per the
-portability rule it must never leave this sheet.
+The Y5 video-block strobe stays internal -- per the portability rule it must
+never leave this sheet.
 """
 import mxbus
 from mxbus import pin
 
 NAME = "cpu_core"
-TITLE = "CPU / Memory / Clock / Reset core (5V)"
+TITLE = "CPU / Memory / Clock / Reset core (5V<->3.3V boundary)"
 
 PINS = (
     [pin(s, "output") for s in mxbus.ADDR] +              # A0..A19 driven by latches
@@ -56,14 +64,16 @@ def build(sch, lib):
         s = mxbus.power_net(sch, lib, net, at)
         return s
 
-    def decouple(ref, at):
+    def decouple(ref, at, rail="+3V3"):
+        # Board logic is now 3.3 V-domain, so decoupling defaults to +3V3; the
+        # few surviving 5 V parts (V20, U10 '32, U13 '04) get explicit +5V caps.
         c = sch.place("Device:C", ref, "100nF", at=at)
-        sch.net(c, "1", "+5V", kind="label", dx=0, dy=-2.54)
+        sch.net(c, "1", rail, kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
 
-    def pullup(ref, net, at, val="10k"):
+    def pullup(ref, net, at, val="10k", rail="+5V"):
         r = sch.place("Device:R", ref, val, at=at)
-        sch.net(r, "1", "+5V", kind="label", dx=0, dy=-2.54)
+        sch.net(r, "1", rail, kind="label", dx=0, dy=-2.54)
         sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
 
     # ---------------- CPU ----------------
@@ -113,12 +123,14 @@ def build(sch, lib):
     L(Ugate, "P12", "~{WR}", dx=-2.54); L(Ugate, "P13", "IOM_INV", dx=-2.54)
     L(Ugate, "P11", "IOW_G")
 
-    # Tri-state stage: the gates are push-pull, but the Bus MCU also drives the
-    # same four strobes during master cycles -- so the CPU-side strobes reach
-    # the bus through a 74HCT125 whose ~OE = HLDA (enabled only while the V20
-    # owns the bus). Pull-ups (below) hold the strobes inactive in the gap.
-    Utri = sch.place("mini-xt:74HCT125", "U11", at=(205.74, 220.98))
-    L(Utri, "VCC", "+5V", dx=0, dy=-2.54); L(Utri, "GND", "GND", dx=0, dy=2.54)
+    # Tri-state stage AND the strobe half of the 5V<->3.3V boundary: U10's gates
+    # are push-pull 5V, but the Bus MCU also drives the same four strobes during
+    # master cycles -- so the CPU-side strobes reach the bus through a 74LVC125A
+    # (3.3V-powered, 5V-tolerant inputs) whose ~OE = HLDA (enabled only while the
+    # V20 owns the bus). Its outputs are the 3.3V bus strobes. Pull-ups (below)
+    # hold the strobes inactive in the gap. (U10 stays +5V; only U11 crosses.)
+    Utri = sch.place("mini-xt:74HCT125", "U11", "74LVC125A", at=(205.74, 220.98))
+    L(Utri, "VCC", "+3V3", dx=0, dy=-2.54); L(Utri, "GND", "GND", dx=0, dy=2.54)
     L(Utri, "P1", "HLDA", dx=-2.54);  L(Utri, "P2", "MEMR_G", dx=-2.54)
     P(Utri, "P3", "~{MEMR}", shape="output")
     L(Utri, "P4", "HLDA", dx=-2.54);  L(Utri, "P5", "MEMW_G", dx=-2.54)
@@ -128,13 +140,15 @@ def build(sch, lib):
     L(Utri, "P13", "HLDA", dx=-2.54); L(Utri, "P12", "IOW_G", dx=-2.54)
     P(Utri, "P11", "~{IOW}", shape="output")
 
-    # ---------------- address latches (3x 74HCT573) ----------------
+    # ---------------- address latches (3x 74LVC573A) ----------------
+    # 74LVC573A on the HCT573 body: 3.3V-powered, 5V-tolerant inputs = the V20
+    # 5V<->3.3V boundary (spec 2026-07-14). Same pinout as the '573.
     latch_at = [(165.1, 50.8), (165.1, 109.22), (165.1, 167.64)]
     lat = []
     for i, at in enumerate(latch_at):
-        u = sch.place("mini-xt:74HCT573", "U%d" % (2 + i), at=at)
+        u = sch.place("mini-xt:74HCT573", "U%d" % (2 + i), "74LVC573A", at=at)
         lat.append(u)
-        L(u, "VCC", "+5V", dx=0, dy=-2.54); L(u, "GND", "GND", dx=0, dy=2.54)
+        L(u, "VCC", "+3V3", dx=0, dy=-2.54); L(u, "GND", "GND", dx=0, dy=2.54)
         # LE = ALE (the BALE net); OE = HLDA so the latches release A0-A19 to
         # the Bus MCU's counter buffers during master cycles (address handoff).
         L(u, "Load", "BALE"); L(u, "OE", "HLDA")
@@ -152,45 +166,59 @@ def build(sch, lib):
         L(lat[2], "D%d" % i, "GND", dx=-2.54)
         sch.no_connect(lat[2].pin_xy("Q%d" % i))
 
-    # ---------------- data transceiver (74HCT245) ----------------
-    U5 = sch.place("mini-xt:74HCT245", "U5", at=(165.1, 226.06))
-    L(U5, "VCC", "+5V", dx=0, dy=-2.54); L(U5, "GND", "GND", dx=0, dy=2.54)
+    # ---------------- data transceiver (74LVC245A) ----------------
+    # 74LVC245A on the HCT245 body: 3.3V-powered, 5V-tolerant CPU-side inputs =
+    # the data half of the V20 5V<->3.3V boundary (spec 2026-07-14).
+    U5 = sch.place("mini-xt:74HCT245", "U5", "74LVC245A", at=(165.1, 226.06))
+    L(U5, "VCC", "+3V3", dx=0, dy=-2.54); L(U5, "GND", "GND", dx=0, dy=2.54)
     L(U5, "A->B", "DT/~{R}")    # V20 DT/~R: high = CPU drives bus (incl. INTA vector B->A when low)
     L(U5, "CE", "DEN")          # V20 DEN (active low); pull-up floats it OFF during HOLD
     for i in range(8):
         L(U5, "A%d" % i, "AD%d" % i, dx=-2.54)        # CPU side (mux'd AD)
         P(U5, "B%d" % i, "D%d" % i, shape="bidirectional")  # bus side
 
-    # ---------------- SRAM decode (74HCT138 + 74HCT00) ----------------
-    U6 = sch.place("mini-xt:74HCT138", "U6", at=(248.92, 50.8))
-    L(U6, "VCC", "+5V", dx=0, dy=-2.54); L(U6, "GND", "GND", dx=0, dy=2.54)
+    # ---------------- SRAM decode (74HC138 + 74HC00, 3.3V) ----------------
+    # 74HC138 value override: HC (not HCT) is fine here -- every input is 3.3V-
+    # driven (A17-A19 from the LVC latches) on a 3.3V-powered part (spec 2026-07-14).
+    U6 = sch.place("mini-xt:74HCT138", "U6", "74HC138", at=(248.92, 50.8))
+    L(U6, "VCC", "+3V3", dx=0, dy=-2.54); L(U6, "GND", "GND", dx=0, dy=2.54)
     L(U6, "A0", "A17"); L(U6, "A1", "A18"); L(U6, "A2", "A19")
-    L(U6, "~{E0}", "GND"); L(U6, "~{E1}", "GND"); L(U6, "E2", "+5V")
+    L(U6, "~{E0}", "GND"); L(U6, "~{E1}", "GND"); L(U6, "E2", "+3V3")
     L(U6, "~{Y5}", "Y5_INT")          # 0xA0000-0xBFFFF: INTERNAL ONLY (not exposed)
     for y in (0, 1, 2, 3, 4, 6, 7):   # only Y5 decode is used
         sch.no_connect(U6.pin_xy("~{Y%d}" % y))
-    U7 = sch.place("mini-xt:74HCT00", "U7", at=(248.92, 109.22))
-    L(U7, "VCC", "+5V", dx=0, dy=-2.54); L(U7, "GND", "GND", dx=0, dy=2.54)
-    # SRAM#2 /CE = NAND(A19, Y5): low only when A19=1 and not video block
-    L(U7, "P1", "A19"); L(U7, "P2", "Y5_INT"); L(U7, "P3", "RAM2_CE")
-    # Spare NAND gates tied (no floating CMOS inputs)
-    L(U7, "P12", "GND", dx=-2.54)
-    L(U7, "P13", "GND", dx=-2.54)
-    sch.no_connect(U7.pin_xy("P11"))
+    # 74HC00 value override: HC on the HCT body -- all inputs are 3.3V-driven
+    # (A0/Y5_INT from 3.3V logic, ~PWRGOOD from the now-3.3V TCM809, ~CPURESET
+    # from the 3.3V Bus MCU) on a 3.3V rail (spec 2026-07-14).
+    U7 = sch.place("mini-xt:74HCT00", "U7", "74HC00", at=(248.92, 109.22))
+    L(U7, "VCC", "+3V3", dx=0, dy=-2.54); L(U7, "GND", "GND", dx=0, dy=2.54)
+    # Byte-lane + /CE inverters, freed by dropping the old SRAM#2 select NAND:
+    #   U7a: A0_INV = NAND(A0, A0)      -> UB (A0=1 selects the high byte lane)
+    #   U7d: RAM_CE = NAND(Y5_INT, Y5_INT) = NOT(Y5_INT): SRAM answers the full
+    #        1MB EXCEPT the 0xA0000-0xBFFFF video window (Y5_INT low there).
+    L(U7, "P1", "A0"); L(U7, "P2", "A0"); L(U7, "P3", "A0_INV")
+    L(U7, "P12", "Y5_INT", dx=-2.54); L(U7, "P13", "Y5_INT", dx=-2.54)
+    L(U7, "P11", "RAM_CE")
 
-    # ---------------- SRAM (2x AS6C4008-55) ----------------
-    for n, at, ce in [(1, (302.26, 76.2), "A19"), (2, (302.26, 175.26), "RAM2_CE")]:
-        rmref = "RAM%d" % n
-        rm = sch.place("Memory_RAM:AS6C4008-55PCN", rmref, at=at)
-        L(rm, "VCC", "+5V", dx=0, dy=-2.54); L(rm, "VSS", "GND", dx=0, dy=2.54)
-        for a in range(19):
-            L(rm, "A%d" % a, "A%d" % a, dx=-2.54)
-        for d in range(8):
-            P(rm, "DQ%d" % d, "D%d" % d, shape="bidirectional")
-        # Strobed by the GATED memory strobes (design S4.1): I/O cycles leave
-        # MEMR/W inactive (no corruption on OUT), and the Bus MCU's master
-        # MEMR/W reach the SRAM for shadow-load/DMA. NOT the raw ~RD/~WR.
-        L(rm, "OE#", "~{MEMR}"); L(rm, "WE#", "~{MEMW}"); L(rm, "CE#", ce)
+    # ---------------- SRAM (1x IS62WV51216BLL, 512Kx16 as 1Mx8) ----------------
+    # Byte-lane trick (spec 2026-07-14): the word address is A1..A19; A0 picks the
+    # byte lane; both IO bytes tie to D0-D7 -- exactly one lane is ever enabled,
+    # the other tri-states (LB/UB gate the output drivers, ISSI truth table).
+    RAM = sch.place("mini-xt:IS62WV51216", "RAM1", "IS62WV51216BLL", at=(302.26, 109.22))
+    L(RAM, "11", "+3V3", dx=0, dy=-2.54); L(RAM, "33", "+3V3", dx=0, dy=-2.54)  # both VDD
+    L(RAM, "12", "GND", dx=0, dy=2.54);   L(RAM, "34", "GND", dx=0, dy=2.54)    # both GND
+    for i in range(19):                    # chip A0..A18 <- system A1..A19
+        L(RAM, "A%d" % i, "A%d" % (i + 1), dx=-2.54)
+    for i in range(8):                     # both byte lanes tied to D0..D7
+        P(RAM, "IO%d" % i, "D%d" % i, shape="bidirectional")
+        P(RAM, "IO%d" % (i + 8), "D%d" % i, shape="bidirectional")
+    # /OE = MEMR direct (the whole read critical path, 25ns tDOE); /WE = MEMW.
+    # GATED strobes (design S4.1): I/O cycles leave MEMR/W inactive (no OUT
+    # corruption) and the Bus MCU's master MEMR/W reach the SRAM for shadow/DMA.
+    L(RAM, "~{OE}", "~{MEMR}", dx=-2.54); L(RAM, "~{WE}", "~{MEMW}", dx=-2.54)
+    L(RAM, "~{LB}", "A0", dx=-2.54)        # A0=0 -> low byte lane enabled
+    L(RAM, "~{UB}", "A0_INV", dx=-2.54)    # A0=1 -> high byte lane enabled
+    L(RAM, "~{CE}", "RAM_CE", dx=-2.54)    # = NOT(Y5_INT): 1MB less video window
 
     # ---------------- clock tree ----------------
     # 14.318 canned oscillators are only stocked as 3.3 V parts (JLC), so the
@@ -201,24 +229,28 @@ def build(sch, lib):
     L(osc, "Vcc", "+3V3", dx=0, dy=-2.54); L(osc, "GND", "GND", dx=0, dy=2.54)
     L(osc, "OUT", "OSC_3V3")
 
-    ff = sch.place("mini-xt:74HCT74", "U8", at=(76.2, 60.96))   # /2
-    L(ff, "VCC", "+5V", dx=0, dy=-2.54); L(ff, "GND", "GND", dx=0, dy=2.54)
+    # 74LVC74A value override on the '74 body: plain HC/HCT fail the fmax margin
+    # at 3.3V (interp. ~14.8 MHz min vs 14.318 MHz clock -- Task1 check 7); LVC is
+    # spec'd 250 MHz. Clocked by OSC (5V) on its 5V-tolerant input; +3V3 powered.
+    ff = sch.place("mini-xt:74HCT74", "U8", "74LVC74A", at=(76.2, 60.96))   # /2
+    L(ff, "VCC", "+3V3", dx=0, dy=-2.54); L(ff, "GND", "GND", dx=0, dy=2.54)
     L(ff, "C", "OSC"); L(ff, "D", "CLK_QN"); L(ff, "~{Q}", "CLK_QN")
-    L(ff, "Q", "CLK7"); L(ff, "~{S}", "+5V"); L(ff, "~{R}", "+5V")
+    L(ff, "Q", "CLK7"); L(ff, "~{S}", "+3V3"); L(ff, "~{R}", "+3V3")
     # FF2 unused: park it (wire by pin number -- names duplicate across units)
     L(ff, "12", "GND", dx=-2.54); L(ff, "11", "GND", dx=-2.54)
-    L(ff, "10", "+5V", dx=-2.54); L(ff, "13", "+5V", dx=-2.54)
+    L(ff, "10", "+3V3", dx=-2.54); L(ff, "13", "+3V3", dx=-2.54)
     sch.no_connect(ff.pin_xy("9")); sch.no_connect(ff.pin_xy("8"))
 
     # /3 via '161 preset-to-3: preload 13 (1101), the TC at count 15 reloads
-    # the preset through ~PE -> a 3-state cycle. (74HC161: same pinout as the
-    # '163, async ~MR -- tied inactive here -- and it IS stocked at JLC where
-    # no HC/HCT163 is. All inputs are 5 V on this sheet, so HC grade is fine.)
-    div3 = sch.place("mini-xt:74HCT163", "U9", "74HC161", at=(76.2, 109.22))  # /3
-    L(div3, "VCC", "+5V", dx=0, dy=-2.54); L(div3, "GND", "GND", dx=0, dy=2.54)
+    # the preset through ~PE -> a 3-state cycle. (Same pinout as the '163, async
+    # ~MR tied inactive.) 74LVC161 value override: plain HC161 at 3.3V interpolates
+    # to ~11.1 MHz fmax -- BELOW the 14.318 MHz clock, it fails (Task1 check 7);
+    # LVC161 is spec'd 150 MHz. CP = OSC (5V) on a 5V-tolerant input; +3V3 powered.
+    div3 = sch.place("mini-xt:74HCT163", "U9", "74LVC161", at=(76.2, 109.22))  # /3
+    L(div3, "VCC", "+3V3", dx=0, dy=-2.54); L(div3, "GND", "GND", dx=0, dy=2.54)
     L(div3, "CP", "OSC")
-    L(div3, "D0", "+5V"); L(div3, "D1", "GND"); L(div3, "D2", "+5V"); L(div3, "D3", "+5V")
-    L(div3, "CEP", "+5V"); L(div3, "CET", "+5V"); L(div3, "~{MR}", "+5V")
+    L(div3, "D0", "+3V3"); L(div3, "D1", "GND"); L(div3, "D2", "+3V3"); L(div3, "D3", "+3V3")
+    L(div3, "CEP", "+3V3"); L(div3, "CET", "+3V3"); L(div3, "~{MR}", "+3V3")
     L(div3, "TC", "DIV3_TC"); L(div3, "~{PE}", "DIV3_LD")   # reload on terminal count
     # Q0 over the 13,14,15 cycle is HIGH 2/3 (67%) -- the V20-legal ~33%-HIGH
     # duty (what the 8284 supplied) only appears after the INVERTING U13
@@ -227,15 +259,16 @@ def build(sch, lib):
     for q in ("Q1", "Q2", "Q3"):   # only Q0 used
         sch.no_connect(div3.pin_xy(q))
 
-    # Speed mux is 74HC157 (no HCT/ACT157 stocked at JLC). Its clock inputs
-    # are 5 V, but the SPEED_SEL select comes from a 3.3 V MCU GPIO -- below
-    # HC's Vih at 5 V -- so the select passes through a spare U13 HCT
-    # inverter (reads 3.3 V, drives 5 V) and I0/I1 are SWAPPED to keep the
-    # firmware polarity: SPEED_SEL=0 still selects 7.16 MHz.
+    # Speed mux is 74HC157 (no HCT/ACT157 stocked at JLC), now +3V3-powered. Its
+    # clock inputs (CLK4/CLK7) are 3.3V from the LVC dividers and its SPEED_SEL
+    # select is a 3.3V MCU GPIO -- all clear HC's Vih (0.7*3.3=2.31V) at 3.3V, so
+    # the select is driven DIRECTLY (no more 5V HCT inverter stage). With S driven
+    # true-sense, I0a/I1a are UN-swapped vs the old inverted-select wiring so the
+    # firmware polarity holds: SPEED_SEL=0 -> S=L -> Za=I0a=CLK7 (7.16 MHz).
     mux = sch.place("mini-xt:74HCT157", "U12", "74HC157", at=(116.84, 76.2))
-    L(mux, "VCC", "+5V", dx=0, dy=-2.54); L(mux, "GND", "GND", dx=0, dy=2.54)
-    L(mux, "I0a", "CLK4"); L(mux, "I1a", "CLK7")
-    L(mux, "S", "SPEED_INV"); L(mux, "E", "GND")
+    L(mux, "VCC", "+3V3", dx=0, dy=-2.54); L(mux, "GND", "GND", dx=0, dy=2.54)
+    L(mux, "I0a", "CLK7"); L(mux, "I1a", "CLK4")
+    P(mux, "S", "SPEED_SEL", shape="input", dx=-2.54); L(mux, "E", "GND")
     L(mux, "Za", "CLK_MUX")
     # Unused mux sections: inputs tied (no floating CMOS)
     for p in ("I0b", "I1b", "I0c", "I1c", "I0d", "I1d"):
@@ -247,6 +280,10 @@ def build(sch, lib):
     # divider's 67%-high Q0 into the 33%-high clock the V20's clock-low-time
     # spec needs at 4.77 MHz. A "cleanup" to a non-inverting buffer would
     # silently violate the CPU clock spec in turbo-down mode.
+    # THE one gate package that MUST stay +5V: V20 CLK needs Vkh = 0.8*Vdd = 4.0V
+    # (Task1 check 1), unreachable from a 3.3V rail. HCT-grade so it reads the 3.3V
+    # CLK_MUX/CLK7/OSC_3V3 inputs (Vih_HCT ~ 2V) yet outputs the 5V swings CLK and
+    # OSC need. Do NOT downgrade to 74HC04 and do NOT move to +3V3.
     buf = sch.place("mini-xt:74HCT04", "U13", at=(147.32, 76.2))  # 5V buffer to CPU CLK
     L(buf, "VCC", "+5V", dx=0, dy=-2.54); L(buf, "GND", "GND", dx=0, dy=2.54)
     L(buf, "P1", "CLK_MUX"); L(buf, "P2", "CPUCLK")
@@ -257,14 +294,20 @@ def build(sch, lib):
     P(buf, "P4", "CLK", shape="output")
     L(buf, "P5", "DIV3_TC"); L(buf, "P6", "DIV3_LD")  # spare gate inverts TC -> ~PE
     L(buf, "P9", "IO/~{M}", dx=-2.54); L(buf, "P8", "IOM_INV")  # for the ~IOR/~IOW gates
-    P(buf, "P11", "SPEED_SEL", shape="input", dx=-2.54)  # 3.3V MCU select read at TTL Vih...
-    L(buf, "P10", "SPEED_INV")                           # ...inverted to 5V (mux I0/I1 swapped)
+    # P11/P12 gate freed: SPEED_SEL now drives the 3.3V mux select directly (above),
+    # so no 5V inversion is needed. Park the spare input; NC its output.
+    L(buf, "P11", "GND", dx=-2.54)
+    sch.no_connect(buf.pin_xy("P10"))
     L(buf, "P13", "OSC_3V3", dx=-2.54)                   # 3.3V XO squared up...
     P(buf, "P12", "OSC", shape="output")                 # ...to the 5V OSC (dividers + ISA B30)
 
     # ---------------- reset supervisor ----------------
+    # TCM809 on +3V3 (was +5V): the reset combiner U7 is now a 3.3V part, so its
+    # ~PWRGOOD input must be a 3.3V swing. Monitors the 3.3V logic rail; the V20's
+    # RESET tolerates a 3.3V-derived reset (Vih 2.2V, Task1 check 1). Threshold
+    # variant (e.g. TCM809T ~3.08V for a 3.3V rail) is a parts.py concern.
     rst = sch.place("Power_Supervisor:TCM809", "U14", at=(45.72, 152.4))
-    L(rst, "V_{DD}", "+5V", dx=0, dy=-2.54); L(rst, "GND", "GND", dx=0, dy=2.54)
+    L(rst, "V_{DD}", "+3V3", dx=0, dy=-2.54); L(rst, "GND", "GND", dx=0, dy=2.54)
     L(rst, "~{RESET}", "~{PWRGOOD}")
     # Reset combine on spare U7 NAND gates: V20 RESET and bus RESET_DRV are
     # ACTIVE-HIGH; the two sources (~PWRGOOD cold-start, ~CPURESET from the Bus
@@ -278,16 +321,22 @@ def build(sch, lib):
 
 
     # ---------------- handoff pull-ups ----------------
-    # Raw V20 strobes float during HOLD (inputs to the U10 gates), DEN floats
-    # (U5 ~OE), and the gated bus strobes float in the ownership gap between
-    # the '125 stage releasing and the Bus MCU driving -- park them all high.
-    for i, net in enumerate(["~{RD}", "~{WR}", "IO/~{M}", "DEN",
-                             "~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}"]):
-        pullup("R%d" % (1 + i), net, (40.64 + 15.24 * i, 243.84))
+    # Raw V20 strobes float during HOLD (inputs to the U10 gates) and DEN floats
+    # (U5 ~OE) -- these are 5V nets, park them to +5V. The gated BUS strobes float
+    # in the ownership gap between the '125 releasing and the Bus MCU driving --
+    # they are now 3.3V bus nets (U11 is the boundary), so park them to +3V3.
+    for i, net in enumerate(["~{RD}", "~{WR}", "IO/~{M}", "DEN"]):
+        pullup("R%d" % (1 + i), net, (40.64 + 15.24 * i, 243.84), rail="+5V")
+    for i, net in enumerate(["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}"]):
+        pullup("R%d" % (5 + i), net, (40.64 + 15.24 * (4 + i), 243.84), rail="+3V3")
 
-    # decoupling
-    for i, x in enumerate(range(20, 340, 20)):
+    # decoupling -- pool defaults to +3V3 (the logic domain now). Dropped 2 caps
+    # vs the old 2-SRAM layout (removed the second SRAM's decoupling, step 4).
+    for i, x in enumerate(range(20, 300, 20)):     # C10..C23 on +3V3
         decouple("C%d" % (10 + i), (float(x), 270.0))
+    # surviving 5V parts (V20, U10 '32, U13 '04) keep +5V decoupling
+    decouple("C24", (300.0, 270.0), rail="+5V")
+    decouple("C25", (320.0, 270.0), rail="+5V")
     c = sch.place("Device:C", "C26", "100nF", at=(55.88, 20.32))   # OSC1 3V3 decouple
     sch.net(c, "1", "+3V3", kind="label", dx=0, dy=-2.54)
     sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
