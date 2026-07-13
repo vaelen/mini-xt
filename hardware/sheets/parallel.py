@@ -8,16 +8,28 @@ Straps: JP1 base address (A8 = 0x378 vs 0x278), JP2 enable/disable (open
 also frees IRQ7 for something else -- the tri-state driver never fires).
 
 Three classic registers in the 0x378 block (Centronics/SPP):
-  * 0x378  Data    (R/W)  -- 74HCT574 output latch -> DB25 pins 2-9
-                             read-back via 74HC245 onto the bus
-  * 0x379  Status  (RO )  -- 74HCT244 buffers Busy/Ack/PaperEnd/Select/Error
-  * 0x37A  Control (R/W)  -- 74HCT574 output latch (Strobe/AutoFd/Init/SlctIn
-                             + IRQ-enable); read-back via 74HCT244
+  * 0x378  Data    (R/W)  -- 74LVC574A output latch -> DB25 pins 2-9
+                             read-back via 74LVC245A onto the bus
+  * 0x379  Status  (RO )  -- 74LVC244A buffers Busy/Ack/PaperEnd/Select/Error
+  * 0x37A  Control (R/W)  -- 74LVC574A output latch (Strobe/AutoFd/Init/SlctIn
+                             + IRQ-enable); read-back via 74LVC244A
 
-Address decode: 74HCT138 selects the three registers (A0-A2) once a 74HCT08
-chain matches A3-A9 == 0x378>>3 (0b1111011) and AEN is low. 74HCT32 ORs the
+Address decode: 74HC138 selects the three registers (A0-A2) once a 74HC08
+chain matches A3-A9 == 0x378>>3 (0b1111011) and AEN is low. 74HC32 ORs the
 register selects with ~{IOR}/~{IOW} to make the read enables and the rising-edge
-write clocks for the '374s. IRQ7 is the (gated) ~Ack edge -- normally polled.
+write clocks for the '574s. IRQ7 is the (gated) ~Ack edge -- normally polled.
+
+3.3V single-board redesign (spec 2026-07-14, task 7): the whole sheet moves
+to +3V3 (no chip on this sheet stays 5V -- unlike com_port/network/storage,
+the DB25 Centronics connector carries no VCC pin, so there's no equivalent
+"external device needs real 5V" case here). Every part with a pin tied
+directly to a DB25-connected net (U1/U2/U4/U5, the data+control latches and
+their read-backs; U3, the status read-back; U9, the ~Ack/Busy/Strobe/
+AutoFeed/SelectIn inverter) moves to a 5V-tolerant-input grade (LVC or, for
+U9's hex-inverter body, 74AHC14 -- see questions-parallel.md for why U5 and
+U9 needed this even though the task-7 brief's swap table didn't list them).
+Purely-internal decode glue (U6, U7/U8, U10/U11, U12) moves to plain
+HC-grade instead.
 """
 import mxbus
 from mxbus import pin
@@ -45,26 +57,30 @@ def build(sch, lib, expose=True):
         sch.net(c, p, net, kind="label", dx=dx, dy=dy)
 
     def pwr(c):
-        L(c, "VCC", "+5V", dx=0, dy=-2.54)
+        L(c, "VCC", "+3V3", dx=0, dy=-2.54)
         L(c, "GND", "GND", dx=0, dy=2.54)
 
     def decouple(ref, at):
         c = sch.place("Device:C", ref, "100nF", at=at)
-        sch.net(c, "1", "+5V", kind="label", dx=0, dy=-2.54)
+        sch.net(c, "1", "+3V3", kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
 
     # ============================================================
     # Address decode -- match A3..A9 == 0b1111011 (0x378 block), AEN low
     #   A3=1 A4=1 A5=1 A6=1 A7=0 A8=1 A9=1   (A0..A2 -> register offset)
     # ============================================================
-    U7 = sch.place("mini-xt:74HCT08", "U7", at=(76.2, 76.2))    # AND tree (1/2)
+    # 74HC08 value override (spec 2026-07-14, not in task-7 brief's swap table
+    # -- added per the same rule: this AND tree is purely internal address
+    # decode, no DB25 exposure, so plain HC-grade is correct; see
+    # questions-parallel.md).
+    U7 = sch.place("mini-xt:74HCT08", "U7", "74HC08", at=(76.2, 76.2))    # AND tree (1/2)
     pwr(U7)
     L(U7, "P1", "A3", dx=-2.54); L(U7, "P2", "A4", dx=-2.54); L(U7, "P3", "AM_A")
     L(U7, "P4", "A5", dx=-2.54); L(U7, "P5", "A6", dx=-2.54); L(U7, "P6", "AM_B")
     L(U7, "P9", "A8_SEL", dx=-2.54); L(U7, "P10", "A9", dx=-2.54); L(U7, "P8", "AM_C")
     L(U7, "P12", "AM_A", dx=-2.54); L(U7, "P13", "AM_B", dx=-2.54); L(U7, "P11", "AM1")
 
-    U8 = sch.place("mini-xt:74HCT08", "U8", at=(76.2, 127.0))   # AND tree (2/2) + IRQ
+    U8 = sch.place("mini-xt:74HCT08", "U8", "74HC08", at=(76.2, 127.0))   # AND tree (2/2) + IRQ
     pwr(U8)
     L(U8, "P1", "AM1", dx=-2.54); L(U8, "P2", "AM_C", dx=-2.54); L(U8, "P3", "AM2")
     L(U8, "P4", "AM2", dx=-2.54); L(U8, "P5", "NA7", dx=-2.54); L(U8, "P6", "ADDR_MATCH")
@@ -74,7 +90,16 @@ def build(sch, lib, expose=True):
     L(U8, "P12", "GND", dx=-2.54); L(U8, "P13", "GND", dx=-2.54)
     sch.no_connect(U8.pin_xy("P8")); sch.no_connect(U8.pin_xy("P11"))
 
-    U9 = sch.place("mini-xt:74HCT04", "U9", at=(76.2, 177.8))   # inverters
+    # 74AHC14 value override on the HCT04 body (spec 2026-07-14, not in the
+    # task-7 brief's swap table -- added because this gate is directly wired
+    # to the DB25 boundary on BOTH sides: P_ACK/P_BUSY are raw connector
+    # inputs (no buffer ahead of them) and P_STROBE/P_AUTOFD/P_SLIN drive
+    # DB25 pins directly. A plain 3.3V-VCC HC part is not guaranteed
+    # 5V-tolerant on its inputs, so this needs the same 5V-tolerant-input
+    # grade as U3/U5. 74AHC14 (Schmitt-trigger hex inverter, "5V-tolerant
+    # in" per parts.py) is already bound on this body from picogus -- reused
+    # here rather than adding a new (lib_id, value) entry for a bare LVC04A.
+    U9 = sch.place("mini-xt:74HCT04", "U9", "74AHC14", at=(76.2, 177.8))   # inverters
     pwr(U9)
     L(U9, "P1", "A7", dx=-2.54); L(U9, "P2", "NA7")               # ~A7 for decode
     L(U9, "P3", "P_ACK", dx=-2.54); L(U9, "P4", "ACK_POS")        # ~Ack -> +pulse
@@ -92,7 +117,10 @@ def build(sch, lib, expose=True):
     # NOTE the ISA ~Ack pulse is 1-12 us and is NOT latched here (real SPP
     # behaviour): the Bus MCU's '165 IRQ poll loop must run faster than the
     # shortest pulse, or sample IRQ7 via PIO.
-    U12 = sch.place("mini-xt:74HCT00", "U12", at=(266.7, 76.2))
+    # 74HC00 value override (spec 2026-07-14): ACK_POS is one hop downstream
+    # of U9's buffering (not a raw DB25 tie), and A8 is an internal bus
+    # signal, so plain HC-grade is correct here.
+    U12 = sch.place("mini-xt:74HCT00", "U12", "74HC00", at=(266.7, 76.2))
     pwr(U12)
     L(U12, "P1", "ACK_POS", dx=-2.54); L(U12, "P2", "IRQ_EN", dx=-2.54)
     L(U12, "P3", "~{IRQ7_OE}")
@@ -100,18 +128,23 @@ def build(sch, lib, expose=True):
     for ip in ("P9", "P10", "P12", "P13"):
         L(U12, ip, "GND", dx=-2.54)
     sch.no_connect(U12.pin_xy("P8")); sch.no_connect(U12.pin_xy("P11"))
-    U13 = sch.place("mini-xt:74HCT125", "U13", at=(266.7, 127.0))
+    # 74LVC125A value override on the HCT125 body (spec 2026-07-14): tri-state
+    # buffer driving the shared IRQ7 line -- LVC grade for 3.3V operation,
+    # same convention as com_port's U6 and storage's U5.
+    U13 = sch.place("mini-xt:74HCT125", "U13", "74LVC125A", at=(266.7, 127.0))
     pwr(U13)
-    L(U13, "P1", "~{IRQ7_OE}", dx=-2.54); L(U13, "P2", "+5V", dx=-2.54)
+    L(U13, "P1", "~{IRQ7_OE}", dx=-2.54); L(U13, "P2", "+3V3", dx=-2.54)
     L(U13, "P3", "IRQ7")           # hardwired; tri-state until IRQ_EN & ~Ack
     for oe in ("P4", "P10", "P13"):
-        L(U13, oe, "+5V", dx=-2.54)        # disable spare buffers
+        L(U13, oe, "+3V3", dx=-2.54)        # disable spare buffers
     for ip in ("P5", "P9", "P12"):
         L(U13, ip, "GND", dx=-2.54)
     for op in ("P6", "P8", "P11"):
         sch.no_connect(U13.pin_xy(op))
 
-    U6 = sch.place("mini-xt:74HCT138", "U6", at=(139.7, 177.8))  # register select
+    # 74HC138 value override (spec 2026-07-14): purely internal address
+    # decode (A0-2, AEN, ~{LPT_EN}, ADDR_MATCH), no DB25 exposure.
+    U6 = sch.place("mini-xt:74HCT138", "U6", "74HC138", at=(139.7, 177.8))  # register select
     pwr(U6)
     L(U6, "A0", "A0", dx=-2.54); L(U6, "A1", "A1", dx=-2.54); L(U6, "A2", "A2", dx=-2.54)
     L(U6, "~{E0}", "AEN", dx=-2.54)      # enabled only when AEN low (CPU owns bus)
@@ -126,14 +159,15 @@ def build(sch, lib, expose=True):
     # OR register-select with the command strobes:
     #   write clocks rise at the end of the cycle (~IOW going high) -> latch
     #   read enables are active-low for the '244/'245 output buffers
-    U10 = sch.place("mini-xt:74HCT32", "U10", at=(203.2, 177.8))
+    # 74HC32 value override (brief-specified): purely internal strobe combiners.
+    U10 = sch.place("mini-xt:74HCT32", "U10", "74HC32", at=(203.2, 177.8))
     pwr(U10)
     L(U10, "P1", "~{SEL_DATA}", dx=-2.54); L(U10, "P2", "~{IOW}", dx=-2.54); L(U10, "P3", "WR_DATA")
     L(U10, "P4", "~{SEL_CTRL}", dx=-2.54); L(U10, "P5", "~{IOW}", dx=-2.54); L(U10, "P6", "WR_CTRL")
     L(U10, "P9", "~{SEL_DATA}", dx=-2.54); L(U10, "P10", "~{IOR}", dx=-2.54); L(U10, "P8", "~{RD_DATA}")
     L(U10, "P12", "~{SEL_STAT}", dx=-2.54); L(U10, "P13", "~{IOR}", dx=-2.54); L(U10, "P11", "~{RD_STAT}")
 
-    U11 = sch.place("mini-xt:74HCT32", "U11", at=(266.7, 177.8))
+    U11 = sch.place("mini-xt:74HCT32", "U11", "74HC32", at=(266.7, 177.8))
     pwr(U11)
     L(U11, "P1", "~{SEL_CTRL}", dx=-2.54); L(U11, "P2", "~{IOR}", dx=-2.54); L(U11, "P3", "~{RD_CTRL}")
     for a, b in (("P4", "P5"), ("P9", "P10"), ("P12", "P13")):       # spare gates
@@ -145,7 +179,9 @@ def build(sch, lib, expose=True):
     # Data register  (0x378) -- 74HCT574 latch, always-enabled outputs
     # ('574 = '374 with flow-through pinout; the '374 is not stocked at JLC)
     # ============================================================
-    U1 = sch.place("mini-xt:74HCT574", "U1", at=(139.7, 76.2))
+    # 74LVC574A value override (brief-specified): Q0-7 (PD0-7) tie directly
+    # to DB25 pins 2-9 -- the connector boundary needs 5V-tolerant inputs.
+    U1 = sch.place("mini-xt:74HCT574", "U1", "74LVC574A", at=(139.7, 76.2))
     pwr(U1)
     L(U1, "Cp", "WR_DATA", dx=-2.54)
     L(U1, "OE", "GND", dx=-2.54)
@@ -154,19 +190,23 @@ def build(sch, lib, expose=True):
         L(U1, "Q%d" % i, "PD%d" % i)                  # latch -> DB25 data pin
 
     # data read-back: latched value driven onto the bus during a read of 0x378
-    U4 = sch.place("mini-xt:74HCT245", "U4", at=(203.2, 76.2))
+    # 74LVC245A value override (brief-specified): A-side (PDx) shares the
+    # same DB25-connected net as U1's Q-side.
+    U4 = sch.place("mini-xt:74HCT245", "U4", "74LVC245A", at=(203.2, 76.2))
     pwr(U4)
-    L(U4, "A->B", "+5V", dx=-2.54)        # always A(latch)->B(bus) direction
+    L(U4, "A->B", "+3V3", dx=-2.54)        # always A(latch)->B(bus) direction
     L(U4, "CE", "~{RD_DATA}", dx=-2.54)
     for i in range(8):
         L(U4, "A%d" % i, "PD%d" % i, dx=-2.54)
         L(U4, "B%d" % i, "D%d" % i)
 
     # ============================================================
-    # Control register (0x37A) -- 74HCT574 latch + 74HCT244 read-back
+    # Control register (0x37A) -- 74LVC574A latch + 74LVC244A read-back
     #   Q0 Strobe  Q1 AutoFeed  Q2 Init(direct)  Q3 SelectIn  Q4 IRQ-enable
     # ============================================================
-    U2 = sch.place("mini-xt:74HCT574", "U2", at=(139.7, 127.0))
+    # 74LVC574A value override (brief-specified): Q2 (CTRL2/Init) ties
+    # directly to DB25 pin 16 with no buffer in between.
+    U2 = sch.place("mini-xt:74HCT574", "U2", "74LVC574A", at=(139.7, 127.0))
     pwr(U2)
     L(U2, "Cp", "WR_CTRL", dx=-2.54)
     L(U2, "OE", "GND", dx=-2.54)
@@ -180,7 +220,11 @@ def build(sch, lib, expose=True):
     for o in ("Q5", "Q6", "Q7"):
         sch.no_connect(U2.pin_xy(o))
 
-    U5 = sch.place("mini-xt:74HCT244", "U5", at=(203.2, 127.0))  # control read-back
+    # 74LVC244A value override (spec 2026-07-14, not in the task-7 brief's
+    # swap table -- added because 1A2 (CTRL2) is the SAME net as U2's Q2,
+    # which ties directly to DB25 pin 16: this read-back buffer inherits the
+    # connector exposure through that shared net, same reasoning as U3 below.
+    U5 = sch.place("mini-xt:74HCT244", "U5", "74LVC244A", at=(203.2, 127.0))  # control read-back
     pwr(U5)
     L(U5, "1OE", "~{RD_CTRL}", dx=-2.54); L(U5, "2OE", "~{RD_CTRL}", dx=-2.54)
     cb = [("1A0", "1Y0", "CTRL0", "D0"), ("1A1", "1Y1", "CTRL1", "D1"),
@@ -194,12 +238,15 @@ def build(sch, lib, expose=True):
         sch.no_connect(U5.pin_xy(y))
 
     # ============================================================
-    # Status register (0x379) -- 74HCT244 buffers printer status onto the bus
+    # Status register (0x379) -- 74LVC244A buffers printer status onto the bus
     #   D7 ~Busy  D6 ~Ack  D5 PaperEnd  D4 Select  D3 ~Error  (D2..D0 = 0)
     # Bit 7 is INVERTED ON THE CARD (standard SPP semantics): BIOS INT 17h
     # spins on bit7=1 = "ready", so DB25 Busy passes through a U9 inverter.
+    # 74LVC244A value override (brief-specified): P_ACK/P_PE/P_SEL/P_ERR are
+    # raw DB25 inputs wired directly into this buffer -- the primary reason
+    # the brief calls out LVC on this sheet's DB25-facing parts.
     # ============================================================
-    U3 = sch.place("mini-xt:74HCT244", "U3", at=(203.2, 228.6))
+    U3 = sch.place("mini-xt:74HCT244", "U3", "74LVC244A", at=(203.2, 228.6))
     pwr(U3)
     L(U3, "1OE", "~{RD_STAT}", dx=-2.54); L(U3, "2OE", "~{RD_STAT}", dx=-2.54)
     sb = [("1A0", "1Y0", "BUSY_N", "D7"), ("1A1", "1Y1", "P_ACK", "D6"),
@@ -237,11 +284,14 @@ def build(sch, lib, expose=True):
     # Pull-ups on the printer status inputs
     # ============================================================
     # 4.7k pull-ups on the printer status inputs: with no printer attached these
-    # float into HCT inputs (oscillation + phantom ~Ack IRQs). Real SPP cards
-    # shipped exactly this network.
+    # float into the (now LVC/AHC-grade, 5V-tolerant-input) status buffers
+    # (oscillation + phantom ~Ack IRQs). Real SPP cards shipped exactly this
+    # network. Pulled to +3V3 (not +5V, spec 2026-07-14): 3.3V is a fully
+    # valid logic-high for these inputs and there's no reason to overdrive
+    # the idle level above the board's own rail.
     for i, net in enumerate(["P_ACK", "P_BUSY", "P_PE", "P_SEL", "P_ERR"]):
         r = sch.place("Device:R", "R%d" % (1 + i), "4.7k", at=(314.96 + 15.24 * i, 45.72))
-        sch.net(r, "1", "+5V", kind="label", dx=0, dy=-2.54)
+        sch.net(r, "1", "+3V3", kind="label", dx=0, dy=-2.54)
         sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
 
     # ============================================================
@@ -261,7 +311,7 @@ def build(sch, lib, expose=True):
     L(JP2, "Pin_1", "~{LPT_EN}", dx=2.54)
     L(JP2, "Pin_2", "GND", dx=2.54)
     r6 = sch.place("Device:R", "R6", "10k", at=(345.44, 195.58))
-    sch.net(r6, "1", "+5V", kind="label", dx=0, dy=-2.54)
+    sch.net(r6, "1", "+3V3", kind="label", dx=0, dy=-2.54)
     sch.net(r6, "2", "~{LPT_EN}", kind="label", dx=0, dy=2.54)
 
     # Configuration note
@@ -275,5 +325,5 @@ def build(sch, lib, expose=True):
         decouple("C%d" % (i + 1), (x, 264.16))
 
     cb = sch.place("Device:C", "C14", "10uF", at=(30.48, 238.76))
-    sch.net(cb, "1", "+5V", kind="label", dx=0, dy=-2.54)
+    sch.net(cb, "1", "+3V3", kind="label", dx=0, dy=-2.54)
     sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)

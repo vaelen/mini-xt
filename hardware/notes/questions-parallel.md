@@ -86,3 +86,45 @@ read enable and latch clock, disabling the port without touching the bus.
 JP3 picks IRQ7 or IRQ5 (open = polled); IRQ5 conflicts with the storage
 card's INTRQ if both are enabled -- both drivers are tri-state so nothing is
 damaged, but don't configure both. PINS now export IRQ5+IRQ7.
+
+## 3.3V single-board redesign (2026-07-14, spec decision, task 7)
+Whole sheet moves to +3V3 -- unlike com_port/network/storage there is no
+component that has to stay at +5V (the DB25 Centronics connector carries no
+VCC pin, so there's no "external device needs real 5V power" case here).
+
+The task-7 brief's swap table named 8 of the sheet's 13 chips explicitly
+(U1/U2->74LVC574A, U3->74LVC244A, U4->74LVC245A, U13->74LVC125A,
+U10/U11->74HC32, U12->74HC00). I traced every remaining chip's actual net
+connections against the DB25 connector to fill the gap, using the same
+electrical rule the brief states for the ones it does name ("the DB25 is an
+external boundary; connector-facing parts go LVC, decode glue goes HC"):
+
+- **U5 (control read-back, 74HCT244) -> 74LVC244A** (not in the brief's
+  table). Its 1A2 input (CTRL2) is the SAME net as U2's Q2 output, which
+  ties directly to DB25 pin 16 (Init) with no buffer in between -- U5
+  inherits that connector exposure even though it isn't itself an
+  "obviously" DB25-facing chip. Plain HC244 would be under-protected here.
+- **U9 (inverters, 74HCT04) -> 74AHC14** (not in the brief's table, and not
+  a value already used for U9's role elsewhere). This one gate package is
+  wired to DB25 on BOTH sides: P_ACK/P_BUSY (DB25 pins 10/11) are raw
+  connector inputs with zero buffering ahead of them, and P_STROBE/
+  P_AUTOFD/P_SLIN (DB25 pins 1/14/17) are direct connector outputs. A plain
+  3.3V-VCC HC part has no guaranteed input tolerance above VCC+0.5V, so this
+  needs a 5V-tolerant-input grade just like U3/U5. There's no bound
+  `("mini-xt:74HCT04","74LVC04A")` entry in parts.py (only 74HC04 and
+  74AHC14 are bound on this body) and adding a new parts.py entry is out of
+  this task's file scope, so I reused **74AHC14** (Schmitt-trigger hex
+  inverter, "5V-tolerant in" per its parts.py comment) -- already bound on
+  the identical `mini-xt:74HCT04` body and already used for exactly this
+  kind of ISA/connector-facing inverter role in picogus.py (U7). The
+  Schmitt-trigger hysteresis is a harmless (arguably beneficial, given a
+  real printer cable) side effect, not a functional change.
+- **U6, U7/U8, U12 -> plain HC-grade (74HC138, 74HC08, 74HC00).** All three
+  are purely internal decode/gating with no path to a DB25 pin (U12's
+  ACK_POS input is one hop downstream of U9's buffering, not the raw
+  connector signal) -- HC-grade is correct and matches the brief's own
+  stated rule for "decode glue."
+- **R1-R5 (status-input pull-ups) and R6 (JP2/LPT_EN pull) -> +3V3**, not
+  +5V: 3.3V is a fully valid logic-high for the (now 5V-tolerant-input)
+  buffers reading these lines, and there's no reason to overdrive the idle
+  level above the board's own rail.

@@ -8,16 +8,21 @@ IRQ4, COM2 -> IRQ3, the PC convention) through the COM_IRQ instance remap;
 to reuse the IRQ for something else, disable the whole port with JP3.
 
 Structure:
-  * U1  16C550 UART (Interface_UART:16550), 8-bit ISA slave
-  * U2  MAX3241 single-supply RS-232 transceiver (3 drivers + 5 receivers)
+  * U1  16C550 UART (mini-xt:TL16C550PT, LQFP-48, soldered, +3V3) -- 8-bit ISA slave
+  * U2  MAX3241 single-supply RS-232 transceiver (3 drivers + 5 receivers),
+        +5V, unchanged (spec 2026-07-14: "already 3.3V"-compatible, no swap)
   * J1  DE9 male, full DTE port (TXD/RTS/DTR out; RXD/CTS/DSR/DCD/RI in)
   * J2  base-address strap (0x3F8 vs 0x2F8, selects A8 polarity in the decode)
   * J3  TTL console header tapped ahead of the MAX3241 (populated on COM1 only)
-  * U3/U4/U5  address-decode glue -> active-low chip-select on ~{CS2}
-  * U6  74HCT125 buffer gating INTR onto COM_IRQ under ~{OUT2}
+  * U3/U4/U5  address-decode glue (74HC04/74HC08 @ +3V3) -> active-low chip-select on ~{CS2}
+  * U6  74LVC125A buffer gating INTRPT onto COM_IRQ under ~{OUT2}, +3V3
   * Y1  1.8432 MHz baud crystal on XIN/XOUT; ~{BAUDOUT} -> RCLK
 
-Soft card: uses ONLY ISA bus signals + power (no private nets).
+3.3V single-board redesign (spec 2026-07-14): U1 replaces the old PLCC-44
+socketed 16550 with a soldered 3.3V LQFP-48 part; U3-U6 move to +3V3. MAX3241
+and the DE9/RS-232 side are untouched. Soft card: uses ISA bus signals +
+power (isolation now a firmware-portability guideline, not a hard rule --
+see mxbus.py).
 """
 import mxbus
 from mxbus import pin
@@ -46,46 +51,53 @@ def build(sch, lib, expose=True):
         mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
 
     # ---------------- U1: 16C550 UART ----------------
-    # Socketed: the fab reflows an SMD PLCC-44 socket (parts.py C2828044) and
-    # a TL16C550CFNR (or NOS/period 16550AFN -- same industry pinout) drops
-    # in by hand. Schematic stays the generic DIP-style 16550 symbol; the
-    # PLCC-44 pin mapping happens at footprint time.
-    U1 = sch.place("Interface_UART:16550", "U1", at=(127.0, 101.6))
-    L(U1, "VCC", "+5V", dx=0, dy=-2.54)
-    L(U1, "GND", "GND", dx=0, dy=2.54)
+    # Soldered LQFP-48, 3.3V (spec 2026-07-14 decision 3): PLCC-44 socket
+    # deleted. mini-xt:TL16C550PT is the real TI LQFP-48 pinout (verified via
+    # pins.py, NOT copied from the old DIP/PLCC-style symbol) -- pin NAMES are
+    # the same UART signals, pin NUMBERS differ, and a few pins are renamed
+    # (RD/WR active-high halves -> RD2/WR2, INTR -> INTRPT, GND -> VSS).
+    U1 = sch.place("mini-xt:TL16C550PT", "U1", "TL16C550C", at=(127.0, 101.6))
+    L(U1, "VCC", "+3V3", dx=0, dy=-2.54)
+    L(U1, "VSS", "GND", dx=0, dy=2.54)
     # bus data + register-select address
     for i in range(8):
         L(U1, "D%d" % i, "D%d" % i, dx=-2.54)
     L(U1, "A0", "A0", dx=-2.54); L(U1, "A1", "A1", dx=-2.54); L(U1, "A2", "A2", dx=-2.54)
-    # read/write strobes: use active-low ~{RD}/~{WR}, tie the active-high RD/WR + ~{ADS} off
-    L(U1, "~{RD}", "~{IOR}", dx=-2.54)
-    L(U1, "~{WR}", "~{IOW}", dx=-2.54)
-    L(U1, "RD", "GND", dx=-2.54)
-    L(U1, "WR", "GND", dx=-2.54)
+    # read/write strobes: use active-low ~{RD1}/~{WR1}, tie the active-high RD2/WR2 + ~{ADS} off
+    L(U1, "~{RD1}", "~{IOR}", dx=-2.54)
+    L(U1, "~{WR1}", "~{IOW}", dx=-2.54)
+    L(U1, "RD2", "GND", dx=-2.54)
+    L(U1, "WR2", "GND", dx=-2.54)
     L(U1, "~{ADS}", "GND", dx=-2.54)
     # chip select: CS0 high, CS1 gated by JP3, ~{CS2} = decoded address match (active low)
-    L(U1, "CS0", "+5V", dx=2.54)
+    L(U1, "CS0", "+3V3", dx=2.54)
     L(U1, "CS1", "COM_EN", dx=2.54)
     L(U1, "~{CS2}", "~{UART_CS}", dx=-2.54)
     # reset
     L(U1, "MR", "RESET_DRV", dx=-2.54)
     # baud reference: 1.8432 MHz CRYSTAL on the 16C550's own XIN/XOUT
-    # oscillator (canned oscillators at this frequency are only stocked as
-    # 3.3 V parts and a soft card has only the 5 V ISA rail -- a crystal is
-    # supply-agnostic). RX clock from internal ~{BAUDOUT}.
+    # oscillator -- unchanged at 3.3V (TL16C550C's on-chip oscillator runs the
+    # same crystal at either supply; a crystal is supply-agnostic either way).
+    # RX clock from internal ~{BAUDOUT}.
     L(U1, "XIN", "BAUD_XI", dx=-2.54)
     L(U1, "XOUT", "BAUD_XO", dx=2.54)
     L(U1, "RCLK", "BAUDOUT_N", dx=-2.54)
     L(U1, "~{BAUDOUT}", "BAUDOUT_N", dx=2.54)
-    # modem control / status -> TTL side of MAX3241
+    # modem control / status -> TTL side of MAX3241 (3.3V logic swing; the
+    # MAX3241's TTL-side inputs read valid-high well below its own 5V VCC, see
+    # questions-com_port.md)
     L(U1, "SOUT", "UART_TXD"); L(U1, "SIN", "UART_RXD")
     L(U1, "~{RTS}", "UART_RTS"); L(U1, "~{DTR}", "UART_DTR")
     L(U1, "~{CTS}", "UART_CTS"); L(U1, "~{DSR}", "UART_DSR")
     L(U1, "~{DCD}", "UART_DCD"); L(U1, "~{RI}", "UART_RI")
-    # interrupt path: INTR gated onto COM_IRQ by ~{OUT2} (PC convention)
-    L(U1, "INTR", "IRQ_RAW")
+    # interrupt path: INTRPT (was INTR on the old symbol) gated onto COM_IRQ by ~{OUT2}
+    L(U1, "INTRPT", "IRQ_RAW")
     L(U1, "~{OUT2}", "OUT2_N")
     for nc in ["~{OUT1}", "DDIS", "~{RXRDY}", "~{TXRDY}"]:
+        sch.no_connect(U1.pin_xy(nc))
+    # LQFP-48 has 8 NC pins the old DIP/PLCC symbol didn't need to model
+    # (package has more pins than functional signals) -- tie all off by number.
+    for nc in ["1", "6", "13", "21", "25", "36", "37", "48"]:
         sch.no_connect(U1.pin_xy(nc))
 
     # ---------------- baud reference crystal (XIN/XOUT) ----------------
@@ -100,8 +112,11 @@ def build(sch, lib, expose=True):
     # ---------------- address decode -> ~{UART_CS} ----------------
     # Match when A3..A7,A9 = 1, A8 = strap-selected, AEN = 0 (not a DMA cycle).
     # 0x3F8 and 0x2F8 differ only in A8; J2 jumpers A8 (3F8) or ~A8 (2F8) into A8_SEL.
-    U3 = sch.place("mini-xt:74HCT04", "U3", at=(60.96, 198.12))     # inverters
-    L(U3, "VCC", "+5V", dx=0, dy=-2.54); L(U3, "GND", "GND", dx=0, dy=2.54)
+    # 74HC04 value override: HC (not HCT) on the HCT body -- all inputs
+    # (A8, AEN, this gate's own output) are 3.3V-driven now; 74HCT is out of
+    # spec below 4.5V VCC.
+    U3 = sch.place("mini-xt:74HCT04", "U3", "74HC04", at=(60.96, 198.12))     # inverters
+    L(U3, "VCC", "+3V3", dx=0, dy=-2.54); L(U3, "GND", "GND", dx=0, dy=2.54)
     L(U3, "P1", "A8", dx=-2.54); L(U3, "P2", "A8_N")               # ~A8
     L(U3, "P3", "AEN", dx=-2.54); L(U3, "P4", "AEN_N")             # ~AEN
     L(U3, "P5", "ADDR_MATCH", dx=-2.54); L(U3, "P6", "~{UART_CS}") # ~(match)
@@ -116,29 +131,33 @@ def build(sch, lib, expose=True):
     L(J2, "Pin_2", "A8_SEL", dx=2.54)
     L(J2, "Pin_3", "A8_N", dx=2.54)
 
-    U4 = sch.place("mini-xt:74HCT08", "U4", at=(116.84, 198.12))    # AND, level 1
-    L(U4, "VCC", "+5V", dx=0, dy=-2.54); L(U4, "GND", "GND", dx=0, dy=2.54)
+    # 74HC08 value override (same rationale as U3): decode inputs are all
+    # 3.3V-driven address/AEN lines.
+    U4 = sch.place("mini-xt:74HCT08", "U4", "74HC08", at=(116.84, 198.12))    # AND, level 1
+    L(U4, "VCC", "+3V3", dx=0, dy=-2.54); L(U4, "GND", "GND", dx=0, dy=2.54)
     L(U4, "P1", "A3", dx=-2.54); L(U4, "P2", "A4", dx=-2.54); L(U4, "P3", "AND1")
     L(U4, "P4", "A5", dx=-2.54); L(U4, "P5", "A6", dx=-2.54); L(U4, "P6", "AND2")
     L(U4, "P9", "A7", dx=-2.54); L(U4, "P10", "A9", dx=-2.54); L(U4, "P8", "AND3")
     L(U4, "P12", "A8_SEL", dx=-2.54); L(U4, "P13", "AEN_N", dx=-2.54); L(U4, "P11", "AND4")
 
-    U5 = sch.place("mini-xt:74HCT08", "U5", at=(167.64, 198.12))    # AND, level 2/3
-    L(U5, "VCC", "+5V", dx=0, dy=-2.54); L(U5, "GND", "GND", dx=0, dy=2.54)
+    U5 = sch.place("mini-xt:74HCT08", "U5", "74HC08", at=(167.64, 198.12))    # AND, level 2/3
+    L(U5, "VCC", "+3V3", dx=0, dy=-2.54); L(U5, "GND", "GND", dx=0, dy=2.54)
     L(U5, "P1", "AND1", dx=-2.54); L(U5, "P2", "AND2", dx=-2.54); L(U5, "P3", "AND5")
     L(U5, "P4", "AND3", dx=-2.54); L(U5, "P5", "AND4", dx=-2.54); L(U5, "P6", "AND6")
     L(U5, "P9", "AND5", dx=-2.54); L(U5, "P10", "AND6", dx=-2.54); L(U5, "P8", "ADDR_MATCH")
     L(U5, "P12", "GND", dx=-2.54); L(U5, "P13", "GND", dx=-2.54)   # spare gate
     sch.no_connect(U5.pin_xy("P11"))
 
-    # ---------------- IRQ buffer (74HCT125): INTR -> COM_IRQ, enabled by ~{OUT2} ----------------
-    U6 = sch.place("mini-xt:74HCT125", "U6", at=(132.08, 162.56))
-    L(U6, "VCC", "+5V", dx=0, dy=-2.54); L(U6, "GND", "GND", dx=0, dy=2.54)
+    # ---------------- IRQ buffer (74LVC125A): INTRPT -> COM_IRQ, enabled by ~{OUT2} ----------------
+    # 74LVC125A value override on the HCT125 body (spec 2026-07-14): tri-state
+    # buffer driving a shared IRQ line -- LVC grade for 3.3V operation.
+    U6 = sch.place("mini-xt:74HCT125", "U6", "74LVC125A", at=(132.08, 162.56))
+    L(U6, "VCC", "+3V3", dx=0, dy=-2.54); L(U6, "GND", "GND", dx=0, dy=2.54)
     L(U6, "P1", "OUT2_N", dx=-2.54)        # ~OE = ~{OUT2}: tri-states IRQ when masked
     L(U6, "P2", "IRQ_RAW", dx=-2.54)
     L(U6, "P3", "COM_IRQ", dx=2.54)        # generic IRQ -> remapped to IRQ4/IRQ3
     for oe in ["P4", "P10", "P13"]:
-        L(U6, oe, "+5V", dx=-2.54)         # disable spare buffers
+        L(U6, oe, "+3V3", dx=-2.54)        # disable spare buffers
     for ip in ["P5", "P9", "P12"]:
         L(U6, ip, "GND", dx=-2.54)
     for op in ["P6", "P8", "P11"]:
@@ -204,13 +223,15 @@ def build(sch, lib, expose=True):
 
     # ---------------- J3: TTL console header (ahead of MAX3241) ----------------
     # Tapped on the UART TTL lines; populated on COM1 only (see design S11.1).
-    # NOTE 5 V TTL levels -- use a 5 V-tolerant USB-serial adapter (most 3.3 V
-    # dongles are not). Pin 4 supplies +5V for a self-powered adapter only.
+    # NOTE 3.3 V TTL levels now (U1 moved to +3V3, spec 2026-07-14) -- a plain
+    # 5 V-only USB-serial adapter may not read these reliably; most 3.3 V
+    # dongles are now the correct match. Pin 4 supplies +3V3 for a
+    # self-powered adapter only.
     J3 = sch.place("Connector_Generic:Conn_01x04", "J3", at=(165.1, 254.0))
     L(J3, "Pin_1", "GND", dx=2.54)
     L(J3, "Pin_2", "UART_TXD", dx=2.54)   # board TX (TTL) out
     L(J3, "Pin_3", "CONSOLE_RXI", dx=2.54)  # console TX -> JP1 pin 3
-    L(J3, "Pin_4", "+5V", dx=2.54)
+    L(J3, "Pin_4", "+3V3", dx=2.54)
 
     # ---------------- JP1: UART RX source select ----------------
     # The MAX3241 R1OUT is PUSH-PULL, so the console adapter's TX cannot share
@@ -220,9 +241,10 @@ def build(sch, lib, expose=True):
     L(JP1, "Pin_1", "RXD_RS232", dx=2.54)
     L(JP1, "Pin_2", "UART_RXD", dx=2.54)
     L(JP1, "Pin_3", "CONSOLE_RXI", dx=2.54)
-    # SIN idles at mark if JP1 is left open (floating HCT-class input otherwise)
+    # SIN idles at mark if JP1 is left open (floating CMOS input otherwise);
+    # pulled to +3V3 (not +5V) -- SIN is a 3.3V-VCC input on U1 now.
     R2 = sch.place("Device:R", "R2", "10k", at=(215.9, 236.22))
-    L(R2, "1", "+5V", dx=0, dy=-2.54); L(R2, "2", "UART_RXD", dx=0, dy=2.54)
+    L(R2, "1", "+3V3", dx=0, dy=-2.54); L(R2, "2", "UART_RXD", dx=0, dy=2.54)
     sch.text("J2 (base strap) has no default: it must ALWAYS be jumpered, or "
              "A8_SEL floats and the decode is undefined.", (203.2, 265.43))
 
@@ -232,21 +254,24 @@ def build(sch, lib, expose=True):
     # extra gating -- MCR resets to 0, so ~OUT2 stays high and U6 stays Z.
     JP3 = sch.place("Connector_Generic:Conn_01x02", "JP3", "COM_EN", at=(256.54, 254.0))
     L(JP3, "Pin_1", "COM_EN", dx=2.54)
-    L(JP3, "Pin_2", "+5V", dx=2.54)
+    L(JP3, "Pin_2", "+3V3", dx=2.54)     # CS1 is a 3.3V-VCC logic input on U1 now
     R1 = sch.place("Device:R", "R1", "10k", at=(271.78, 254.0))
     L(R1, "1", "COM_EN", dx=0, dy=-2.54)
     L(R1, "2", "GND", dx=0, dy=2.54)
 
     # ---------------- decoupling ----------------
-    decouple("C1", (109.22, 50.8))   # U1
-    decouple("C2", (210.82, 50.8))   # U2
-    decouple("C9", (60.96, 271.78))    # U3
-    decouple("C10", (76.2, 271.78))    # U4
-    decouple("C11", (91.44, 271.78))   # U5
-    decouple("C12", (106.68, 271.78))  # U6
-    C13 = sch.place("Device:C", "C13", "10uF", at=(121.92, 271.78))   # card bulk
+    decouple("C1", (109.22, 50.8), rail="+3V3")   # U1
+    decouple("C2", (210.82, 50.8))                # U2 (MAX3241, stays +5V -- untouched)
+    decouple("C9", (60.96, 271.78), rail="+3V3")    # U3
+    decouple("C10", (76.2, 271.78), rail="+3V3")    # U4
+    decouple("C11", (91.44, 271.78), rail="+3V3")   # U5
+    decouple("C12", (106.68, 271.78), rail="+3V3")  # U6
+    C13 = sch.place("Device:C", "C13", "10uF", at=(121.92, 271.78))   # MAX3241 (+5V) bulk
     sch.net(C13, "1", "+5V", kind="label", dx=0, dy=-2.54)
     sch.net(C13, "2", "GND", kind="label", dx=0, dy=2.54)
+    C14 = sch.place("Device:C", "C14", "10uF", at=(137.16, 271.78))   # UART+glue (+3V3) bulk
+    sch.net(C14, "1", "+3V3", kind="label", dx=0, dy=-2.54)
+    sch.net(C14, "2", "GND", kind="label", dx=0, dy=2.54)
 
     sch.text("Base-address strap J2: jumper A8 (0x3F8/COM1) or ~A8 (0x2F8/COM2)",
              (60.96, 233.68))

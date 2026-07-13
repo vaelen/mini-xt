@@ -76,3 +76,41 @@ and two instances sharing the pins is safe. JP3 gates the 16550's spare
 active-high CS1 (open = R1 parks it low -> port can never be selected; IRQ
 needs no extra gating since MCR resets to 0 -> ~OUT2 high -> U6 released).
 card_com's own JP2 was deleted (the sheet's strap comes along for free).
+
+## 3.3V single-board redesign (2026-07-14, spec decision 3 / task 7)
+- **U1 16550 -> TL16C550CPT, soldered LQFP-48, +3V3.** The PLCC-44 socket is
+  deleted; the fab reflows the LQFP-48 in the normal SMD pass (parts.py has
+  0 JLC stock for TL16C550CPTR/PTRG4 as of 2026-07-14 -- source TI
+  direct/Mouser/Digi-Key like the V20, same as noted in jlcpcb-sourcing.md).
+  `mini-xt:TL16C550PT`'s pin names are the same UART signals as the old
+  `Interface_UART:16550` symbol (verified via `pins.py`), just renumbered for
+  LQFP-48 and with three cosmetic renames: `~{RD}`/`RD` -> `~{RD1}`/`RD2`,
+  `~{WR}`/`WR` -> `~{WR1}`/`WR2`, `INTR` -> `INTRPT`, `GND` -> `VSS`. The
+  package's 8 extra pins (LQFP-48 has more physical pins than the DIP/PLCC
+  symbol modeled) are plain `NC` -- tied off by pin number.
+- **Baud crystal kept as-is at 3.3V.** TL16C550C's on-chip oscillator runs
+  the same 1.8432 MHz crystal at 3.3V as at 5V (standard UART practice, no
+  datasheet conflict) -- no redesign needed, per the task brief's "don't
+  redesign clocking unless electrically incompatible" rule.
+- **U3/U4/U5 decode glue -> 74HC04/74HC08, +3V3.** 74HCT is out-of-spec below
+  4.5V VCC; these gates' inputs (A8, AEN, address decode fan-in) are all
+  3.3V-driven now, so plain HC-grade (2-6V) is the correct part, matching
+  the cpu_core/bus_mcu precedent for pure combinational decode logic.
+- **U6 IRQ buffer -> 74LVC125A, +3V3** (brief-specified): tri-state driver
+  onto the shared COM_IRQ line, LVC grade for speed/5V-tolerant-input margin
+  matching the port-bank convention used elsewhere in this redesign.
+- **MAX3241 (U2) left completely untouched** per spec 2026-07-14 ("MAX3241s
+  unchanged, already 3.3V-compatible") -- still +5V, same caps, same DE9
+  wiring. Its TTL-side inputs (T1IN/T2IN/T3IN) now see 3.3V logic from U1
+  instead of 5V; MAX3241's TTL inputs read valid-high at 3.3V (comfortably
+  above its ~0.8V/2.0V-class threshold at 5V VCC), so no compatibility issue.
+- **Every net that ties directly to a U1 (3.3V) logic pin was moved from
+  +5V to +3V3**, not just U1's own VCC: CS0 (tied high), the JP3 port-enable
+  pull (feeds CS1), the JP1/R2 SIN idle pull-up, and J3's TTL console
+  header pin 4 (self-powered-adapter feed -- console TTL levels are now
+  3.3V, so a 3.3V-tolerant adapter is now the correct match, reversing the
+  old caution about "most 3.3V dongles" not tolerating 5V TTL).
+- **Decoupling split by rail:** C1 (U1), C9-C12 (U3-U6) moved to +3V3; C2
+  (U2/MAX3241) stays +5V. Added a new +3V3 bulk cap (C14) alongside the
+  existing +5V bulk (C13, now MAX3241-only) since the sheet now has two
+  real supply domains.

@@ -85,3 +85,28 @@ upstream's GND/EARTH split through unchanged.
 A `power:PWR_FLAG` was added on EARTH (mirroring the picogus sheet's
 AVDD_PGUS/AGND_PGUS idiom) since it's a locally-generated net with no other
 driven source in isolated-sheet ERC.
+
+## 7. RTL8019AS/EEPROM stay at +5V (2026-07-14, 3.3V single-board redesign, task 7)
+**Question:** The task brief says "power sweep -> +3V3 for bus-facing logic"
+-- does that include U1 (RTL8019AS) and U2 (AT93C46 EEPROM) themselves, or
+only the glue (U3)?
+**Why:** Checked the RTL8019AS datasheet: its D.C. characteristics are
+specified at Vcc = 5V +-5%, with no documented 3.3V operating mode --
+unlike the 74-series glue, this is a fixed real-world part with no
+electrically-verified low-voltage operation (same category as MAX3241 on
+com_port, which the brief explicitly keeps at +5V). U2 (AT93C46) is wired
+directly to U1's EECS/EESK/EEDI/EEDO pins with no buffer between them, so it
+must share U1's voltage domain to keep valid logic levels on that link.
+**Options:** (a) Move U1/U2 to +3V3 per a literal reading of "power sweep
+for bus-facing logic" (unverified, risks a part not actually rated for it);
+(b) leave U1/U2 at +5V (same treatment as MAX3241), only convert the glue
+that bridges U1's domain onto the shared 3.3V bus.
+**Pick:** (b). U3 (IRQ/AEN gate) is the only chip converted --
+`74LVC125A @ +3V3` (LVC specifically because its input, U1's INT0 pin, is a
+5V signal). R6 (U3's own OE pull-up) moved to +3V3 to match U3's rail; R7
+(AEN_CHIP pull, feeds U1's own AEN input) stays +5V, matching U1's domain.
+Every other 5V tie on this sheet (R1/R2/R8/R9 straps, U2's VCC/ORG, the bulk
+decoupling row, C15) is directly wired to U1 or U2 and is unaffected.
+This mirrors the CPU-boundary design rule (5V outputs are fine feeding
+LVC/RP2350B-GPIO 5V-tolerant inputs elsewhere on the 3.3V bus) rather than
+requiring every chip on the board to run at 3.3V.

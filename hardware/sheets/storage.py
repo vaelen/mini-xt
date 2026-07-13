@@ -4,10 +4,10 @@ Design doc S10. A discrete, period-correct mass-storage soft card:
 
   * 16-bit IDE data register made accessible as two 8-bit transfers
     ("Chuck-mod" high-byte latch):
-      - 74HC245 buffers bus D0-D7  <-> IDE/CF D0-D7  (low byte, direct).
-      - 74HCT573 WRITE latch: bus D0-D7 -> IDE D8-D15, loaded on a write to the
+      - 74LVC245A buffers bus D0-D7  <-> IDE/CF D0-D7  (low byte, direct).
+      - 74LVC573A WRITE latch: bus D0-D7 -> IDE D8-D15, loaded on a write to the
         high-byte register, output-enabled only on the IDE data-register write.
-      - 74HCT573 READ  latch: IDE D8-D15 -> bus D0-D7, loaded on the IDE
+      - 74LVC573A READ  latch: IDE D8-D15 -> bus D0-D7, loaded on the IDE
         data-register read, output-enabled when reading the high-byte register.
   * Address decode: TRUE rev-2 / Chuck-mod map = rev 1 with bus A0<->A3 swapped
     at the card, giving XTIDE Universal BIOS's "XT-IDE rev 2" layout in a
@@ -16,23 +16,30 @@ Design doc S10. A discrete, period-correct mass-storage soft card:
       0x306, altstatus/devctl 0x307, error/feat 0x308, sector 0x30A, cyl-hi
       0x30C, status/cmd 0x30E, drive-addr 0x30F.  Drive DA0 = bus A3 (!),
       DA1 = A1, DA2 = A2.
-      - 74HCT138 (DEC1) splits the window on A0/A4: ~Y0 = /CS0 (even offsets =
+      - 74HC138 (DEC1) splits the window on A0/A4: ~Y0 = /CS0 (even offsets =
         command block), ~Y1 = /ODD_SEL (odd offsets: latch + control block).
-      - 74HCT138 (DEC2) decodes A1,A2,A3 inside ODD: ~Y0 = high-byte latch
+      - 74HC138 (DEC2) decodes A1,A2,A3 inside ODD: ~Y0 = high-byte latch
         (0x301); ~Y3/~Y7 (0x307/0x30F) AND together (U3) into /CS1, so the
         latch address never asserts a drive CS or the low-byte buffer.
-      - 74HCT138 (DEC3/U11) decodes A1,A2,A3 inside CS0: ~Y0 = data reg 0x300.
-      - glue: 74HCT08 (block qualifier + buffer enable + CS1 combine), 74HCT32
-        (strobe combiners), 74HCT04 (inverters + IDE -RESET).
+      - 74HC138 (DEC3/U11) decodes A1,A2,A3 inside CS0: ~Y0 = data reg 0x300.
+      - glue: 74HC08 (block qualifier + buffer enable + CS1 combine), 74HC32
+        (strobe combiners), 74HC04 (inverters + IDE -RESET).
   * 40-pin IDE header (Conn_02x20) and a CompactFlash True-IDE socket
     (Conn_02x25, 50-pin -- no CF symbol in lib, see questions-storage.md) wired
     in parallel.
-  * Drive INTRQ -> 2N7002-gated 74HCT125 -> IRQ14, hardwired (AT primary-IDE
+  * Drive INTRQ -> 2N7002-gated 74LVC125A -> IRQ14, hardwired (AT primary-IDE
     convention; the soft PIC is AT-style anyway). Poll vs interrupt is an
     XTIDE UB config choice -- the line can stay wired either way, since the
     '125 only drives while INTRQ is asserted.
   * JP1: base-address strap (0x300 vs 0x320; differ only in A5).
   * JP2: enable/disable jumper; open kills the card, closed enables it.
+
+3.3V single-board redesign (spec 2026-07-14, task 7): all logic on this
+sheet moves to +3V3 (decode glue -> HC-grade, the data-path/IRQ buffers
+facing the IDE header/CF socket -> LVC-grade for 5V-tolerant inputs, since
+an external drive or CF adapter may drive 5V back). The CompactFlash
+socket's own VCC feed pins (J2 13/36/38/44) stay +5V -- a real power-supply
+requirement of the CF slot, not a logic signal.
 
 Soft card: exposes ONLY ISA signals + power. The IDE/CF connectors are local.
 See hardware/notes/questions-storage.md for the register-map / topology picks.
@@ -60,23 +67,25 @@ def build(sch, lib, expose=True):
     def L(c, p, net, dx=2.54, dy=0.0):
         sch.net(c, p, net, kind="label", dx=dx, dy=dy)
 
-    def pwr(c, vpin, gpin, vnet="+5V"):
+    def pwr(c, vpin, gpin, vnet="+3V3"):
         L(c, vpin, vnet, dx=0, dy=-2.54)
         L(c, gpin, "GND", dx=0, dy=2.54)
 
     def decouple(ref, at):
         c = sch.place("Device:C", ref, "100nF", at=at)
-        sch.net(c, "1", "+5V", kind="label", dx=0, dy=-2.54)
+        sch.net(c, "1", "+3V3", kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
 
     def pullup(ref, net, at):
         r = sch.place("Device:R", ref, "10k", at=at)
-        sch.net(r, "1", "+5V", kind="label", dx=0, dy=-2.54)
+        sch.net(r, "1", "+3V3", kind="label", dx=0, dy=-2.54)
         sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
 
     # ============================================================ glue logic ===
-    # ---- 74HCT04 hex inverter: latch strobes, address inverts, IDE -RESET ----
-    INV = sch.place("mini-xt:74HCT04", "U1", at=(38.1, 76.2))
+    # ---- 74HC04 hex inverter: latch strobes, address inverts, IDE -RESET ----
+    # 74HC04 value override (spec 2026-07-14): 74HCT is out of spec below
+    # 4.5V VCC; all inputs here are 3.3V-driven decode/address signals.
+    INV = sch.place("mini-xt:74HCT04", "U1", "74HC04", at=(38.1, 76.2))
     pwr(INV, "VCC", "GND")
     L(INV, "P1", "HBW_N", dx=-2.54);  L(INV, "P2", "LE_W")     # write-latch Load
     L(INV, "P3", "DR_N",  dx=-2.54);  L(INV, "P4", "LE_RD")    # read-latch  Load
@@ -85,16 +94,17 @@ def build(sch, lib, expose=True):
     L(INV, "P11", "A7",   dx=-2.54);  L(INV, "P10", "nA7")
     L(INV, "P13", "RESET_DRV", dx=-2.54); L(INV, "P12", "~{IDE_RST}")
 
-    # ---- 74HCT08 #1: block-address qualifier (A9&A8&~A5&~A6&~A7) -> HI_MATCH ----
-    AND1 = sch.place("mini-xt:74HCT08", "U2", at=(38.1, 142.24))
+    # ---- 74HC08 #1: block-address qualifier (A9&A8&~A5&~A6&~A7) -> HI_MATCH ----
+    # 74HC08 value override (same rationale as U1).
+    AND1 = sch.place("mini-xt:74HCT08", "U2", "74HC08", at=(38.1, 142.24))
     pwr(AND1, "VCC", "GND")
     L(AND1, "P1", "A9", dx=-2.54); L(AND1, "P2", "A8", dx=-2.54); L(AND1, "P3", "M1")
     L(AND1, "P4", "A5_SEL", dx=-2.54); L(AND1, "P5", "nA6", dx=-2.54); L(AND1, "P6", "M2")
     L(AND1, "P9", "M1", dx=-2.54); L(AND1, "P10", "M2", dx=-2.54); L(AND1, "P8", "M3")
     L(AND1, "P12", "M3", dx=-2.54); L(AND1, "P13", "nA7", dx=-2.54); L(AND1, "P11", "HI_MATCH")
 
-    # ---- 74HCT08 #2: low-byte buffer enable + CS1 combine ----
-    AND2 = sch.place("mini-xt:74HCT08", "U3", at=(38.1, 205.74))
+    # ---- 74HC08 #2: low-byte buffer enable + CS1 combine ----
+    AND2 = sch.place("mini-xt:74HCT08", "U3", "74HC08", at=(38.1, 205.74))
     pwr(AND2, "VCC", "GND")
     L(AND2, "P1", "~{IDE_CS0}", dx=-2.54); L(AND2, "P2", "~{IDE_CS1}", dx=-2.54)
     L(AND2, "P3", "~{DBUF_OE}")            # buffer on for any DRIVE access (not the latch)
@@ -106,23 +116,27 @@ def build(sch, lib, expose=True):
         L(AND2, u, "GND", dx=-2.54)
     sch.no_connect(AND2.pin_xy("P8")); sch.no_connect(AND2.pin_xy("P11"))
 
-    # ---- 74HCT32: strobe combiners (active-low pins -> active-low strobe) ----
-    OR = sch.place("mini-xt:74HCT32", "U4", at=(114.3, 210.82))
+    # ---- 74HC32: strobe combiners (active-low pins -> active-low strobe) ----
+    # 74HC32 value override (same rationale as U1).
+    OR = sch.place("mini-xt:74HCT32", "U4", "74HC32", at=(114.3, 210.82))
     pwr(OR, "VCC", "GND")
     L(OR, "P1", "~{DATA_SEL}", dx=-2.54); L(OR, "P2", "~{IOW}", dx=-2.54); L(OR, "P3", "~{DWR_N}")   # data write
     L(OR, "P4", "~{DATA_SEL}", dx=-2.54); L(OR, "P5", "~{IOR}", dx=-2.54); L(OR, "P6", "DR_N")        # data read
     L(OR, "P9", "~{HB_SEL}", dx=-2.54);  L(OR, "P10", "~{IOR}", dx=-2.54); L(OR, "P8", "~{HBRD_N}")  # HB read
     L(OR, "P12", "~{HB_SEL}", dx=-2.54); L(OR, "P13", "~{IOW}", dx=-2.54); L(OR, "P11", "HBW_N")      # HB write
 
-    # ---- 74HCT125: INTRQ -> IRQ14 (hardwired), tri-state (drive-high-else-release) ----
+    # ---- 74LVC125A: INTRQ -> IRQ14 (hardwired), tri-state (drive-high-else-release) ----
+    # 74LVC125A value override on the HCT125 body (spec 2026-07-14): tri-state
+    # buffer driving a shared IRQ line -- LVC grade for 3.3V operation, same
+    # convention as com_port's U6 and the LPT card's IRQ7 stage.
     # Q1 (2N7002) inverts INTRQ into the '125 ~OE: INTRQ=1 -> ~OE=0 -> buffer
     # drives IRQ14 high (input strapped high); INTRQ=0 -> ~OE=1 (R4) -> Z, so the
     # line stays shareable -- same convention as the LPT card's IRQ7 stage.
-    IRQ = sch.place("mini-xt:74HCT125", "U5", at=(38.1, 256.54))
+    IRQ = sch.place("mini-xt:74HCT125", "U5", "74LVC125A", at=(38.1, 256.54))
     pwr(IRQ, "VCC", "GND")
-    L(IRQ, "P1", "~{IRQ_OE}", dx=-2.54); L(IRQ, "P2", "+5V", dx=-2.54); L(IRQ, "P3", "IRQ14")
+    L(IRQ, "P1", "~{IRQ_OE}", dx=-2.54); L(IRQ, "P2", "+3V3", dx=-2.54); L(IRQ, "P3", "IRQ14")
     for oe in ("P4", "P10", "P13"):
-        L(IRQ, oe, "+5V", dx=-2.54)
+        L(IRQ, oe, "+3V3", dx=-2.54)
     for ip in ("P5", "P9", "P12"):
         L(IRQ, ip, "GND", dx=-2.54)
     for u in ("P6", "P8", "P11"):
@@ -136,7 +150,8 @@ def build(sch, lib, expose=True):
     # Rev-2 = A0<->A3 swap: A0 splits even (drive command block) vs odd (latch
     # + control block); the drive's DA0 is bus A3 (wired at the connectors).
     # ---- DEC1: window split on A0/A4 -> /CS0 (even), /ODD_SEL (odd) ----
-    DEC1 = sch.place("mini-xt:74HCT138", "U6", at=(114.3, 63.5))
+    # 74HC138 value override (spec 2026-07-14): all inputs 3.3V-driven.
+    DEC1 = sch.place("mini-xt:74HCT138", "U6", "74HC138", at=(114.3, 63.5))
     pwr(DEC1, "VCC", "GND")
     L(DEC1, "A0", "A0", dx=-2.54); L(DEC1, "A1", "A4", dx=-2.54); L(DEC1, "A2", "GND", dx=-2.54)
     L(DEC1, "~{E0}", "AEN", dx=-2.54); L(DEC1, "~{E1}", "~{STOR_EN}", dx=-2.54); L(DEC1, "E2", "HI_MATCH", dx=-2.54)
@@ -146,10 +161,10 @@ def build(sch, lib, expose=True):
         sch.no_connect(DEC1.pin_xy(y))  # A4=1 region unused (16-byte window)
 
     # ---- DEC2: odd-side decode (A1,A2,A3): latch @0x301, CS1 @0x307/0x30F ----
-    DEC2 = sch.place("mini-xt:74HCT138", "U7", at=(114.3, 142.24))
+    DEC2 = sch.place("mini-xt:74HCT138", "U7", "74HC138", at=(114.3, 142.24))
     pwr(DEC2, "VCC", "GND")
     L(DEC2, "A0", "A1", dx=-2.54); L(DEC2, "A1", "A2", dx=-2.54); L(DEC2, "A2", "A3", dx=-2.54)
-    L(DEC2, "~{E0}", "~{ODD_SEL}", dx=-2.54); L(DEC2, "~{E1}", "GND", dx=-2.54); L(DEC2, "E2", "+5V", dx=-2.54)
+    L(DEC2, "~{E0}", "~{ODD_SEL}", dx=-2.54); L(DEC2, "~{E1}", "GND", dx=-2.54); L(DEC2, "E2", "+3V3", dx=-2.54)
     L(DEC2, "~{Y0}", "~{HB_SEL}")      # 0x301 = high-byte latch register
     L(DEC2, "~{Y3}", "~{CS1_A}")       # 0x307 = altstatus / device control
     L(DEC2, "~{Y7}", "~{CS1_B}")       # 0x30F = drive address
@@ -157,17 +172,22 @@ def build(sch, lib, expose=True):
         sch.no_connect(DEC2.pin_xy(y))
 
     # ---- DEC3: even-side decode (A1,A2,A3) inside CS0; ~Y0 = data reg 0x300 ----
-    DEC3 = sch.place("mini-xt:74HCT138", "U11", at=(152.4, 63.5))
+    DEC3 = sch.place("mini-xt:74HCT138", "U11", "74HC138", at=(152.4, 63.5))
     pwr(DEC3, "VCC", "GND")
     L(DEC3, "A0", "A1", dx=-2.54); L(DEC3, "A1", "A2", dx=-2.54); L(DEC3, "A2", "A3", dx=-2.54)
-    L(DEC3, "~{E0}", "~{IDE_CS0}", dx=-2.54); L(DEC3, "~{E1}", "GND", dx=-2.54); L(DEC3, "E2", "+5V", dx=-2.54)
+    L(DEC3, "~{E0}", "~{IDE_CS0}", dx=-2.54); L(DEC3, "~{E1}", "GND", dx=-2.54); L(DEC3, "E2", "+3V3", dx=-2.54)
     L(DEC3, "~{Y0}", "~{DATA_SEL}")    # 0x300 = 16-bit data register
     for y in ("~{Y1}", "~{Y2}", "~{Y3}", "~{Y4}", "~{Y5}", "~{Y6}", "~{Y7}"):
         sch.no_connect(DEC3.pin_xy(y))
 
     # =========================================================== data path ====
-    # ---- 74HC245 low-byte buffer: bus D0-D7 <-> IDE/CF D0-D7 ----
-    LB = sch.place("mini-xt:74HCT245", "U8", at=(190.5, 63.5))
+    # ---- 74LVC245A low-byte buffer: bus D0-D7 <-> IDE/CF D0-D7 ----
+    # 74LVC245A value override (spec 2026-07-14): this buffer's B-side faces
+    # the IDE header/CF socket -- an external drive or CF adapter may drive
+    # 5V signal levels back onto ID0-7, so the connector-facing part needs
+    # LVC's 5V-tolerant inputs even though it's now +3V3-powered (same rule
+    # as the LPT card's connector-facing buffers).
+    LB = sch.place("mini-xt:74HCT245", "U8", "74LVC245A", at=(190.5, 63.5))
     pwr(LB, "VCC", "GND")
     L(LB, "A->B", "~{IOR}", dx=-2.54)    # write (IOR high) drives bus->IDE
     L(LB, "CE", "~{DBUF_OE}", dx=-2.54)  # enabled for any IDE register access
@@ -175,8 +195,9 @@ def build(sch, lib, expose=True):
         L(LB, "A%d" % i, "D%d" % i, dx=-2.54)     # bus side
         L(LB, "B%d" % i, "ID%d" % i)              # IDE side (low byte)
 
-    # ---- 74HCT573 high-byte WRITE latch: bus D0-D7 -> IDE D8-D15 ----
-    HW = sch.place("mini-xt:74HCT573", "U9", at=(190.5, 142.24))
+    # ---- 74LVC573A high-byte WRITE latch: bus D0-D7 -> IDE D8-D15 ----
+    # 74LVC573A value override: same IDE-connector-facing rationale as U8.
+    HW = sch.place("mini-xt:74HCT573", "U9", "74LVC573A", at=(190.5, 142.24))
     pwr(HW, "VCC", "GND")
     L(HW, "Load", "LE_W", dx=-2.54)      # capture on write to HB register
     L(HW, "OE", "~{DWR_N}", dx=-2.54)    # drive IDE high byte only on data write
@@ -184,8 +205,9 @@ def build(sch, lib, expose=True):
         L(HW, "D%d" % i, "D%d" % i, dx=-2.54)     # bus side
         L(HW, "Q%d" % i, "ID%d" % (8 + i))        # IDE high byte D8..D15
 
-    # ---- 74HCT573 high-byte READ latch: IDE D8-D15 -> bus D0-D7 ----
-    HR = sch.place("mini-xt:74HCT573", "U10", at=(190.5, 215.9))
+    # ---- 74LVC573A high-byte READ latch: IDE D8-D15 -> bus D0-D7 ----
+    # 74LVC573A value override: same IDE-connector-facing rationale as U8.
+    HR = sch.place("mini-xt:74HCT573", "U10", "74LVC573A", at=(190.5, 215.9))
     pwr(HR, "VCC", "GND")
     L(HR, "Load", "LE_RD", dx=-2.54)     # capture IDE high byte on data read
     L(HR, "OE", "~{HBRD_N}", dx=-2.54)   # present to bus when reading HB register
@@ -214,6 +236,9 @@ def build(sch, lib, expose=True):
     conn_wire(IDE, ide_map, nc=[20, 21, 29, 32, 34, 39])
 
     # ---- 50-pin CompactFlash socket, True-IDE mode (parallel to IDE) ----
+    # Pins 13/36/38/44 stay +5V (unchanged): these are the CF slot's own VCC
+    # power-feed pins per the CF pinout spec (the card has no separate power
+    # connector), not logic signals -- see questions-storage.md.
     CF = sch.place("Connector_Generic:Conn_02x25_Odd_Even", "J2", at=(368.3, 127.0))
     cf_map = {
         1: "GND", 2: "ID3", 3: "ID4", 4: "ID5", 5: "ID6", 6: "ID7",
@@ -252,8 +277,8 @@ def build(sch, lib, expose=True):
     pullup("R5", "~{STOR_EN}", (320.04, 25.4))
     for i, x in enumerate(range(30, 250, 20)):
         decouple("C%d" % (1 + i), (float(x), 276.86))
-    cb = sch.place("Device:C", "C12", "10uF", at=(256.54, 276.86))   # card bulk
-    sch.net(cb, "1", "+5V", kind="label", dx=0, dy=-2.54)
+    cb = sch.place("Device:C", "C12", "10uF", at=(256.54, 276.86))   # card bulk (+3V3: sheet's logic domain)
+    sch.net(cb, "1", "+3V3", kind="label", dx=0, dy=-2.54)
     sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)
 
     # =============== strapping notes ==

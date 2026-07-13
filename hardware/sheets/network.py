@@ -12,7 +12,7 @@ Deviations from the reference:
     physical DIP switch -- see the strap table below. RSTDRV-latched,
     internal ~100k pull-downs mean an unstrapped (floating) pin reads 0;
     only JP and IOS1 need an explicit pull-up to read 1.
-  * Added: a JP1 "NIC enable" jumper + 74HCT125 buffer (U3) not present on
+  * Added: a JP1 "NIC enable" jumper + 74LVC125A buffer (U3) not present on
     the reference. Closed (default) = card behaves exactly like the
     reference. Open = R6 parks ~{NET_EN} high, which tri-states IRQ2 AND
     forces the chip's AEN input high (so it ignores all I/O cycles),
@@ -28,6 +28,15 @@ hardware/notes/questions-network.md for the full reasoning):
   * I/O base 0x340 (IOS[3:0] = 0010)
   * IRQ2/9 (IRQS[2:0] = 000 -> INT0)
   * PL[1:0] = 00 -> 10BaseT with link test enabled (auto-detect mode)
+
+3.3V single-board redesign (spec 2026-07-14, task 7): U1 (RTL8019AS) and U2
+(AT93C46 EEPROM, directly wired to U1's own EE* pins with no buffering
+between them) stay at +5V -- the RTL8019AS's DC characteristics are
+datasheet-specified at Vcc=5V+-5% with no documented 3.3V mode (same
+situation as MAX3241 on com_port). Only U3, the IRQ/AEN gate that bridges
+U1's 5V domain onto the board's shared 3.3V bus, moves to 74LVC125A @ +3V3 --
+LVC grade is required here specifically because its inputs (INT0_RAW from
+U1) see a full 5V swing while its own VCC is 3.3V.
 
 Soft card: uses ONLY ISA bus signals + power (no private nets).
 """
@@ -136,9 +145,9 @@ def build(sch, lib):
     R5 = sch.place("Device:R", "R5", "200", at=(304.8, 152.4))
     L(R5, "1", "TPIN+", dx=0, dy=-2.54); L(R5, "2", "TPIN-", dx=0, dy=2.54)
     R6 = sch.place("Device:R", "R6", "10k", at=(342.9, 190.5))
-    L(R6, "1", "~{NET_EN}", dx=0, dy=-2.54); L(R6, "2", "+5V", dx=0, dy=2.54)
+    L(R6, "1", "~{NET_EN}", dx=0, dy=-2.54); L(R6, "2", "+3V3", dx=0, dy=2.54)  # U3's own rail
     R7 = sch.place("Device:R", "R7", "10k", at=(355.6, 190.5))
-    L(R7, "1", "AEN_CHIP", dx=0, dy=-2.54); L(R7, "2", "+5V", dx=0, dy=2.54)
+    L(R7, "1", "AEN_CHIP", dx=0, dy=-2.54); L(R7, "2", "+5V", dx=0, dy=2.54)  # U1's own rail (AEN_CHIP feeds U1's AEN pin)
     R8 = sch.place("Device:R", "R8", "1k", at=(368.3, 254.0))
     L(R8, "1", "+5V", dx=0, dy=-2.54); L(R8, "2", "LNK_A", dx=0, dy=2.54)
     R9 = sch.place("Device:R", "R9", "1k", at=(381.0, 254.0))
@@ -157,8 +166,13 @@ def build(sch, lib):
     decouple("C1", (266.7, 165.1))
 
     # ============================================================ 4. IRQ/AEN gate
-    U3 = sch.place("mini-xt:74HCT125", "U3", at=(254.0, 203.2))
-    L(U3, "VCC", "+5V", dx=0, dy=-2.54); L(U3, "GND", "GND", dx=0, dy=2.54)
+    # 74LVC125A value override on the HCT125 body (spec 2026-07-14): the chip's
+    # OWN INT0/AEN pins stay 5V (RTL8019AS is 5V-only, see U1 note above), so
+    # this buffer's inputs see 5V while its outputs (IRQ2, AEN_CHIP) drive the
+    # 3.3V-domain IRQ scan chain / RTL8019AS's own 5V-tolerant TTL input --
+    # LVC grade is required here specifically for the 5V-tolerant input side.
+    U3 = sch.place("mini-xt:74HCT125", "U3", "74LVC125A", at=(254.0, 203.2))
+    L(U3, "VCC", "+3V3", dx=0, dy=-2.54); L(U3, "GND", "GND", dx=0, dy=2.54)
     L(U3, "P1", "~{NET_EN}", dx=-2.54)                      # gate-1 OE (low = enabled)
     L(U3, "P2", "INT0_RAW", dx=-2.54)
     L(U3, "P3", "IRQ2", dx=2.54)                            # tri-stated when JP1 open
@@ -166,12 +180,12 @@ def build(sch, lib):
     L(U3, "P5", "AEN", dx=-2.54)                            # bus AEN in
     L(U3, "P6", "AEN_CHIP", dx=2.54)                        # R7 parks it high when JP1 open
     for oe in ("P10", "P13"):
-        L(U3, oe, "+5V", dx=-2.54)                          # spare OEs disabled
+        L(U3, oe, "+3V3", dx=-2.54)                         # spare OEs disabled (own rail)
     for ip in ("P9", "P12"):
         L(U3, ip, "GND", dx=-2.54)                          # spare inputs tied
     for op in ("P8", "P11"):
         sch.no_connect(U3.pin_xy(op))
-    decouple("C2", (266.7, 216.0))
+    decouple("C2", (266.7, 216.0), rail="+3V3")
 
     # ============================================================ 5. NIC-enable jp
     JP1 = sch.place("Connector_Generic:Conn_01x02", "JP1", "NET_EN", at=(254.0, 254.0))

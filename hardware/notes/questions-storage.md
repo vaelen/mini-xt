@@ -93,3 +93,26 @@ cascaded second '165; it is in the mxbus ISA contract but has NO pin on the
 since the standalone storage card was removed. IRQ5 remains the XT-style
 fallback (and frees the IRQ5/LPT-alt collision). XTIDE Universal BIOS takes
 the IRQ per-controller in its config, so either strap position is bootable.
+
+---
+
+## 3.3V single-board redesign (2026-07-14, spec decision, task 7)
+Whole sheet moves to +3V3 except one deliberate exception:
+- **Decode glue -> HC-grade:** U1 (74HC04), U2/U3 (74HC08), U4 (74HC32),
+  U6/U7/U11 (74HC138) -- 74HCT is out-of-spec below 4.5V VCC and every input
+  here is 3.3V-driven address/control logic.
+- **Data-path + IRQ buffer -> LVC-grade:** U8 (74LVC245A, low byte), U9/U10
+  (74LVC573A, high-byte write/read latches), U5 (74LVC125A, IRQ14 tri-state
+  buffer). These specifically need LVC's 5V-tolerant inputs because their
+  B-side/Q-side faces the IDE header and CF socket -- an external drive or
+  CF adapter can legally drive ID0-15/INTRQ at 5V even though the board's
+  logic domain is 3.3V (same connector-boundary rule used on the LPT sheet).
+- **CF socket VCC feed pins stay +5V (J2 pins 13/36/38/44).** These are the
+  CompactFlash slot's real power-supply pins (the card has no separate power
+  connector, per the CF spec) -- a physical power requirement, not a logic
+  signal, so they're untouched. The 40-pin IDE header (J1) carries no VCC
+  pins at all (real ATA drives are powered by a separate 4-pin Molex), so
+  there's no equivalent tie there.
+- pwr()/decouple()/pullup() helper defaults changed from +5V to +3V3 (every
+  call site on this sheet needed the new rail; no call overrode the old
+  default). The card-bulk cap (C12) moved to +3V3 to match.
