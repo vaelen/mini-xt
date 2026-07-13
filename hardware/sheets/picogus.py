@@ -92,39 +92,53 @@ def build(sch, lib):
     L(U1, "26", "RUN", dx=2.54)                           # RUN
 
     # ---- stock-firmware GPIO map (mini-xt/picogus/hw-chipdown/chipdown.net) ----
-    # PRESERVED EXACTLY from 3v3-verification.md check 6 -- stock PicoGUS
-    # firmware depends on this GPIO<->function assignment; do not renumber.
+    # Keyed by RP2040 GPIO **name** (the symbol's pin NAME, e.g. "GPIO20"), which
+    # is exactly what stock PicoGUS firmware addresses -- verified pin-for-pin
+    # against docs/PicoGUS-chipdown-schematic.pdf (the reference RP2040 sheet).
     #
-    # GPIO | Sheet net   | ISA-facing signal          | Path / notes
-    # -----|-------------|-----------------------------|---------------------
-    # 8,9,11-16 | AD0-AD7 | A0-A7 / D0-D7 (time-shared)| U4/U5 CB3T3257 mux,
-    #           |         |                            | select=ADS(39), gate=~{BUSOE}
-    # 17   | A8 (was RA8)| A8 (address only)          | DIRECT (U6 CB3T3245 deleted)
-    # 18   | A9 (was RA9)| A9                         | DIRECT (U6 deleted)
-    # 6    | ~{RIOW}     | ~{IOW}, qualified          | U7/U8 gates, masked on AEN unless DACK
-    # 7    | ~{RIOR}     | ~{IOR}, qualified          | same masking
-    # 30   | ~{RDACK}    | ~{DACK1} or ~{DACK3} (jumpered J1) | senses jumpered DMA ack
-    # 31   | TC (was RTC_LS) | TC (ISA terminal count, in) | DIRECT (U6 deleted)
-    # 32   | IRQ5 (was RIRQ) | IRQ5 (out, hardwired free line) | DIRECT (U6 deleted)
-    # 34   | DRQ (was RDRQ)  | DRQ1 or DRQ3 (out, jumpered J1) | DIRECT (U6 deleted)
-    # 38   | RIOCHRDY    | IOCHRDY (out, open-drain)  | U10 74LVC2G06 (kept: wired-AND semantics)
-    # 39   | ADS         | (internal mux select/timing, not ISA) | drives U4/U5/U9
-    # 26   | RUN         | (internal BUSOE-latch gating, U9) | not ISA-facing
-    # 2,3,4,5 | SPI_*    | (not ISA -- APS6404L sample RAM SPI) | unaffected
-    # 27,28,29 | DIN,BCK,LRCK | (not ISA -- PCM5102A I2S DAC) | unaffected
-    # 35   | LED_A       | (not ISA -- status LED)    | unaffected
-    # 36,37,40 | RV_DATA,RV_CLK,MIDI_TX | (not ISA -- documented dangling, wavetable/MIDI removed 2026-07-11) | unaffected
-    # 41   | GND         | board-detect strap         | unaffected
+    # PIN-NAME-vs-NUMBER TRAP: sch.net() resolves a pin ref by NAME first, then
+    # falls back to the package-pin NUMBER, and on the QFN-56 the two differ
+    # (GPIO0 = package pin 2, GPIO14 = pin 17, GPIO20 = pin 31, ...). Revs up to
+    # 2026-07-13 keyed this map by bare package-pin NUMBER strings ("31" for
+    # GPIO20). That still wired the *correct* pads -- no pin is *named* "31", so
+    # "31" fell through to package pin 31 = GPIO20 -- but the keys READ like GPIO
+    # numbers under a "GPIO" header, which invited a false "wired to the wrong
+    # GPIO" report. Keying by GPIO name is self-documenting and connectivity is
+    # byte-identical (see questions-picogus.md Q7 / 3v3-verification.md check 6).
+    #
+    # GPIO (pkg pin)     | Sheet net | ISA-facing signal             | Path / notes
+    # -------------------|-----------|-------------------------------|-------------
+    # GPIO6-13 (8,9,11-16)| AD0-AD7  | A0-A7 / D0-D7 (time-shared)   | U4/U5 CB3T3257
+    #                    |           |                               | mux, S=ADS, ~{OE}=~{BUSOE}
+    # GPIO14 (17)        | A8        | A8 (address only)             | DIRECT (U6 deleted)
+    # GPIO15 (18)        | A9        | A9                            | DIRECT (U6 deleted)
+    # GPIO4  (6)         | ~{RIOW}   | ~{IOW}, AEN-masked            | U7/U8 gates
+    # GPIO5  (7)         | ~{RIOR}   | ~{IOR}, AEN-masked            | U7/U8 gates
+    # GPIO19 (30)        | ~{RDACK}  | ~{DACK1}/~{DACK3} (jumper J1)  | senses jumpered ack
+    # GPIO20 (31)        | TC        | TC (ISA terminal count, in)   | DIRECT (U6 deleted)
+    # GPIO21 (32)        | IRQ5      | IRQ5 (out, hardwired free)    | DIRECT (U6 deleted)
+    # GPIO22 (34)        | DRQ       | DRQ1/DRQ3 (out, jumper J1)     | DIRECT (U6 deleted)
+    # GPIO26 (38)        | RIOCHRDY  | IOCHRDY (out, open-drain)     | U10 74LVC2G06
+    # GPIO27 (39)        | ADS       | (mux select/timing, not ISA)  | drives U4/U5/U9
+    # GPIO0-3 (2-5)      | SPI_*     | (not ISA -- APS6404L SPI)     | unaffected
+    # GPIO16-18 (27-29)  | DIN,BCK,LRCK | (not ISA -- PCM5102A I2S)  | unaffected
+    # GPIO23 (35)        | LED_A     | (not ISA -- status LED)       | unaffected
+    # GPIO24,25,28 (36,37,40)| RV_DATA,RV_CLK,MIDI_TX | (not ISA -- dangling, wavetable/MIDI removed 2026-07-11) | unaffected
+    # GPIO29 (41)        | GND       | board-detect strap            | unaffected
+    #
+    # (GPIO26-29 keys carry the symbol's "/ADCn" name suffix; that IS the pin
+    # name, so the ref resolves by name -- do not drop it.)
     gpio_map = [
-        ("2", "SPI_RX"), ("3", "~{SPI_CS}"), ("4", "SPI_SCK"), ("5", "SPI_TX"),
-        ("6", "~{RIOW}"), ("7", "~{RIOR}"),
-        ("8", "AD0"), ("9", "AD1"), ("11", "AD2"), ("12", "AD3"),
-        ("13", "AD4"), ("14", "AD5"), ("15", "AD6"), ("16", "AD7"),
-        ("17", "A8"), ("18", "A9"),                        # direct (was RA8/RA9 via U6)
-        ("27", "DIN"), ("28", "BCK"), ("29", "LRCK"),
-        ("30", "~{RDACK}"), ("31", "TC"), ("32", "IRQ5"), ("34", "DRQ"),  # direct (was RTC_LS/RIRQ/RDRQ via U6)
-        ("35", "LED_A"), ("36", "RV_DATA"), ("37", "RV_CLK"),
-        ("38", "RIOCHRDY"), ("39", "ADS"), ("40", "MIDI_TX"), ("41", "GND"),
+        ("GPIO0", "SPI_RX"), ("GPIO1", "~{SPI_CS}"), ("GPIO2", "SPI_SCK"), ("GPIO3", "SPI_TX"),
+        ("GPIO4", "~{RIOW}"), ("GPIO5", "~{RIOR}"),
+        ("GPIO6", "AD0"), ("GPIO7", "AD1"), ("GPIO8", "AD2"), ("GPIO9", "AD3"),
+        ("GPIO10", "AD4"), ("GPIO11", "AD5"), ("GPIO12", "AD6"), ("GPIO13", "AD7"),
+        ("GPIO14", "A8"), ("GPIO15", "A9"),                # direct (was RA8/RA9 via U6)
+        ("GPIO16", "DIN"), ("GPIO17", "BCK"), ("GPIO18", "LRCK"),
+        ("GPIO19", "~{RDACK}"), ("GPIO20", "TC"), ("GPIO21", "IRQ5"), ("GPIO22", "DRQ"),  # direct (was RTC_LS/RIRQ/RDRQ via U6)
+        ("GPIO23", "LED_A"), ("GPIO24", "RV_DATA"), ("GPIO25", "RV_CLK"),
+        ("GPIO26/ADC0", "RIOCHRDY"), ("GPIO27/ADC1", "ADS"),
+        ("GPIO28/ADC2", "MIDI_TX"), ("GPIO29/ADC3", "GND"),
     ]
     for gp, net in gpio_map:
         L(U1, gp, net, dx=2.54)

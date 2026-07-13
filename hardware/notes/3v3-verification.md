@@ -219,12 +219,28 @@ summary); ISSI SRAM datasheet (check 2); TI TL16C550C datasheet (check 3).
 **VERDICT: N/A pass/fail — map documented below for Task 6.**
 Verdict N/A by design: this check documents a mapping for downstream preservation; there is nothing to pass or fail.
 
-Read `hardware/sheets/picogus.py` in full. The RP2040's `gpio_map` list
-(lines 83–93) plus the fixed pin assignments, translated through the two
-signal-shifting stages (CB3T3257 address/data mux U4/U5, CB3T3245 U6, LVC2G06
-U10) to their ultimate ISA-bus-facing meaning:
+> **CORRECTION (2026-07-14) — the "GPIO" column below is PACKAGE PINS, not GPIO
+> numbers.** The `gpio_map` keys in `picogus.py` were bare digit strings that the
+> schematic generator resolves as RP2040 **package-pin numbers** (no pin is
+> *named* "31", so `sch.net(U1,"31",…)` falls through to package pin 31). On the
+> QFN‑56, package pin ≠ GPIO: pin 8 = GPIO6, pin 17 = GPIO14, pin 31 = GPIO20,
+> pin 41 = GPIO29, etc. So the numbers in the first column below (8,9,11‑16,17,
+> 30,31,32,41…) are **package pins**; the actual GPIOs are 6,7,8‑13,14,19,20,21,
+> 29. The wiring is **correct** — it matches `docs/PicoGUS-chipdown-schematic.pdf`
+> pin-for-pin (AD0-7→GPIO6-13, A8/A9→GPIO14/15, ~{RIOW}→GPIO4, ~{RDACK}→GPIO19,
+> TC→GPIO20, IRQ5→GPIO21, IOCHRDY→GPIO26, ADS→GPIO27, board-detect→GPIO29).
+> `picogus.py` was re-keyed to GPIO **names** on 2026-07-14 (connectivity
+> byte-identical; the generated `.kicad_sch`/netlist did not change). See
+> `questions-picogus.md` Q7. **The "Discrepancy found" note at the end of this
+> section was itself a symptom of this trap — see the resolution appended there.**
 
-| GPIO | Sheet net | ISA-facing signal | Path / notes |
+Read `hardware/sheets/picogus.py` in full. The RP2040's `gpio_map` list
+plus the fixed pin assignments, translated through the two
+signal-shifting stages (CB3T3257 address/data mux U4/U5, CB3T3245 U6, LVC2G06
+U10) to their ultimate ISA-bus-facing meaning (first column = **package pin**;
+GPIO shown in parens where they differ):
+
+| pkg pin (GPIO) | Sheet net | ISA-facing signal | Path / notes |
 |---|---|---|---|
 | 8,9,11-16 | AD0-AD7 | **A0-A7 / D0-D7** (time-shared) | through U4/U5 (CB3T3257 2:1 FET mux), select = `ADS` (GPIO39), gate = `~{BUSOE}` |
 | 17 | RA8 | **A8** (address only, no mux — ISA only has 8 data bits) | through U6 (CB3T3245), 1A2→1Y2 |
@@ -269,6 +285,16 @@ the stale comment) is presumably correct per CLAUDE.md's "generated files are
 build outputs, the code is truth" — but the docstring should be corrected in
 the same commit that next touches this file, so nobody re-derives the wrong
 strap pin from the comment.
+
+> **RESOLVED (2026-07-14) — there was NO discrepancy; this note was the trap in
+> action.** The old `gpio_map` key `"29"` is package pin 29 = **GPIO18** = LRCK
+> (correct), and key `"41"` is package pin 41 = **GPIO29** = GND (the board-detect
+> strap, correct). Read as GPIO numbers the keys looked like "GPIO29→LRCK,
+> GPIO41→GND", which is what produced the phantom discrepancy — but GPIO41 does
+> not exist on the RP2040. The docstring ("GPIO29 grounded = board-detect strap")
+> was right all along; `picogus.py` now keys the map by GPIO name so the strap
+> reads unambiguously as `("GPIO29/ADC3", "GND")`. Verified in the netlist:
+> `GPIO18_29 → LRCK`, `GPIO29/ADC3_41 → GND`.
 
 ---
 

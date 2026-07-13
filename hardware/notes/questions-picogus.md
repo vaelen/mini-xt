@@ -147,3 +147,49 @@ the R7/R8 pull-up convention already used elsewhere on this sheet. Audited
 every other `+5V` use on the sheet (U3 regulator input, C7/C9 decoupling on
 that same input) -- all are the AMS1117's 5V supply-side, not logic, so no
 further changes needed.
+
+## Q7. RP2040 GPIO map: keyed by GPIO name, not bare package-pin digits (2026-07-14)
+
+**Question / trigger.** A review flagged `gpio_map` as a Critical wiring defect:
+its keys were bare digit strings (`"17"`, `"31"`, `"32"`) and the report claimed
+they were meant as GPIO numbers but the generator resolved them to package pins,
+so "nearly every PicoGUS signal is wired to the wrong GPIO pad" and stock
+firmware wouldn't run.
+
+**Investigation.** `mxsch.Symbol.pin()` resolves a pin ref by `number == key OR
+name == key`. On the KiCad `MCU_RaspberryPi:RP2040` symbol, GPIOs carry pin
+**names** `GPIO0..GPIO29` at **package pin numbers** 2..41 (GPIO0=pin2,
+GPIO14=pin17, GPIO20=pin31, GPIO29=pin41; power pins interleaved). No pin is
+*named* a bare digit, so a key like `"31"` fell through to **package pin 31 =
+GPIO20**.
+
+**Ground truth.** `docs/PicoGUS-chipdown-schematic.pdf` (the reference RP2040
+sheet, rendered at 300 dpi and read directly) gives the GPIO→signal map:
+GPIO0-3=SPI, GPIO4=RIOW, GPIO5=RIOR, GPIO6-13=AD0-7, GPIO14/15=RA8/RA9(=A8/A9),
+GPIO16-18=DIN/BCK/LRCK, GPIO19=RDACK, GPIO20=RTC(=TC), GPIO21=RIRQ(=IRQ5),
+GPIO22=RDRQ(=DRQ), GPIO23=LED, GPIO24/25=RV_DATA/RV_CLK, GPIO26=RI/OCHRDY,
+GPIO27=ADS, GPIO28=UART_TX(=MIDI_TX), GPIO29=GND(board-detect strap).
+
+**Conclusion — the wiring was already CORRECT; the report's premise was a
+misread.** The old digit keys were **package-pin numbers**, each deliberately
+chosen so the signal lands on the correct GPIO pad per the reference. Every one
+of the 30 keys checks out (e.g. `"31"`→pin31→GPIO20→TC, exactly what the
+reference wants; `"32"`→pin32→GPIO21→IRQ5; `"41"`→pin41→GPIO29→GND strap). The
+netlist confirms it: `GPIO20_31→/TC`, `GPIO21_32→/IRQ5`, `GPIO14_17→/A8`,
+`GPIO4_6→~{RIOW}`, `GPIO19_30→~{RDACK}`, `GPIO29/ADC3_41→GND`. There was **no**
+mis-wired pad. What was wrong was the *presentation*: the variable is named
+`gpio_map` and the comment header said "GPIO", so the package-pin keys read like
+GPIO numbers — which is exactly what produced this false report and the phantom
+"GPIO29→LRCK / GPIO41→GND discrepancy" in 3v3-verification.md check 6.
+
+**Fix (this commit).** Re-keyed `gpio_map` (and only the GPIO refs) by the
+symbol's GPIO **name** (`"GPIO20"`, …; GPIO26-29 keep their `/ADCn` name
+suffix). This resolves to the identical pads, so **connectivity is
+byte-identical** — the regenerated `picogus.kicad_sch` and the netlist did not
+change (only the netlist timestamp moved). The change is purely to make the
+source self-documenting and immune to the name-vs-number trap. The in-sheet
+comment table and 3v3-verification.md check 6 were annotated (not rewritten) to
+mark the first column as package pins and to resolve the phantom discrepancy.
+Power rails (multiple pins named `IOVDD`) and the QSPI/RUN/TESTEN pins were left
+keyed by number — those names are non-unique or overbarred and were never part
+of the confusing map.
