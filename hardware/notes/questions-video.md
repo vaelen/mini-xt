@@ -114,3 +114,11 @@ This matches bus_mcu's own precedent of keeping U14-U16 (its '244s) because
 they were the address counter's only tri-state, not level shifters.
 </content>
 </invoke>
+
+---
+**2026-07-14 (third pass): enable strap centralized + inverted.** JP1/R30
+(VID_EN, fitted = enabled) deleted; GPIO42 now reads DIS_VID from
+`addr_decode` JP6 (mxbus.PRIV_DIS): low/default = enabled, jumper fitted =
+high = disabled. Firmware polarity is INVERTED vs the old strap -- free
+now, no firmware exists yet. VID_BASE (CGA/MDA) stays local and is video
+JP1 now.

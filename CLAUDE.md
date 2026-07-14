@@ -140,8 +140,9 @@ how-to. `hardware/sheets/cpu_core.py` is the worked reference example. Key rules
   log a question against, not a build-breaking violation. **Standing pattern
   (2026-07-14):** com_port/parallel/storage take `mxbus.PRIV_CS` chip selects
   from, and send `mxbus.PRIV_IRQREQ` IRQ requests to, the central
-  `addr_decode` sheet (which also owns the base straps and the per-peripheral
-  disable jumpers). Shared logic factored out, NOT an isolation break — the
+  `addr_decode` sheet (which also owns all six per-peripheral disable jumpers
+  JP1-JP6, incl. the NIC/video `mxbus.PRIV_DIS` levels; base addresses are
+  hardwired). Shared logic factored out, NOT an isolation break — the
   nets are functionally equivalent to the gates they replaced, and a
   standalone-card wrapper simply re-adds decode + IRQ driver the same way it
   adds the edge connector (`hardware/notes/questions-addr_decode.md`). (There is no `rtc`

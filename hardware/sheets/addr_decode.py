@@ -16,35 +16,41 @@ now owns ALL the discrete peripherals' bus-interface plumbing --
      ~OE = ~{COMx_IRQEN} (the UART's ~{OUT2} -- software masks by clearing
      OUT2, tri-stating the line). LPT/IDE channels strap the input high and
      pulse on their active-low requests, same as their old local stages.
-  3. DISABLE JUMPERS (JP3-JP6, one per peripheral): peripherals are ENABLED
-     by default; fitting a jumper pulls DIS_x high and a second 74HC32
-     forces that ~CS inactive -- the peripheral never decodes, its IRQ
-     request never fires (same causality as the old on-sheet enables: COM
-     MCR resets to 0, LPT's idle-high ~Ack keeps its request off, IDE's
-     INTRQ pulldown keeps Q1 off), and an expansion-port card can take over
-     the address. NOTE the sense is INVERTED vs the old per-sheet jumpers
-     (those needed a jumper fitted to enable / to select a base address).
+  3. DISABLE JUMPERS (JP1-JP6, one per peripheral -- COM1, COM2, LPT, IDE,
+     NIC, VID): peripherals are ENABLED by default; fitting a jumper pulls
+     DIS_x high. For COM/LPT/IDE a second 74HC32 forces that ~CS inactive --
+     the peripheral never decodes, its IRQ request never fires (same
+     causality as the old on-sheet enables: COM MCR resets to 0, LPT's
+     idle-high ~Ack keeps its request off, IDE's INTRQ pulldown keeps Q1
+     off), and an expansion-port card can take over the address. DIS_NIC and
+     DIS_VID (mxbus.PRIV_DIS) are just the jumper levels routed to the
+     hardware that must stay local: DIS_NIC drives the network sheet's '125
+     OEs (high = IRQ2 tri-stated + the chip's own AEN parked high -- the
+     RTL8019AS decodes its own address, so the disable must reach inside the
+     5V island); DIS_VID is a firmware-read boot strap on the video MCU's
+     GPIO42 (polarity INVERTED vs the old on-sheet VID_EN: high = disabled).
+     NOTE the sense is INVERTED vs all the old per-sheet jumpers (those
+     needed a jumper fitted to enable).
+
+Base addresses are HARDWIRED (2026-07-14, later): LPT 0x378, IDE 0x300 --
+the old base straps are gone, per the same reasoning as COM's (rarely used
+flexibility, and a floating/unjumpered strap hazard for nothing).
 
 How the map folds onto one '138 (all targets sit in 0x200-0x3FF, A9=1):
   select C,B,A = A8,A7,A6 -> 64-byte windows; AEN gates via ~E0.
     ~Y7  0x3C0-0x3FF   COM1 window
     ~Y3  0x2C0-0x2FF   COM2 window
-    ~Y5  0x340-0x37F   LPT 0x378 window
-    ~Y1  0x240-0x27F   LPT 0x278 window (JP1 alternate)
+    ~Y5  0x340-0x37F   LPT window
     ~Y4  0x300-0x33F   IDE window
   COM1/COM2/LPT all need offset 0x38-0x3F inside their window -- ONE shared
-  fine term Q = A5&A4&A3 (74HC00: two NANDs build ~Q, one spare inverts A5).
-  U3 ('32) ORs each window with ~Q (COM1/COM2/LPT) or the A5 strap (IDE);
-  U4 ('32) ORs in the disable jumpers:
-    ~{COM1_CS} = ~Y7 | ~Q | DIS_COM1          -> 0x3F8-0x3FF
-    ~{COM2_CS} = ~Y3 | ~Q | DIS_COM2          -> 0x2F8-0x2FF
-    ~{LPT_CS}  = (JP1: ~Y5/~Y1) | ~Q | DIS_LPT   -> 0x378 or 0x278
-    ~{IDE_CS}  = ~Y4 | (JP2: A5/~A5) | DIS_IDE   -> 0x300 or 0x320 (+0x1F)
+  fine term Q = A5&A4&A3 (74HC00: two NANDs build ~Q; gate 4 spare).
+  U3 ('32) ORs each window with ~Q (COM1/COM2/LPT) or A5 (IDE: 0x300 needs
+  A5=0, so raw A5 is the block-out term); U4 ('32) ORs in the disables:
+    ~{COM1_CS} = ~Y7 | ~Q | DIS_COM1    -> 0x3F8-0x3FF
+    ~{COM2_CS} = ~Y3 | ~Q | DIS_COM2    -> 0x2F8-0x2FF
+    ~{LPT_CS}  = ~Y5 | ~Q | DIS_LPT     -> 0x378-0x37F
+    ~{IDE_CS}  = ~Y4 | A5 | DIS_IDE     -> 0x300-0x31F
   (the A4 split inside the IDE window stays on the storage sheet, as before).
-
-Straps: JP1 LPT base 0x378/0x278, JP2 IDE base 0x300/0x320. Strap commons
-are pulled HIGH, so an unjumpered base strap also parks that peripheral
-disabled instead of floating its decode.
 """
 import mxbus
 from mxbus import pin
@@ -57,6 +63,7 @@ PINS = (
     [pin("AEN", "input")] +                         # not a DMA cycle
     [pin(s, "output") for s in mxbus.PRIV_CS] +     # one chip select per peripheral
     [pin(s, "input") for s in mxbus.PRIV_IRQREQ] +  # peripheral IRQ requests
+    [pin(s, "output") for s in mxbus.PRIV_DIS] +    # NIC/VID disable levels
     [pin("IRQ4", "output"),      # COM1 (hardwired PC convention)
      pin("IRQ3", "output"),      # COM2
      pin("IRQ7", "output"),      # LPT1
@@ -84,21 +91,22 @@ def build(sch, lib, expose=True):
     L(U1, "E2", "A9", dx=-2.54)          # every target lives in 0x200-0x3FF
     L(U1, "~{Y7}", "WIN_COM1")           # 0x3C0-0x3FF
     L(U1, "~{Y3}", "WIN_COM2")           # 0x2C0-0x2FF
-    L(U1, "~{Y5}", "WIN_LPT378")         # 0x340-0x37F
-    L(U1, "~{Y1}", "WIN_LPT278")         # 0x240-0x27F
+    L(U1, "~{Y5}", "WIN_LPT")            # 0x340-0x37F
     L(U1, "~{Y4}", "WIN_IDE")            # 0x300-0x33F
-    for y in ("~{Y0}", "~{Y2}", "~{Y6}"):
+    for y in ("~{Y0}", "~{Y1}", "~{Y2}", "~{Y6}"):
         sch.no_connect(U1.pin_xy(y))
 
-    # ---------------- U2: shared fine term ~Q = ~(A5&A4&A3), plus ~A5 ----------------
+    # ---------------- U2: shared fine term ~Q = ~(A5&A4&A3) ----------------
     # 74HC00 value override (same 3.3V rationale). Gate 2 re-inverts gate 1
-    # so gate 3 can NAND in A3 (no 3-input NAND in the flat glue set).
+    # so gate 3 can NAND in A3 (no 3-input NAND in the flat glue set). Gate 4
+    # is spare (it was the ~A5 inverter for the deleted 0x320 strap leg).
     U2 = sch.place("mini-xt:74HCT00", "U2", "74HC00", at=(152.4, 76.2))
     L(U2, "VCC", "+3V3", dx=0, dy=-2.54); L(U2, "GND", "GND", dx=0, dy=2.54)
     L(U2, "P1", "A5", dx=-2.54); L(U2, "P2", "A4", dx=-2.54); L(U2, "P3", "N54")
     L(U2, "P4", "N54", dx=-2.54); L(U2, "P5", "N54", dx=-2.54); L(U2, "P6", "Q54")
     L(U2, "P9", "Q54", dx=-2.54); L(U2, "P10", "A3", dx=-2.54); L(U2, "P8", "Q_N")
-    L(U2, "P12", "A5", dx=-2.54); L(U2, "P13", "A5", dx=-2.54); L(U2, "P11", "A5_N")
+    L(U2, "P12", "GND", dx=-2.54); L(U2, "P13", "GND", dx=-2.54)
+    sch.no_connect(U2.pin_xy("P11"))
 
     # ---------------- U3: window + fine-term combine (active-low OR) ----------------
     # 74HC32 value override (same 3.3V rationale).
@@ -108,9 +116,9 @@ def build(sch, lib, expose=True):
     L(U3, "P3", "CSP_COM1")
     L(U3, "P4", "WIN_COM2", dx=-2.54); L(U3, "P5", "Q_N", dx=-2.54)
     L(U3, "P6", "CSP_COM2")
-    L(U3, "P9", "LPT_WIN", dx=-2.54); L(U3, "P10", "Q_N", dx=-2.54)
+    L(U3, "P9", "WIN_LPT", dx=-2.54); L(U3, "P10", "Q_N", dx=-2.54)
     L(U3, "P8", "CSP_LPT")
-    L(U3, "P12", "WIN_IDE", dx=-2.54); L(U3, "P13", "IDE_A5", dx=-2.54)
+    L(U3, "P12", "WIN_IDE", dx=-2.54); L(U3, "P13", "A5", dx=-2.54)   # 0x300: A5=0
     L(U3, "P11", "CSP_IDE")
 
     # ---------------- U4: disable-jumper combine ----------------
@@ -149,40 +157,26 @@ def build(sch, lib, expose=True):
     L(U5, "P12", "+3V3", dx=-2.54)
     L(U5, "P11", "IRQ14")
 
-    # ---------------- base-address straps ----------------
-    # JP1: LPT base -- 1-2 = 0x378 (LPT1), 2-3 = 0x278 (LPT2)
-    JP1 = sch.place("Connector_Generic:Conn_01x03", "JP1", "LPT 378/278", at=(355.6, 63.5))
-    L(JP1, "Pin_1", "WIN_LPT378", dx=2.54)
-    L(JP1, "Pin_2", "LPT_WIN", dx=2.54)
-    L(JP1, "Pin_3", "WIN_LPT278", dx=2.54)
-    # JP2: IDE base -- 1-2 = 0x300 (A5 must be 0 -> OR-input A5), 2-3 = 0x320
-    JP2 = sch.place("Connector_Generic:Conn_01x03", "JP2", "IDE 300/320", at=(355.6, 101.6))
-    L(JP2, "Pin_1", "A5", dx=2.54)
-    L(JP2, "Pin_2", "IDE_A5", dx=2.54)
-    L(JP2, "Pin_3", "A5_N", dx=2.54)
-    # Unjumpered base straps park HIGH = that peripheral never decodes (safe
-    # default -- unlike the old on-sheet straps, which floated the decode).
-    R1 = sch.place("Device:R", "R1", "10k", at=(388.62, 63.5))
-    L(R1, "1", "+3V3", dx=0, dy=-2.54); L(R1, "2", "LPT_WIN", dx=0, dy=2.54)
-    R2 = sch.place("Device:R", "R2", "10k", at=(388.62, 101.6))
-    L(R2, "1", "+3V3", dx=0, dy=-2.54); L(R2, "2", "IDE_A5", dx=0, dy=2.54)
-
     # ---------------- per-peripheral disable jumpers ----------------
     # ENABLED by default (pulldown holds DIS_x low); fit the jumper to
-    # disable. Disabling kills the chip select, which also silences the IRQ
-    # request at its source and frees the address for an expansion-port card.
-    def dis_jp(jref, rref, net, label, x):
-        jp = sch.place("Connector_Generic:Conn_01x02", jref, label, at=(x, 152.4))
+    # disable. COM/LPT/IDE: kills the chip select via U4, which also
+    # silences the IRQ request at its source and frees the address for an
+    # expansion-port card. NIC/VID: the level is routed to the peripheral's
+    # own gating (network '125 OEs / video MCU boot-strap GPIO).
+    def dis_jp(jref, rref, net, label, x, y):
+        jp = sch.place("Connector_Generic:Conn_01x02", jref, label, at=(x, y))
         L(jp, "Pin_1", net, dx=2.54)
         L(jp, "Pin_2", "+3V3", dx=2.54)
-        r = sch.place("Device:R", rref, "10k", at=(x + 20.32, 152.4))
+        r = sch.place("Device:R", rref, "10k", at=(x + 20.32, y))
         L(r, "1", net, dx=0, dy=-2.54)
         L(r, "2", "GND", dx=0, dy=2.54)
 
-    dis_jp("JP3", "R3", "DIS_COM1", "DIS COM1", 203.2)
-    dis_jp("JP4", "R4", "DIS_COM2", "DIS COM2", 254.0)
-    dis_jp("JP5", "R5", "DIS_LPT", "DIS LPT", 304.8)
-    dis_jp("JP6", "R6", "DIS_IDE", "DIS IDE", 355.6)
+    dis_jp("JP1", "R1", "DIS_COM1", "DIS COM1", 203.2, 152.4)
+    dis_jp("JP2", "R2", "DIS_COM2", "DIS COM2", 254.0, 152.4)
+    dis_jp("JP3", "R3", "DIS_LPT", "DIS LPT", 304.8, 152.4)
+    dis_jp("JP4", "R4", "DIS_IDE", "DIS IDE", 355.6, 152.4)
+    dis_jp("JP5", "R5", "DIS_NIC", "DIS NIC", 203.2, 177.8)
+    dis_jp("JP6", "R6", "DIS_VID", "DIS VID", 254.0, 177.8)
 
     # ---------------- decoupling ----------------
     for i, x in enumerate([101.6, 116.84, 132.08, 147.32, 162.56]):
@@ -190,10 +184,10 @@ def build(sch, lib, expose=True):
         sch.net(c, "1", "+3V3", kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
 
-    sch.text("One decode for all discrete peripherals: COM1 0x3F8, COM2 0x2F8, "
-             "LPT JP1 0x378/0x278, IDE JP2 0x300/0x320", (101.6, 210.82))
-    sch.text("JP3-JP6: peripheral ENABLED by default; fit jumper to disable "
-             "(kills decode, silences IRQ, frees address+IRQ for expansion)",
+    sch.text("One decode for all discrete peripherals, bases hardwired: "
+             "COM1 0x3F8, COM2 0x2F8, LPT 0x378, IDE 0x300", (101.6, 210.82))
+    sch.text("JP1-JP6 (COM1/COM2/LPT/IDE/NIC/VID): peripheral ENABLED by default; "
+             "fit jumper to disable (kills decode/IRQ, frees the slot)",
              (101.6, 213.36))
     sch.text("U5 maps IRQ requests -> ISA lines: COM1=IRQ4, COM2=IRQ3, LPT=IRQ7, "
              "IDE=IRQ14 (hardwired conventions)", (101.6, 215.9))

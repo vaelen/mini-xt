@@ -120,15 +120,19 @@ with A9/AEN enables, a 74HC00 building the shared A3·A4·A5 fine term, two 74HC
 hands **~COM1_CS / ~COM2_CS / ~LPT_CS / ~IDE_CS** (`mxbus.PRIV_CS`) to the COM/LPT/XT-IDE
 sheets, and its shared **74LVC125A** drives the real IRQ lines (COM1→IRQ4, COM2→IRQ3,
 LPT→IRQ7, IDE→IRQ14) from the peripherals' private requests (`mxbus.PRIV_IRQREQ`; the COM
-channels stay ~OUT2-gated per the PC convention). The base straps (JP1 LPT 0x378/0x278,
-JP2 IDE 0x300/0x320 — pulled-high commons, so an unjumpered strap parks that peripheral
-off instead of floating its decode) and the per-peripheral **disable jumpers JP3–JP6**
-(enabled by default; fit a jumper to disable) live here too. These private nets are
+channels stay ~OUT2-gated per the PC convention). Base addresses are **hardwired** (LPT 0x378, IDE
+0x300 — the straps went the way of COM's, 2026-07-14 later the same day). All six
+per-peripheral **disable jumpers JP1–JP6** (COM1, COM2, LPT, IDE, NIC, VID — enabled by
+default; fit a jumper to disable) live here: COM/LPT/IDE gate their chip selects through
+a second '32 rank, while **DIS_NIC / DIS_VID** (`mxbus.PRIV_DIS`) are just the jumper
+levels routed to gating that must stay local (the NIC's isolation '125 inside its 5V
+island; the video MCU's firmware boot strap, polarity inverted vs the old VID_EN). These private nets are
 shared logic factored out, not an isolation break: each is functionally equivalent to
 the gate chips it replaced, and a block broken out to a standalone card gets decode + IRQ
 driver back in its wrapper schematic exactly as it gets the bus edge connector
-(`questions-addr_decode.md`). The NIC is NOT centralized — its '138 double-duties as the
-JP-disable isolation gate — and video/PicoGUS/Bus-MCU decode in firmware.
+(`questions-addr_decode.md`). The NIC's *decode* is not centralized — the RTL8019AS
+self-decodes and its '138/'125 isolation gates stay in the 5V island — and
+video/PicoGUS/Bus-MCU decode in firmware; only their disable jumpers moved here.
 
 ### Block diagram
 
@@ -589,10 +593,12 @@ modern display, fully decoupled from the CPU.
   latched A17–A19 and `MEMR̄/MEMW̄/IOR̄/IOW̄` — it uses **no signal that isn't on the ISA bus**,
   which is what keeps it liftable to a standalone ISA card unchanged. (The motherboard's Y5
   block-strobe, §4.1, is for the SRAM #2 decode only; the video card never sees it.)
-- **Boot straps** (firmware-read GPIO jumpers — decode lives in firmware, so there is no
-  hardware chip-select to gate): **JP1 (VID_EN)** open = card disabled — firmware keeps every
-  bus-facing OE off, and all its drivers are MCU-gated tri-states, so a disabled card is
-  electrically silent; **JP2 (VID_BASE)** picks the default window set, closed = CGA
+- **Boot straps** (firmware-read GPIOs — decode lives in firmware, so there is no
+  hardware chip-select to gate): **DIS_VID** (from **addr_decode JP6**, 2026-07-14 —
+  replaced the on-sheet VID_EN jumper, polarity inverted) high = card disabled — firmware
+  keeps every bus-facing OE off, and all its drivers are MCU-gated tri-states, so a
+  disabled card is electrically silent; **JP1 (VID_BASE)** picks the default window set,
+  closed = CGA
   (0x3D4–3DF / 0xB8000), open = MDA/Hercules (0x3B4–3BF / 0xB0000) — the snoop-design
   equivalent of a period card's MDA/CGA switch, and how an on-board video coexists with a
   `card_video` on the sidecar chain.
@@ -682,10 +688,12 @@ collector line and redirect path the rest of the 8-bit IRQs use).
   nothing on this board needs PXE/RPL boot, so none is populated.
 - **MAC address** lives in a **93C46 EEPROM**, shipped **blank**; program it once with
   Realtek's **RSET8019.EXE** (the same utility period NE2000 clones used).
-- **JP1 (disable)**: open tri-states the IRQ2 line through a spare **74HCT125** gate and
-  forces the chip's **AEN input high**, so a disabled NIC ignores every I/O cycle and
-  frees IRQ2 for the sidecar — the same self-isolating pattern as the other on-board
-  cards' central disable jumpers (addr_decode JP3–JP6).
+- **Disable = addr_decode JP5** (2026-07-14: the on-sheet JP1 moved there, sense
+  inverted — enabled by default, fit to disable): DIS_NIC high tri-states the IRQ2 line
+  through the island's **74LVC125A** gate and forces the chip's **AEN input high**, so a
+  disabled NIC ignores every I/O cycle and frees IRQ2 for the sidecar. The gate stays
+  local (the RTL8019AS self-decodes; the disable must reach inside the 5V island) — only
+  the jumper is central, same row as the other disables (addr_decode JP1–JP6).
 
 ---
 
@@ -693,10 +701,10 @@ collector line and redirect path the rest of the 8-bit IRQs use).
 
 Discrete and period-correct (uses 74HCT on hand):
 - **XT-IDE rev 2 / "Chuck-mod"** 8-bit interface: a **74HCT573/652 high-byte latch** makes
-  the 16-bit IDE data register two 8-bit transfers. **I/O base 0x300**, jumpered: **JP2 on the
-  `addr_decode` sheet** re-straps to **0x320** (they differ only in A5; XTIDE UB supports
-  both — the block match arrives as ~IDE_CS) and the card's own **JP2**
-  disables the port outright (lifts the decode '138's enable — every select, latch clock
+  the 16-bit IDE data register two 8-bit transfers. **I/O base 0x300, hardwired** (the 0x320
+  re-strap went with the other base straps, 2026-07-14 later; the block match arrives as
+  ~IDE_CS from `addr_decode`); **addr_decode JP4** disables the port outright (forces
+  ~IDE_CS inactive — every select, latch clock
   and buffer goes inert, the IRQ stays released), so an external XT-IDE on the sidecar
   chain can coexist or take over. **The IRQ is hardwired to IRQ14** (the AT primary-IDE
   convention, collected on the Bus MCU's '165 D7; a motherboard-internal line, not on
@@ -758,7 +766,7 @@ space if a physical drive or Gotek must plug in; nothing else requires it.)*
   **COM2 0x2F8/IRQ3** — base addresses and IRQs are **hardwired** (the PC convention; no
   strap to misconfigure — the old J2 base strap existed only because one generic sheet was
   instanced at both addresses). On-board only — no standalone COM card — the per-port
-  disable jumpers are **addr_decode JP3/JP4** (enabled by default; a fitted jumper forces
+  disable jumpers are **addr_decode JP1/JP2** (enabled by default; a fitted jumper forces
   the port's ~CS inactive so it never decodes, MCR stays 0, and the central IRQ driver
   stays tri-state — a disabled port is silent on every line, which is how you free its
   IRQ).
@@ -773,17 +781,17 @@ space if a physical drive or Gotek must plug in; nothing else requires it.)*
   header pin at all — the RTC that once justified it is now firmware-emulated off-bus,
   §11.3), so an expansion COM4 cannot use IRQ10+ — and the bus IRQ2 line is now hardwired to
   the on-board NE2000 NIC (§9.1): **an expansion COM4 (0x2E8) needs a freed line — disable
-  COM2 (addr_decode JP4) for IRQ3, or the NIC (JP1) to reclaim IRQ2→9** — still avoiding the ISA
+  COM2 (addr_decode JP2) for IRQ3, or the NIC (addr_decode JP5) to reclaim IRQ2→9** — still avoiding the ISA
   edge-triggered IRQ-sharing problem. The virtual COM3 mouse keeps
   **IRQ4** (the convention mouse drivers expect), so it *does* share IRQ4 with COM1; in
   practice you use one or the other (most mouse use implies COM1 is free).
 
 ### 11.2 Parallel (LPT)
 Discrete **74HC/74LVC** ('574 data/control latches + '244/'245 status & read-back, now
-3.3V-powered) — on-board only, jumper-configured: base address **0x378/0x278** via **JP1 on the
-`addr_decode` sheet** (the block match arrives as ~LPT_CS), **JP2** enable (open lifts the
-register-select '138's enable: no register can be read, written or latched —
-and frees the line). **IRQ7 is hardwired** (LPT1 convention). The IRQ driver
+3.3V-powered) — on-board only: base address **0x378, hardwired** (the 0x278
+strap went with the other base straps, 2026-07-14 later; the block match arrives as
+~LPT_CS from `addr_decode`); disable via **addr_decode JP3** (forces ~LPT_CS inactive: no
+register can be read, written or latched — and frees the line). **IRQ7 is hardwired** (LPT1 convention). The IRQ driver
 is tri-state (asserted only for an enabled ACK̄ pulse), so the line stays
 shareable.
 
@@ -873,9 +881,9 @@ Xi 8088's CMOS setup the same as before — only the hardware backing it changed
 | 0x3E8 | **COM3 — emulated serial mouse** (Bus MCU, IRQ4) |
 | 0x3F0–0x3F7 | (reserved) **firmware floppy** tier-2 registers, §10.1 (Bus MCU) |
 | 0x2E8 | COM4 (expansion port; needs a freed IRQ — see §11.1) |
-| 0x300–0x31F | XT-IDE (JP1 re-straps to 0x320; JP2 disables) |
-| 0x340–0x35F | NE2000 NIC (RTL8019AS, §9.1; IRQ2→9; JP1 disables) |
-| 0x378 | LPT1 (JP1 re-straps to 0x278; JP2 disables) |
+| 0x300–0x31F | XT-IDE (base hardwired; addr_decode JP4 disables) |
+| 0x340–0x35F | NE2000 NIC (RTL8019AS, §9.1; IRQ2→9; addr_decode JP5 disables) |
+| 0x378 | LPT1 (base hardwired; addr_decode JP3 disables) |
 | 0x3B0–0x3BF / 0x3D0–0x3DF | MDA-Hercules / CGA (video MCU) |
 
 ### IRQ (AT-style, 15 lines via cascaded soft-PIC)

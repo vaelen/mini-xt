@@ -12,13 +12,16 @@ Deviations from the reference:
     physical DIP switch -- see the strap table below. RSTDRV-latched,
     internal ~100k pull-downs mean an unstrapped (floating) pin reads 0;
     only JP and IOS1 need an explicit pull-up to read 1.
-  * Added: a JP1 "NIC enable" jumper + 74LVC125A buffer (U3) not present on
-    the reference. Closed (default) = card behaves exactly like the
-    reference. Open = R6 parks ~{NET_EN} high, which tri-states IRQ2 AND
-    forces the chip's AEN input high (so it ignores all I/O cycles),
-    releasing both the IRQ line and the address decode for a sidecar card
-    sharing this bus. This is a mini-xt-specific addition for the shared
-    soft-card bus, not an upstream feature.
+  * Added: a 74LVC125A gate (U3) not present on the reference, driven by
+    the central DIS_NIC level (mxbus.PRIV_DIS, from the addr_decode sheet's
+    JP5 -- 2026-07-14: the old on-sheet JP1/~{NET_EN} jumper moved there,
+    sense inverted to match the other disables: ENABLED by default, fit the
+    jumper to disable). DIS_NIC low (default) = card behaves exactly like
+    the reference. High = tri-states IRQ2 AND forces the chip's AEN input
+    high (so it ignores all I/O cycles), releasing both the IRQ line and
+    the address decode for a sidecar card sharing this bus. The gate stays
+    LOCAL because the disable must reach inside the 5V island (the
+    RTL8019AS decodes its own address; there is no external CS to gate).
   * RJ45 successor part (`mini-xt:RJ45_LED`, C386757) replacing the
     reference's magjack (C133529, now EOL at JLC) -- LED polarity verified
     from EasyEDA pin names, not assumed identical.
@@ -52,7 +55,8 @@ PINS = (
     [pin(s, "bidirectional") for s in mxbus.DATA] +        # D0..D7
     [pin(s, "input") for s in ["~{IOR}", "~{IOW}", "~{MEMR}", "~{MEMW}",
                                "AEN", "RESET_DRV"]] +
-    [pin("IOCHRDY", "output"), pin("IRQ2", "output")]      # IRQ2 via '125; JP1 open frees it
+    [pin("IOCHRDY", "output"), pin("IRQ2", "output"),      # IRQ2 via '125
+     pin("DIS_NIC", "input")]   # addr_decode JP5 level: high = NIC disabled
 )
 
 
@@ -149,7 +153,7 @@ def build(sch, lib):
     # ~{OE} (pin "CE", active low) = ~{NIC_SEL}, the 0x340 window decode below, so
     #   U4 is Hi-Z on BOTH sides whenever the NIC is not the addressed target ->
     #   no contention on other cards' I/O reads, and (AEN_CHIP high) full bus
-    #   release when JP1 is open. One LVC245 (~4 ns) in the read path is negligible
+    #   release when the NIC is disabled (addr_decode JP5). One LVC245 (~4 ns) in the read path is negligible
     #   vs ISA I/O timing.
     U4 = sch.place("mini-xt:74HCT245", "U4", "74LVC245A", at=(50.8, 190.5))
     L(U4, "VCC", "+3V3", dx=0, dy=-2.54); L(U4, "GND", "GND", dx=0, dy=2.54)
@@ -165,7 +169,7 @@ def build(sch, lib):
     # pin, so U4's enable needs its own copy. 0x340 (10-bit ISA I/O) => A9..A5 =
     # 1 1 0 1 0, A4..A0 selected inside the NIC. Map onto the '138:
     #   sel inputs C,B,A = A8,A7,A6 -> need 1,0,1 = binary 101 = ~Y5
-    #   ~E1 = AEN_CHIP (enabled when AEN low; parks off with JP1 open)
+    #   ~E1 = AEN_CHIP (enabled when AEN low; parks off when disabled)
     #   ~E2 = A5       (enabled when A5 = 0)
     #    E3 = A9       (enabled when A9 = 1)
     # => ~Y5 low  <=>  A9.A8.~A7.A6.~A5.~AEN_CHIP  =  I/O read/write in 0x340-0x35F.
@@ -175,7 +179,7 @@ def build(sch, lib):
     L(U5, "A0", "A6", dx=-2.54)                 # sel LSB
     L(U5, "A1", "A7", dx=-2.54)
     L(U5, "A2", "A8", dx=-2.54)                 # sel MSB  (C,B,A = A8,A7,A6 = 101)
-    L(U5, "~{E0}", "AEN_CHIP", dx=-2.54)        # ~E1: AEN low (and JP1-gated off)
+    L(U5, "~{E0}", "AEN_CHIP", dx=-2.54)        # ~E1: AEN low (and DIS_NIC-gated off)
     L(U5, "~{E1}", "A5", dx=-2.54)              # ~E2: A5 = 0
     L(U5, "E2", "A9", dx=-2.54)                 #  E3: A9 = 1
     L(U5, "~{Y5}", "~{NIC_SEL}", dx=2.54)       # active-low select -> U4 ~OE
@@ -194,10 +198,8 @@ def build(sch, lib):
     L(R4, "1", "XTAL1", dx=0, dy=-2.54); L(R4, "2", "XTAL2", dx=0, dy=2.54)
     R5 = sch.place("Device:R", "R5", "200", at=(304.8, 152.4))
     L(R5, "1", "TPIN+", dx=0, dy=-2.54); L(R5, "2", "TPIN-", dx=0, dy=2.54)
-    R6 = sch.place("Device:R", "R6", "10k", at=(342.9, 190.5))
-    L(R6, "1", "~{NET_EN}", dx=0, dy=-2.54); L(R6, "2", "+3V3", dx=0, dy=2.54)  # U3's own rail
     R7 = sch.place("Device:R", "R7", "10k", at=(355.6, 190.5))
-    # AEN_CHIP park (JP1 open): +3V3, NOT +5V (Task-10 fix). AEN_CHIP fans out to
+    # AEN_CHIP park (NIC disabled): +3V3, NOT +5V (Task-10 fix). AEN_CHIP fans out to
     # BOTH U1's AEN pin (5V-TTL input, Vih 2.0V -- reads a 3.3V park as high) AND
     # U5's ~{E0} (74HC138 @ +3V3): a +5V park would drive the 3.3V '138 input above
     # its own rail. +3V3 satisfies U1's TTL threshold without over-driving U5.
@@ -227,12 +229,12 @@ def build(sch, lib):
     # LVC grade is required here specifically for the 5V-tolerant input side.
     U3 = sch.place("mini-xt:74HCT125", "U3", "74LVC125A", at=(254.0, 203.2))
     L(U3, "VCC", "+3V3", dx=0, dy=-2.54); L(U3, "GND", "GND", dx=0, dy=2.54)
-    L(U3, "P1", "~{NET_EN}", dx=-2.54)                      # gate-1 OE (low = enabled)
+    L(U3, "P1", "DIS_NIC", dx=-2.54)                        # gate-1 OE (low = enabled)
     L(U3, "P2", "INT0_RAW", dx=-2.54)
-    L(U3, "P3", "IRQ2", dx=2.54)                            # tri-stated when JP1 open
-    L(U3, "P4", "~{NET_EN}", dx=-2.54)                      # gate-2 OE
+    L(U3, "P3", "IRQ2", dx=2.54)                            # tri-stated when disabled
+    L(U3, "P4", "DIS_NIC", dx=-2.54)                        # gate-2 OE
     L(U3, "P5", "AEN", dx=-2.54)                            # bus AEN in
-    L(U3, "P6", "AEN_CHIP", dx=2.54)                        # R7 parks it high when JP1 open
+    L(U3, "P6", "AEN_CHIP", dx=2.54)                        # R7 parks it high when disabled
     for oe in ("P10", "P13"):
         L(U3, oe, "+3V3", dx=-2.54)                         # spare OEs disabled (own rail)
     for ip in ("P9", "P12"):
@@ -241,14 +243,12 @@ def build(sch, lib):
         sch.no_connect(U3.pin_xy(op))
     decouple("C2", (266.7, 216.0), rail="+3V3")
 
-    # ============================================================ 5. NIC-enable jp
-    JP1 = sch.place("Connector_Generic:Conn_01x02", "JP1", "NET_EN", at=(254.0, 254.0))
-    L(JP1, "1", "~{NET_EN}", dx=-2.54)
-    L(JP1, "2", "GND", dx=-2.54)
+    # (The NIC-disable jumper is addr_decode JP5 -- DIS_NIC arrives on the
+    # interface; enabled by default, fit that jumper to disable.)
     sch.text(
-        "JP1 closed = NIC enabled; open = R6 parks ~{NET_EN} high -> '125\n"
-        "tri-states IRQ2 AND forces chip AEN high (all I/O ignored). Fully\n"
-        "releases the bus for a sidecar card.", at=(254.0, 266.7))
+        "Disable = addr_decode JP5 (DIS_NIC high) -> '125 tri-states IRQ2\n"
+        "AND forces chip AEN high (all I/O ignored). Fully releases the\n"
+        "bus for a sidecar card. Enabled by default (no jumper).", at=(254.0, 266.7))
 
     # ---- placed well clear of U1's body (which spans y~81-226) to avoid stray
     # ---- wire-overlap merges with U1's own pin stubs ----

@@ -4,8 +4,10 @@ Central bus-interface sheet for the discrete peripherals (2026-07-14, two
 steps the same day): decodes I/O for com_port / parallel / storage and
 exports ~{COM1_CS} / ~{COM2_CS} / ~{LPT_CS} / ~{IDE_CS} (`mxbus.PRIV_CS`);
 maps their IRQ requests (`mxbus.PRIV_IRQREQ`) onto the real ISA lines
-through one shared 74LVC125A; and carries the base straps (JP1/JP2) plus
-the per-peripheral disable jumpers (JP3-JP6).
+through one shared 74LVC125A; and carries ALL SIX per-peripheral disable
+jumpers (JP1-JP6: COM1, COM2, LPT, IDE, NIC, VID -- the NIC/VID levels
+travel as `mxbus.PRIV_DIS`). Base addresses are hardwired (third pass,
+same day: the JP1/JP2 base straps were deleted, see #5).
 
 ## 1. Which peripherals to centralize
 - Q: The request was "all of the peripherals" -- which sheets actually have
@@ -47,12 +49,13 @@ the per-peripheral disable jumpers (JP3-JP6).
   they're peripheral-specific). Net -1 chip and the peripheral sheets no
   longer know which ISA IRQ they get.
 
-## 4. Disable jumpers (JP3-JP6)
+## 4. Disable jumpers (JP1-JP6)
 - Q: Where do the enables live, and with which sense?
-- Decision: **all four on this sheet, sense inverted from the old on-sheet
+- Decision: **all six on this sheet, sense inverted from the old on-sheet
   jumpers: ENABLED by default, fit a jumper to disable** (per the 2026-07-14
-  request). DIS_x is pulled low (10k) and jumpered to +3V3; U4 ORs it into
-  the chip select, so a fitted jumper makes the peripheral never decode --
+  request). DIS_x is pulled low (10k) and jumpered to +3V3; for COM/LPT/IDE
+  U4 ORs it into the chip select, so a fitted jumper makes the peripheral
+  never decode --
   which also silences its IRQ at the source, same causality the old enables
   relied on (COM: MCR resets to 0 so ~OUT2 stays high; LPT: ~Ack idles high
   via the DB25 pull-ups regardless of the unreset IRQ_EN latch; IDE: the
@@ -63,14 +66,28 @@ the per-peripheral disable jumpers (JP3-JP6).
 - Why one OR rank instead of gating the '125 OEs: killing the decode is the
   stronger disable (an expansion card can take over the address without the
   internal card fighting the data bus), and the IRQ silence follows for free.
+- NIC and VID (third pass, same day): their gating hardware CANNOT
+  centralize -- the RTL8019AS decodes its own address, so its disable must
+  reach inside the 5V island (the local '125 tri-states IRQ2 and parks the
+  chip's AEN high); video's "decode" is firmware, so its disable is a
+  boot-strap GPIO. But the JUMPER is just a logic level, so JP5/JP6 live
+  here and the levels cross as `mxbus.PRIV_DIS` (DIS_NIC drives the network
+  '125 OEs -- polarity already matched; DIS_VID goes to video GPIO42 with
+  the firmware polarity INVERTED vs the old VID_EN strap, which is free
+  since no firmware exists yet). The old on-sheet jumpers + their pull-up
+  resistors (network JP1/R6, video JP1/R30) are deleted; video's VID_BASE
+  strap became video JP1.
 
-## 5. Straps
-- Q: The LPT (0x378/0x278) and IDE (0x300/0x320) base straps qualified nets
-  that no longer exist on their sheets. Where do they go?
-- Decision: **moved here** (JP1 = LPT base, JP2 = IDE base), with 10k
-  pull-ups on the strap commons so an UNJUMPERED strap parks the OR input
-  high = that peripheral simply never decodes (safe default -- the old
-  on-sheet straps floated the decode when left open).
+## 5. Base straps -- DELETED (third pass, 2026-07-14)
+- Q: Keep the relocated LPT (0x378/0x278) and IDE (0x300/0x320) base straps?
+- Decision: **No -- hardwired to the defaults, LPT 0x378 and IDE 0x300**
+  (user decision), the same reasoning that already killed COM's J2 strap:
+  rarely-used flexibility, and one more unjumpered-strap failure mode for
+  nothing. The '138's ~Y1 (0x240 window) is NC, the '00's ~A5 gate is
+  spare, and the IDE OR-leg takes raw A5 (0x300 needs A5=0). Alternate
+  bases, if ever needed, are a one-line sheet change (swap the window/leg
+  nets), and an expansion-port card can still provide a second LPT/IDE at
+  the alternate address with the on-board one enabled.
 
 ## 6. Private nets and the portability guideline
 - Q: ~{*_CS} / IRQ-request nets cross into soft-card sheets -- is that an

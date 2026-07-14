@@ -12,12 +12,12 @@ inside the Bus MCU's AT-style soft PIC.
 |-------|----------|------------------------------------|--------------------------------------------------------------------------------|
 | IRQ0  | virtual  | PIT ch0 tick (emulated 8254)       | Bus MCU firmware                                                                 |
 | IRQ1  | virtual  | Keyboard (emulated 8255/8042)      | Bus MCU firmware                                                                 |
-| IRQ2  | physical | NE2000 NIC (0x340) — hardwired     | delivered as IRQ9 via AT redirect; NIC JP1 open tri-states it for the sidecar    |
-| IRQ3  | physical | COM2 (0x2F8) — hardwired           | free it by disabling COM2 (JP4 open); sidecar can then drive it                  |
-| IRQ4  | physical | COM1 (0x3F8) — hardwired           | shared by the virtual COM3 mouse (use one or other); addr_decode JP3 frees it    |
+| IRQ2  | physical | NE2000 NIC (0x340) — hardwired     | delivered as IRQ9 via AT redirect; fit addr_decode JP5 to tri-state it (sidecar) |
+| IRQ3  | physical | COM2 (0x2F8) — hardwired           | free it by disabling COM2 (fit addr_decode JP2); sidecar can then drive it       |
+| IRQ4  | physical | COM1 (0x3F8) — hardwired           | shared by the virtual COM3 mouse (use one or other); addr_decode JP1 frees it    |
 | IRQ5  | physical | PicoGUS — hardwired                | sole driver; pgusinit sets the firmware to match                                 |
 | IRQ6  | physical | Firmware floppy (virtual event)    | no physical FDC (design doc §10.1); the physical line stays free for the sidecar |
-| IRQ7  | physical | LPT ~Ack (0x378) — hardwired       | tri-state, silent unless IRQ_EN set; fit addr_decode JP5 to free it              |
+| IRQ7  | physical | LPT ~Ack (0x378) — hardwired       | tri-state, silent unless IRQ_EN set; fit addr_decode JP3 to free it              |
 | IRQ8  | virtual  | RTC periodic/alarm — soft-PIC      | fired in Bus-MCU firmware; the physical ISA IRQ8 line is undriven/reserved       |
 | IRQ12 | virtual  | PS/2 mouse option                  | Bus MCU firmware (default is the COM3 mouse on IRQ4)                             |
 | IRQ14 | physical | XT-IDE INTRQ — hardwired           | motherboard-internal; poll vs interrupt = XTIDE UB config, wired either way      |
@@ -37,15 +37,15 @@ them if a 16-bit source ever appears.
 | 0x70/0x71                 | RTC (Bus MCU-emulated) + NMI mask (bit 7)    | PCF8563 I2C RTC on the Supervisor backs the time; UART-synced at boot   |
 | 0x80                      | POST display                                 | Bus MCU snoops → Supervisor's 2-digit hex                               |
 | 0x220/0x240/0x330/0x388 … | PicoGUS personality (one at a time)          | SB/GUS/MPU-401/AdLib etc. via pgusinit; IRQ5, DMA1                      |
-| 0x278 / 0x378             | LPT (0x378 default)                          | addr_decode: JP1 base strap, JP5 disable; IRQ7 hardwired                |
+| 0x378                     | LPT                                          | base hardwired; addr_decode JP3 disable; IRQ7 hardwired                 |
 | 0x2E8                     | (reserved) sidecar COM4                      | future; needs a freed COM/LPT IRQ (IRQ2 now taken by the NIC)           |
-| 0x2F8                     | COM2 — 16C550                                | base hardwired; addr_decode JP4 disable; IRQ3 hardwired                 |
-| 0x300 / 0x320             | XT-IDE (0x300 default)                       | addr_decode: JP2 base strap, JP6 disable; IRQ14 hardwired               |
-| 0x340–0x35F               | NE2000 NIC (RTL8019AS)                       | hardwired strap; IRQ2→9; JP1 = disable (frees IRQ2 + ignores all I/O)   |
+| 0x2F8                     | COM2 — 16C550                                | base hardwired; addr_decode JP2 disable; IRQ3 hardwired                 |
+| 0x300                     | XT-IDE                                       | base hardwired; addr_decode JP4 disable; IRQ14 hardwired                |
+| 0x340–0x35F               | NE2000 NIC (RTL8019AS)                       | hardwired; IRQ2→9; addr_decode JP5 disables (frees IRQ2, ignores I/O)   |
 | 0x3F0–0x3F7               | (reserved) firmware floppy tier-2 registers  | Bus MCU emulated, only if register-level 765 emulation lands (§10.1)    |
 | 0x3B4–3BF / 0x3D4–3DF     | Video MDA / CGA registers                    | VID_BASE strap picks; status 0x3BA/0x3DA scan-coherent                  |
 | 0x3E8                     | COM3 — virtual serial mouse                  | Bus MCU emulated; IRQ4                                                  |
-| 0x3F8                     | COM1 — 16C550                                | base hardwired; addr_decode JP3 disable; IRQ4 hardwired; console JP1    |
+| 0x3F8                     | COM1 — 16C550                                | base hardwired; addr_decode JP1 disable; IRQ4 hardwired; console JP1    |
 
 ## Memory map
 

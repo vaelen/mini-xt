@@ -1,14 +1,16 @@
 """video -- Video card MCU (RP2350B): soft CGA/MDA/Hercules, VGA + HDMI out.
 
-Design doc S8 (and the video parts of S4.1/S7). A SOFT CARD: it talks ONLY the
-standard ISA backplane + power, exactly like a period ISA video card, so it stays
-liftable to a standalone ISA board unchanged. It owns its own video RAM and
-SELF-DECODES the 0xA0000-0xBFFFF window and the CRTC/mode ports from the latched
-A17-A19 / A0-A9 it snoops -- it uses NO private motherboard signal (no Y5, no
-MCU link, no host memory). VID_EN (GPIO42, JP1) and VID_BASE (GPIO43, JP2) are
-boot-read straps: firmware honors VID_EN before enabling any bus-facing OE, and
-VID_BASE selects the default window (CGA or MDA), letting an on-board video coexist
-with a card_video on the sidecar chain.
+Design doc S8 (and the video parts of S4.1/S7). A soft card: it talks the
+standard ISA backplane + power plus ONE central level, DIS_VID (mxbus.PRIV_DIS
+-- a standalone card's wrapper would put the strap back locally). It owns its
+own video RAM and SELF-DECODES the 0xA0000-0xBFFFF window and the CRTC/mode
+ports from the latched A17-A19 / A0-A9 it snoops (no Y5, no MCU link, no host
+memory). DIS_VID (GPIO42, addr_decode JP6 -- 2026-07-14: replaced the on-sheet
+VID_EN/JP1 strap, POLARITY INVERTED: high = disabled, enabled by default) and
+VID_BASE (GPIO43, JP1 here) are boot-read straps: firmware honors DIS_VID
+before enabling any bus-facing OE, and VID_BASE selects the default window
+(CGA or MDA), letting an on-board video coexist with a card_video on the
+sidecar chain.
 
 Structure:
   * Core2350B module (M1, RP2350B) -- self-powers 3V3 from +5V (onboard LDO);
@@ -53,7 +55,8 @@ PINS = (
     [pin(s) for s in mxbus.DATA] +                           # D0..D7 bidir
     [pin(s, "input") for s in ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}",
                                "BALE", "AEN", "CLK", "RESET_DRV"]] +
-    [pin("IOCHRDY", "output")]                               # card wait-states reads
+    [pin("IOCHRDY", "output"),                               # card wait-states reads
+     pin("DIS_VID", "input")]   # addr_decode JP6 level: high = card disabled (fw-read)
 )
 
 
@@ -108,7 +111,7 @@ def build(sch, lib, expose=True):
     L(M1, "GPIO39", "RESET_DRV", dx=2.54)            # module user LED on GPIO39 (still usable)
     sch.no_connect(M1.pin_xy("GPIO40"))              # freed: U7 deleted (was RDY_OE); IOCHRDY (GPIO27) tri-states natively
     L(M1, "GPIO41", "HDMI_HPD", dx=2.54)      # 5V-level from sink; RP2350 IO is 5V-tolerant
-    L(M1, "GPIO42", "VID_EN", dx=2.54)        # boot strap: low = card enabled
+    L(M1, "GPIO42", "DIS_VID", dx=2.54)       # central boot strap: HIGH = disabled
     L(M1, "GPIO43", "VID_BASE", dx=2.54)      # boot strap: low = CGA, high = MDA
     # GPIO44-46 unused; GPIO47 = module's onboard PSRAM chip-select (internal).
     for g in (44, 45, 46, 47):
@@ -153,20 +156,16 @@ def build(sch, lib, expose=True):
         sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
 
     # Boot straps (firmware-read; decode is firmware in this snoop design):
-    # JP1 installed -> VID_EN low -> card enabled; open -> firmware keeps every
-    # bus-facing OE off (all drivers are MCU-gated tri-states) = card disabled.
-    # JP2 installed -> VID_BASE low -> CGA windows (0x3D4-3DF / 0xB8000);
+    # DIS_VID comes from addr_decode JP6 (2026-07-14, was the on-sheet
+    # VID_EN/JP1 -- polarity inverted): low/default -> card enabled; jumper
+    # fitted -> high -> firmware keeps every bus-facing OE off (all drivers
+    # are MCU-gated tri-states) = card disabled.
+    # JP1 installed -> VID_BASE low -> CGA windows (0x3D4-3DF / 0xB8000);
     # open -> MDA/Hercules (0x3B4-3BF / 0xB0000) -- the snoop-firmware
     # equivalent of a base-address jumper.
-    JP1 = sch.place("Connector_Generic:Conn_01x02", "JP1", "VID_EN", at=(121.92, 40.64))
-    L(JP1, "Pin_1", "VID_EN", dx=2.54)
+    JP1 = sch.place("Connector_Generic:Conn_01x02", "JP1", "VID_BASE", at=(137.16, 40.64))
+    L(JP1, "Pin_1", "VID_BASE", dx=2.54)
     L(JP1, "Pin_2", "GND", dx=2.54)
-    JP2 = sch.place("Connector_Generic:Conn_01x02", "JP2", "VID_BASE", at=(137.16, 40.64))
-    L(JP2, "Pin_1", "VID_BASE", dx=2.54)
-    L(JP2, "Pin_2", "GND", dx=2.54)
-    r = sch.place("Device:R", "R30", "10k", at=(121.92, 60.96))
-    sch.net(r, "1", "3V3_VID", kind="label", dx=0, dy=-2.54)
-    sch.net(r, "2", "VID_EN", kind="label", dx=0, dy=2.54)
     r = sch.place("Device:R", "R31", "10k", at=(137.16, 60.96))
     sch.net(r, "1", "3V3_VID", kind="label", dx=0, dy=-2.54)
     sch.net(r, "2", "VID_BASE", kind="label", dx=0, dy=2.54)
@@ -274,5 +273,5 @@ def build(sch, lib, expose=True):
     sch.text("SOFT CARD: ISA bus + power ONLY. Self-decodes 0xA0000-0xBFFFF and "
              "3B4/3B5/3B8/3BA/3BF + 3D4/3D5/3D8/3D9/3DA from snooped A17-A19/A0-A9. "
              "No Y5, no link, no host RAM (design S8). "
-             "Straps: JP1 open = card disabled (firmware keeps all OEs off); JP2 = CGA (closed) / MDA (open) window set.", (38.1, 20.32))
+             "Disable: addr_decode JP6 (DIS_VID high, firmware keeps all OEs off; enabled by default). JP1 = CGA (closed) / MDA (open) window set.", (38.1, 20.32))
     sch.text("HDMI: +5V fused (F1); HPD sensed on GPIO41. Add TMDS ESD array (TPD4E05U06-class, <=0.15pF) at layout -- no KiCad symbol yet.", (266.7, 33.02))

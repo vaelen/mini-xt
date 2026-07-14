@@ -31,6 +31,16 @@ def build(sch, lib):
     # The soft-card logic, tied to the same bus net names (expose=False: no parent
     # hierarchical pins -- everything joins the on-card header nets by name).
     card.build(sch, lib, expose=False)
+    # DIS_VID is a motherboard net (addr_decode JP6); standalone, the wrapper
+    # re-adds the strap locally (the documented PRIV_* lift pattern): pulled
+    # low = enabled by default, fit JP2 to disable. 3V3_VID levels -- the
+    # strap feeds the module GPIO, not the 5V ISA side.
+    JP2 = sch.place("Connector_Generic:Conn_01x02", "JP2", "DIS_VID", at=(121.92, 40.64))
+    sch.net(JP2, "Pin_1", "DIS_VID", kind="label", dx=2.54)
+    sch.net(JP2, "Pin_2", "3V3_VID", kind="label", dx=2.54)
+    r = sch.place("Device:R", "R30", "10k", at=(121.92, 60.96))
+    sch.net(r, "1", "DIS_VID", kind="label", dx=0, dy=-2.54)
+    sch.net(r, "2", "GND", kind="label", dx=0, dy=2.54)
     sch.text("Standalone Video PCB: ISA bus chains J_IN -> J_OUT; card logic taps "
              "the bus by name. Daisy-chain cards header-to-header (isa_conn, S4.3).",
              (38.1, 12.7))
