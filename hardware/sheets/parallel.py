@@ -270,10 +270,13 @@ def build(sch, lib, expose=True):
     # network. Pulled to +3V3 (not +5V, spec 2026-07-14): 3.3V is a fully
     # valid logic-high for these inputs and there's no reason to overdrive
     # the idle level above the board's own rail.
-    for i, net in enumerate(["P_ACK", "P_BUSY", "P_PE", "P_SEL", "P_ERR"]):
-        r = sch.place("Device:R", "R%d" % (1 + i), "4.7k", at=(314.96 + 15.24 * i, 45.72))
-        sch.net(r, "1", "+3V3", kind="label", dx=0, dy=-2.54)
-        sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
+    # (2026-07-14: one 4x4.7k basic array + one discrete replace 5 singles)
+    mxbus.r_pack4(sch, "RN1", "4.7kx4", (314.96, 45.72),
+                  [("P_ACK", "+3V3"), ("P_BUSY", "+3V3"),
+                   ("P_PE", "+3V3"), ("P_SEL", "+3V3")])
+    r = sch.place("Device:R", "R1", "4.7k", at=(340.36, 45.72))
+    sch.net(r, "1", "+3V3", kind="label", dx=0, dy=-2.54)
+    sch.net(r, "2", "P_ERR", kind="label", dx=0, dy=2.54)
 
     # Configuration note (all jumpers live on addr_decode now: JP1 = base
     # 0x378/0x278, JP5 = disable -- fitted jumper disables, default enabled)

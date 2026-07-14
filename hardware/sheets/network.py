@@ -188,22 +188,21 @@ def build(sch, lib):
     decouple("C17", (63.5, 114.3), rail="+3V3")
 
     # ============================================================ 2. straps =====
-    R1 = sch.place("Device:R", "R1", "10k", at=(228.6, 25.4))
-    L(R1, "1", "JP_HI", dx=0, dy=-2.54); L(R1, "2", "+5V", dx=0, dy=2.54)
-    R2 = sch.place("Device:R", "R2", "10k", at=(241.3, 25.4))
-    L(R2, "1", "IOS1_HI", dx=0, dy=-2.54); L(R2, "2", "+5V", dx=0, dy=2.54)
+    # JP_HI/IOS1_HI: the RTL8019AS strap pins that must read 1 (internal
+    # ~100k pulldowns read 0 unstrapped) -- pulled to the chip's own +5V.
+    # AEN_CHIP park (NIC disabled): +3V3, NOT +5V (Task-10 fix) -- the net
+    # also feeds U5's ~{E0} (74HC138 @ +3V3); +5V would over-drive it, and
+    # U1's 5V-TTL AEN input (Vih 2.0V) reads a 3.3V park as high.
+    # One 4x10k basic array (isolated elements: rails differ; one spare).
+    mxbus.r_pack4(sch, "RN1", "10kx4", (231.14, 25.4),
+                  [("JP_HI", "+5V"), ("IOS1_HI", "+5V"), ("AEN_CHIP", "+3V3")])
     R3 = sch.place("Device:R", "R3", "27k", at=(254.0, 25.4))
     L(R3, "1", "SLOT16", dx=0, dy=-2.54); L(R3, "2", "GND", dx=0, dy=2.54)
     R4 = sch.place("Device:R", "R4", "1M", at=(152.4, 266.7))   # near Y1, clear of U1's body
     L(R4, "1", "XTAL1", dx=0, dy=-2.54); L(R4, "2", "XTAL2", dx=0, dy=2.54)
     R5 = sch.place("Device:R", "R5", "200", at=(304.8, 152.4))
     L(R5, "1", "TPIN+", dx=0, dy=-2.54); L(R5, "2", "TPIN-", dx=0, dy=2.54)
-    R7 = sch.place("Device:R", "R7", "10k", at=(355.6, 190.5))
-    # AEN_CHIP park (NIC disabled): +3V3, NOT +5V (Task-10 fix). AEN_CHIP fans out to
-    # BOTH U1's AEN pin (5V-TTL input, Vih 2.0V -- reads a 3.3V park as high) AND
-    # U5's ~{E0} (74HC138 @ +3V3): a +5V park would drive the 3.3V '138 input above
-    # its own rail. +3V3 satisfies U1's TTL threshold without over-driving U5.
-    L(R7, "1", "AEN_CHIP", dx=0, dy=-2.54); L(R7, "2", "+3V3", dx=0, dy=2.54)
+    # (AEN_CHIP's +3V3 park lives in RN1 with the straps, above)
     R8 = sch.place("Device:R", "R8", "1k", at=(368.3, 254.0))
     L(R8, "1", "+5V", dx=0, dy=-2.54); L(R8, "2", "LNK_A", dx=0, dy=2.54)
     R9 = sch.place("Device:R", "R9", "1k", at=(381.0, 254.0))
@@ -300,7 +299,7 @@ def build(sch, lib):
     L(J1, "SH1", "EARTH", dx=2.54)
     L(J1, "SH2", "EARTH", dx=2.54)
 
-    FB1 = sch.place("Device:FerriteBead", "FB1", "100R@100MHz", at=(381.0, 152.4))
+    FB1 = sch.place("Device:FerriteBead", "FB1", "120R@100MHz", at=(381.0, 152.4))
     L(FB1, "1", "EARTH", dx=-2.54); L(FB1, "2", "GND", dx=2.54)
     pf = sch.place("power:PWR_FLAG", "#FLG1", at=(381.0, 165.1))
     sch.net(pf, "1", "EARTH", kind="label", dx=0, dy=-2.54)

@@ -163,20 +163,24 @@ def build(sch, lib, expose=True):
     # silences the IRQ request at its source and frees the address for an
     # expansion-port card. NIC/VID: the level is routed to the peripheral's
     # own gating (network '125 OEs / video MCU boot-strap GPIO).
-    def dis_jp(jref, rref, net, label, x, y):
+    def dis_jp(jref, net, label, x, y):
         jp = sch.place("Connector_Generic:Conn_01x02", jref, label, at=(x, y))
         L(jp, "Pin_1", net, dx=2.54)
         L(jp, "Pin_2", "+3V3", dx=2.54)
-        r = sch.place("Device:R", rref, "10k", at=(x + 20.32, y))
-        L(r, "1", net, dx=0, dy=-2.54)
-        L(r, "2", "GND", dx=0, dy=2.54)
 
-    dis_jp("JP1", "R1", "DIS_COM1", "DIS COM1", 203.2, 152.4)
-    dis_jp("JP2", "R2", "DIS_COM2", "DIS COM2", 254.0, 152.4)
-    dis_jp("JP3", "R3", "DIS_LPT", "DIS LPT", 304.8, 152.4)
-    dis_jp("JP4", "R4", "DIS_IDE", "DIS IDE", 355.6, 152.4)
-    dis_jp("JP5", "R5", "DIS_NIC", "DIS NIC", 203.2, 177.8)
-    dis_jp("JP6", "R6", "DIS_VID", "DIS VID", 254.0, 177.8)
+    dis_jp("JP1", "DIS_COM1", "DIS COM1", 203.2, 152.4)
+    dis_jp("JP2", "DIS_COM2", "DIS COM2", 254.0, 152.4)
+    dis_jp("JP3", "DIS_LPT", "DIS LPT", 304.8, 152.4)
+    dis_jp("JP4", "DIS_IDE", "DIS IDE", 355.6, 152.4)
+    dis_jp("JP5", "DIS_NIC", "DIS NIC", 203.2, 177.8)
+    dis_jp("JP6", "DIS_VID", "DIS VID", 254.0, 177.8)
+    # DIS_x default-low pulldowns, consolidated into 4x10k basic arrays
+    # (2026-07-14; isolated elements, RN2 has two spares)
+    mxbus.r_pack4(sch, "RN1", "10kx4", (398.78, 152.4),
+                  [("DIS_COM1", "GND"), ("DIS_COM2", "GND"),
+                   ("DIS_LPT", "GND"), ("DIS_IDE", "GND")])
+    mxbus.r_pack4(sch, "RN2", "10kx4", (398.78, 177.8),
+                  [("DIS_NIC", "GND"), ("DIS_VID", "GND")])
 
     # ---------------- decoupling ----------------
     for i, x in enumerate([101.6, 116.84, 132.08, 147.32, 162.56]):

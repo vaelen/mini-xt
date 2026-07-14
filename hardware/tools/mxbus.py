@@ -148,6 +148,26 @@ def emit_interface(sch, pins, at=(25.4, 25.4), pitch=2.54):
         sch.hier_label(pd["name"], (x, py), 0, pd["dir"])
 
 
+def r_pack4(sch, ref, value, at, elems):
+    """Place a Device:R_Pack04 (4 ISOLATED resistors -- element k = pins k and
+    9-k, matching the 4D03WGJ 0603x4 convex arrays bound in parts.py).
+
+    elems: up to 4 (signal_net, rail_net) tuples -- signal stubs down off pins
+    1-4, rails up off pins 8-5. Elements are isolated, so rails may differ
+    per element. Unused elements get both pins no-connected.
+    """
+    rp = sch.place("Device:R_Pack04", ref, value, at=at)
+    for k in range(1, 5):
+        if k <= len(elems):
+            sig, rail = elems[k - 1]
+            sch.net(rp, str(k), sig, kind="label", dx=0, dy=2.54)
+            sch.net(rp, str(9 - k), rail, kind="label", dx=0, dy=-2.54)
+        else:
+            sch.no_connect(rp.pin_xy(str(k)))
+            sch.no_connect(rp.pin_xy(str(9 - k)))
+    return rp
+
+
 def power_net(sch, lib, net, at, rot=0):
     """Place the appropriate power symbol for a power net at a location."""
     libid = {"+5V": "power:+5V", "+3V3": "power:+3V3", "GND": "power:GND"}[net]

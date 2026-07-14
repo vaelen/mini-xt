@@ -83,11 +83,6 @@ def build(sch, lib, expose=True):
         sch.net(c, "1", "+3V3", kind="label", dx=0, dy=-2.54)
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
 
-    def pullup(ref, net, at):
-        r = sch.place("Device:R", ref, "10k", at=at)
-        sch.net(r, "1", "+3V3", kind="label", dx=0, dy=-2.54)
-        sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
-
     # ============================================================ glue logic ===
     # ---- 74HC04 hex inverter: latch strobes, address inverts, IDE -RESET ----
     # 74HC04 value override (spec 2026-07-14): 74HCT is out of spec below
@@ -245,14 +240,16 @@ def build(sch, lib, expose=True):
     conn_wire(CF, cf_map, nc=[24, 25, 33, 40, 43, 45, 46])
 
     # =============================================================== passives =
-    pullup("R1", "~{IORDY}", (228.6, 25.4))    # IORDY idle-high (8-bit PIO)
-    # ATA INTRQ is ACTIVE-HIGH and tri-stated whenever no drive is selected (or
-    # nIEN=1), so it parks DEASSERTED: pull-DOWN. (A pull-up here would hold
-    # IRQ14 permanently asserted -> interrupt storm once IRQ14 is unmasked.)
-    r2 = sch.place("Device:R", "R2", "10k", at=(243.84, 25.4))
-    sch.net(r2, "1", "IDE_IRQ", kind="label", dx=0, dy=-2.54)
-    sch.net(r2, "2", "GND", kind="label", dx=0, dy=2.54)
-    pullup("R4", "~{IRQ_IDE}", (91.44, 243.84))  # request parks high (Z) when INTRQ low
+    # Idle parks, consolidated into one 4x10k basic array (2026-07-14;
+    # isolated elements, so the pack mixes rails -- one spare):
+    #  * ~{IORDY} idle-high (8-bit PIO)
+    #  * ~{IRQ_IDE} request parks high (Z) when INTRQ low
+    #  * IDE_IRQ: ATA INTRQ is ACTIVE-HIGH and tri-stated whenever no drive
+    #    is selected (or nIEN=1), so it parks DEASSERTED: pull-DOWN. (A
+    #    pull-up would hold IRQ14 asserted -> interrupt storm once unmasked.)
+    mxbus.r_pack4(sch, "RN1", "10kx4", (228.6, 25.4),
+                  [("~{IORDY}", "+3V3"), ("~{IRQ_IDE}", "+3V3"),
+                   ("IDE_IRQ", "GND")])
     # (Base hardwired 0x300; the disable is addr_decode JP4 --
     # fitting it forces ~{IDE_CS} inactive, so /CS0, /ODD_SEL and
     # everything downstream (DEC2/DEC3, both '573 latch clocks, the '245

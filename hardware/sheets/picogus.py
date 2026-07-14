@@ -221,9 +221,9 @@ def build(sch, lib):
     Cvo = sch.place("Device:C", "C8", "10uF", at=(63.5, 63.5))
     L(Cvo, "1", "3V3_PGUS", dx=0, dy=-2.54); L(Cvo, "2", "GND", dx=0, dy=2.54)
 
-    FB1 = sch.place("Device:FerriteBead", "FB1", "100R@100MHz", at=(50.8, 88.9))
+    FB1 = sch.place("Device:FerriteBead", "FB1", "120R@100MHz", at=(50.8, 88.9))
     L(FB1, "1", "3V3_PGUS", dx=-2.54); L(FB1, "2", "AVDD_PGUS", dx=2.54)
-    FB2 = sch.place("Device:FerriteBead", "FB2", "100R@100MHz", at=(50.8, 101.6))
+    FB2 = sch.place("Device:FerriteBead", "FB2", "120R@100MHz", at=(50.8, 101.6))
     L(FB2, "1", "GND", dx=-2.54); L(FB2, "2", "AGND_PGUS", dx=2.54)
     # ERC power markers: both analog rails arrive through ferrite beads
     for i, net in ((1, "AVDD_PGUS"), (2, "AGND_PGUS")):

@@ -186,6 +186,33 @@ RTL8019AS NE2000 NIC soft-card sourcing pass (schematic from Tasks 1-3):
   jack), **RJ45_LED** (the jack's integrated LEDs) — all four new
   hand-authored symbols this card needed.
 
+## Passives audit (2026-07-14) — basic-library sweep + resistor arrays
+
+Every discrete R and C value on the board audited against the JLC library:
+all were already **basic** (the 27R USB terminator is "preferred" = also
+fee-free) except three, resolved as follows:
+
+- **Ferrite beads (x3, picogus AVDD + network)**: extended Murata
+  BLM18KG101TN1D (100R@100MHz) -> **basic BLM18PG121SN1D, C14709**
+  (120R@100MHz, 2A) -- same family/role, fee-free.
+- **100uF SMD electrolytic (power, x2, C2887276)** and **2.2uH/4.8A buck
+  inductor (power, C602029)**: stay extended -- JLC's fee-free library
+  contains ZERO parts in either subcategory. Accepted cost of the buck.
+- Pruned the orphaned 47nF/330nF entries (5V-era MAX3241 caps, unused
+  since the 3.3V redesign).
+
+**Pull consolidation**: 65 discrete 10k/4.7k rail pulls collapsed into 18
+**basic** 4-element isolated arrays (RN refs): 10kx4 = 4D03WGJ0103T5E
+C29718, 4.7kx4 = 4D03WGJ0472T5E C1980 (0603x4, R_Array_Convex_4x0603,
+element k = pins k/9-k). Isolated elements, so packs mix rails; +-5%
+tolerance is fine for pulls. Kept discrete: RC/divider/series roles, the
+supervisor I2C pair + RUN, and singletons.
+
+- **10k 0603 discrete (C25804): 0 stock at audit time and it is the ONLY
+  basic 10k 0603** -- basics restock, but verify before ordering (only ~5
+  discrete 10k remain on the board after the array conversion; the arrays
+  themselves are 2.8M-deep).
+
 ## Thin stock — re-verify with jlc_stock_check before ordering
 
 - **TL16C550CPFBR (C882798): 5 units — genuinely thin**, extended part;

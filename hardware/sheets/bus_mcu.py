@@ -15,7 +15,7 @@ XT/ISA backplane as **slave and master**.  It carries:
         the old 5V bus (U2 data, U6 strobes, U3/U4/U5 address+BALE, U13 AEN/TC)
         and their DIR logic are DELETED; each GPIO now carries its bus net 1:1
         (see GPIO_NET).  DATADIR's sole consumer (U2 DIR) is gone, freeing GPIO43
-        -> reused as EXP_DDIR.  R1/R17/R18 park AEN/TC/HLDA at a defined level
+        -> reused as EXP_DDIR.  RN3/RN4 (10kx4 arrays) park AEN/TC/HLDA at a defined level
         during the MCU-Hi-Z (BOOTSEL/reset) window (AEN idle-low so cards read
         their I/O decode deasserted; HLDA low so the counter's '244s stay off).
   * External 20-bit loadable address counter (§5.1): U7..U11, 5x 74HCT163
@@ -358,53 +358,46 @@ def build(sch, lib):
     decouple("C18", (35.56, 304.8), "+3V3")        # U19 (EXT '165)
     decouple("C19", (190.5, 304.8), "+3V3")        # U20 (EXT '165)
 
-    # ---- bus-line idle pulls: wire-OR / releasable lines need defined levels
-    def pull(ref, net, rail, at):
-        r = sch.place("Device:R", ref, "10k", at=at)
-        sch.net(r, "1", rail, kind="label", dx=0, dy=-2.54)
-        sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
-    pull("R2", "IOCHRDY", "+3V3", (86.36, 25.4))      # wire-OR ready: idle high (3.3V bus)
-    pull("R3", "~{IOCHCK}", "+3V3", (101.6, 25.4))    # open-collector: idle high (3.3V bus)
-    for i in range(7):                                # ISA IRQ is active-high and
-        pull("R%d" % (4 + i), "IRQ%d" % (2 + i),      # released when unclaimed --
-             "GND", (116.84 + 15.24 * i, 25.4))       # no floating '165 inputs
-    pull("R11", "IRQ14", "GND", (223.52, 25.4))       # same idle-low network
-    pull("R12", "~{DACK2}", "+3V3", (238.76, 25.4))   # declared, undriven (GPIO
-    pull("R13", "~{DACK3}", "+3V3", (254.0, 25.4))    # dropped): park deasserted
-    pull("R14", "DRQ2", "GND", (269.24, 25.4))        # DRQ2/3 not wired to the MCU
-    pull("R15", "DRQ3", "GND", (284.48, 25.4))        # (GPIO budget): idle low
-    # MCU-Hi-Z parking (BOOTSEL flashing / reset-to-init window): AEN and TC are
-    # now driven straight from GPIO21/GPIO35, so they float while the MCU is
-    # Hi-Z -- park AEN low (cards qualify I/O decode on AEN=0) and TC low.  HLDA
-    # (sensed on GPIO26, also inverted on parallel U9 -> '244 ~OE) parks low so the counter
-    # stays off the bus until firmware runs.  (DATADIR's park R16 is gone with U2.)
-    pull("R1", "AEN", "GND", (299.72, 25.4))
-    pull("R17", "TC", "GND", (314.96, 25.4))
-    pull("R18", "HLDA", "GND", (330.2, 25.4))
-    # Expansion-port EXT_* idle low: active-high IRQ/DRQ that float when no
-    # sidecar is fitted -- keep the EXT '165 (U19/U20) inputs from floating.
-    ext_nets = [n for n in mxbus.PRIV_EXP if n != "EXP_DDIR"]
-    for i, n in enumerate(ext_nets):
-        pull("R%d" % (29 + i), n, "GND", (86.36 + 15.24 * i, 289.56))
-    # Same MCU-Hi-Z window, MCU-driven nets that leave the sheet:
-    # ~{CPURESET} parked LOW = V20 + RESET_DRV held in reset until firmware
-    # drives it (otherwise the V20 starts running with floating HOLD/READY/
-    # INTR once the TCM809 timeout lapses).  ~{DACK1}/~{REFRESH} are GPIO
-    # outputs into the PicoGUS/sidecar: park deasserted.  DRQ1 is driven by
-    # the PicoGUS RP2040 -- idle it low for the unflashed/absent case, like
-    # DRQ2/3.  DACK1/REFRESH pull to 3V3_BUS (their driven-high level; both
-    # nets sit directly on RP2350B pins).
-    pull("R25", "~{CPURESET}", "GND", (345.44, 25.4))
-    pull("R26", "~{DACK1}", "3V3_BUS", (360.68, 25.4))
-    pull("R27", "~{REFRESH}", "3V3_BUS", (375.92, 25.4))
-    pull("R28", "DRQ1", "GND", (391.16, 25.4))
+    # ---- bus-line idle pulls: wire-OR / releasable lines need defined levels.
+    # 2026-07-14 consolidation: 4x10k isolated arrays (basic part) replace 31
+    # discrete pulls -- elements are isolated, so packs mix rails freely.
+    # Semantics unchanged per net:
+    #  * IRQ2-8/14, DRQ1-3, TC idle LOW (released/active-high lines; no
+    #    floating '165 inputs; DRQ2/3 + DACK2/3 declared-undriven, GPIO budget)
+    #  * IOCHRDY/~{IOCHCK} wire-OR/open-collector: idle HIGH
+    #  * MCU-Hi-Z parking (BOOTSEL/reset window): AEN low (cards see I/O
+    #    decode deasserted), HLDA low ('244s off), ~{CPURESET} low (V20 held
+    #    in reset until firmware runs), ~{DACK1}/~{REFRESH} to 3V3_BUS
+    #    (deasserted; nets sit on RP2350B pins)
+    #  * EXT_* idle low so the EXT '165s (U19/U20) never float
+    mxbus.r_pack4(sch, "RN1", "10kx4", (86.36, 25.4),
+                  [("IRQ2", "GND"), ("IRQ3", "GND"), ("IRQ4", "GND"), ("IRQ5", "GND")])
+    mxbus.r_pack4(sch, "RN2", "10kx4", (109.22, 25.4),
+                  [("IRQ6", "GND"), ("IRQ7", "GND"), ("IRQ8", "GND"), ("IRQ14", "GND")])
+    mxbus.r_pack4(sch, "RN3", "10kx4", (132.08, 25.4),
+                  [("DRQ1", "GND"), ("DRQ2", "GND"), ("DRQ3", "GND"), ("TC", "GND")])
+    mxbus.r_pack4(sch, "RN4", "10kx4", (154.94, 25.4),
+                  [("AEN", "GND"), ("HLDA", "GND"), ("~{CPURESET}", "GND"),
+                   ("EXT_DRQ1", "GND")])
+    mxbus.r_pack4(sch, "RN5", "10kx4", (177.8, 25.4),
+                  [("EXT_DRQ2", "GND"), ("EXT_DRQ3", "GND"),
+                   ("EXT_IRQ2", "GND"), ("EXT_IRQ3", "GND")])
+    mxbus.r_pack4(sch, "RN6", "10kx4", (200.66, 25.4),
+                  [("EXT_IRQ4", "GND"), ("EXT_IRQ5", "GND"),
+                   ("EXT_IRQ6", "GND"), ("EXT_IRQ7", "GND")])
+    mxbus.r_pack4(sch, "RN7", "10kx4", (223.52, 25.4),
+                  [("EXT_IRQ8", "GND"), ("IOCHRDY", "+3V3"),
+                   ("~{IOCHCK}", "+3V3"), ("~{DACK2}", "+3V3")])
+    mxbus.r_pack4(sch, "RN8", "10kx4", (246.38, 25.4),
+                  [("~{DACK3}", "+3V3"), ("~{DACK1}", "3V3_BUS"),
+                   ("~{REFRESH}", "3V3_BUS")])
     sch.text("DMA ch2/3 + raw ~WR/IO-M are NOT wired to the MCU (48-GPIO budget, "
              "S5.2): DACK2/3 parked high, DRQ2/3 low. First candidates for a "
              "second '165/'595 if sidecar DMA is ever needed.", (86.36, 15.24))
 
     sch.text("3.3V bus: data/addr/strobe/BALE/AEN/TC wired GPIO<->bus directly (no '245s);",
              (200.66, 116.84))
-    sch.text("master/slave role = firmware tri-state.  R1/R17/R18 idle AEN/TC/HLDA during MCU Hi-Z.",
+    sch.text("master/slave role = firmware tri-state.  RN3/RN4 idle AEN/TC/HLDA during MCU Hi-Z.",
              (200.66, 119.38))
 
     # =================================================================

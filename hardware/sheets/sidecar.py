@@ -134,7 +134,7 @@ def build(sch, lib, expose=True):
     # the Bus MCU boots and drives GPIO43 (no bus contention during that window).
     buf245("U6", (114.3, 172.72),
            [("D%d" % i, "X_D%d" % i) for i in range(8)], "EXP_DDIR")
-    pull("R1", "EXP_DDIR", "+3V3", (152.4, 172.72), "10k")   # default outbound
+    # (EXP_DDIR's default-outbound pull-up lives in RN1, below)
 
     # -- Inbound IRQ/DRQ: 2x 74LVC244A onto EXT_* nets -------------------------
     # X_<sig> in (5V-tol), EXT_<sig> out.  100k pull-DOWN on every X_ input so an
@@ -159,8 +159,11 @@ def build(sch, lib, expose=True):
     sch.net(u9, "2Y", "~{IOCHCK}", kind="label", dx=2.54, dy=2.54)
     sch.net(u9, "VCC", "+3V3", kind="label", dy=-2.54)
     sch.net(u9, "GND", "GND", kind="label", dy=2.54)
-    pull("R12", "X_IOCHRDY", "+3V3", (144.78, 226.06), "10k")
-    pull("R13", "X_~{IOCHCK}", "+3V3", (160.02, 226.06), "10k")
+    # (2026-07-14: one 4x10k basic array replaces the three discrete pulls:
+    # EXP_DDIR default-outbound, X_IOCHRDY/X_~{IOCHCK} wire-OR idle-high)
+    mxbus.r_pack4(sch, "RN1", "10kx4", (152.4, 226.06),
+                  [("EXP_DDIR", "+3V3"), ("X_IOCHRDY", "+3V3"),
+                   ("X_~{IOCHCK}", "+3V3")])
 
     decouple("C4", (48.26, 20.32))
     decouple("C5", (99.06, 20.32))

@@ -372,10 +372,13 @@ def build(sch, lib):
     # (U5 ~OE) -- these are 5V nets, park them to +5V. The gated BUS strobes float
     # in the ownership gap between the '125 releasing and the Bus MCU driving --
     # they are now 3.3V bus nets (U11 is the boundary), so park them to +3V3.
-    for i, net in enumerate(["~{RD}", "~{WR}", "IO/~{M}", "DEN"]):
-        pullup("R%d" % (1 + i), net, (40.64 + 15.24 * i, 243.84), rail="+5V")
-    for i, net in enumerate(["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}"]):
-        pullup("R%d" % (5 + i), net, (40.64 + 15.24 * (4 + i), 243.84), rail="+3V3")
+    # (2026-07-14: two 4x10k basic arrays replace 8 discrete pulls)
+    mxbus.r_pack4(sch, "RN1", "10kx4", (48.26, 243.84),
+                  [("~{RD}", "+5V"), ("~{WR}", "+5V"),
+                   ("IO/~{M}", "+5V"), ("DEN", "+5V")])
+    mxbus.r_pack4(sch, "RN2", "10kx4", (86.36, 243.84),
+                  [("~{MEMR}", "+3V3"), ("~{MEMW}", "+3V3"),
+                   ("~{IOR}", "+3V3"), ("~{IOW}", "+3V3")])
 
     # decoupling -- pool defaults to +3V3 (the logic domain now). Dropped 2 caps
     # vs the old 2-SRAM layout (removed the second SRAM's decoupling, step 4).

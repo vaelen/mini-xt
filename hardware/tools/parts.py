@@ -262,6 +262,14 @@ PART_MAP = {
                                         "Crystal:Crystal_HC49-U_Vertical",
                                         "CL=20pF; on 16C550 XIN/XOUT"),
     # ---- passives (0603 basic unless noted) ----
+    ("Device:R_Pack04", "10kx4"): E("C29718", "4D03WGJ0103T5E", "0603x4",
+        "Resistor_SMD:R_Array_Convex_4x0603",
+        "basic 4x isolated 10k array (2026-07-14 pull consolidation; ±5% is "
+        "fine for pulls). Also de-risks the single-source discrete 10k line "
+        "C25804, which was at 0 stock when audited."),
+    ("Device:R_Pack04", "4.7kx4"): E("C1980", "4D03WGJ0472T5E", "0603x4",
+        "Resistor_SMD:R_Array_Convex_4x0603",
+        "basic 4x isolated 4.7k array (LPT printer-status pulls)"),
     ("Device:R", "27"):    E("C25190", "0603WAF270JT5E", "0603", R0603, "RP2040 USB series termination"),
     ("Device:R", "100"):   E("C22775", "0603WAF1000T5E", "0603", R0603),
     ("Device:R", "15k"):   E("C22809", "0603WAF1502T5E", "0603", R0603),
@@ -281,8 +289,6 @@ PART_MAP = {
     ("Device:R", "20k"):   E("C4184", "0603WAF2002T5E", "0603", R0603, "audio summer PG_L/PG_R (0.5x)"),
     ("Device:R", "100k"):  E("C25803", "0603WAF1003T5E", "0603", R0603),
     ("Device:C", "100nF"): E("C14663", "CC0603KRX7R9BB104", "0603", C0603),
-    ("Device:C", "47nF"):  E("C1622", "CL10B473KB8NNNC", "0603", C0603, "MAX3241 C1 at 5V"),
-    ("Device:C", "330nF"): E("C1615", "0603B334K250NT", "0603", C0603, "MAX3241 C2-C4 at 5V"),
     ("Device:C", "10nF"):  E("C57112", "0603B103K500NT", "0603", C0603),
     ("Device:C", "1uF"):   E("C15849", "CL10A105KB8NNNC", "0603", C0603),
     ("Device:C", "30pF"):  E("C1658", "0603CG300J500NT", "0603", C0603, "12MHz crystal load (CL=20pF)"),
@@ -308,8 +314,11 @@ PART_MAP = {
     ("Device:LED", "3V3"): E("C2286", "KT-0603R", "0603", "LED_SMD:LED_0603_1608Metric"),
     ("Device:LED", "LED"): E("C2286", "KT-0603R", "0603", "LED_SMD:LED_0603_1608Metric",
                              "PicoGUS status LED"),
-    ("Device:FerriteBead", "100R@100MHz"): E("C160981", "BLM18KG101TN1D", "0603",
-                                             "Inductor_SMD:L_0603_1608Metric"),
+    ("Device:FerriteBead", "120R@100MHz"): E("C14709", "BLM18PG121SN1D", "0603",
+                                             "Inductor_SMD:L_0603_1608Metric",
+        "basic-library swap 2026-07-14 (was extended BLM18KG101TN1D 100R): "
+        "same Murata 0603 family, 120R@100MHz, 2A -- plenty for the AVDD "
+        "supply-filter roles on picogus/network"),
     ("Device:Polyfuse", "500mA"): E("C46641014", "SMD1206-050-16", "1206",
                                     "Fuse:Fuse_1206_3216Metric"),
     # ---- connectors ----

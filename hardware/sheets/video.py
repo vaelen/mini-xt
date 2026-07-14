@@ -146,14 +146,14 @@ def build(sch, lib, expose=True):
     # bus->MCU sense, so an unconfigured MCU never drives the 3.3V bus. (R37,
     # the old RDY_OE park, is gone with U7 -- IOCHRDY floating during Hi-Z is
     # caught by the Bus MCU sheet's shared idle-high pull-up, R2.)
-    for ref, net, rail, x in [("R32", "DDIR", "GND", 33.02),
-                             ("R33", "DOE", "3V3_VID", 48.26),
-                             ("R34", "AOE_LO", "3V3_VID", 63.5),
-                             ("R35", "AOE_MID", "3V3_VID", 78.74),
-                             ("R36", "AOE_HI", "3V3_VID", 93.98)]:
-        r = sch.place("Device:R", ref, "10k", at=(x, 287.02))
-        sch.net(r, "1", rail, kind="label", dx=0, dy=-2.54)
-        sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
+    # (2026-07-14: two 4x10k basic arrays replace the 6 discrete parks --
+    # isolated elements, so RN2 mixes the VID_BASE pull-up with DDIR's
+    # pulldown and keeps two spares)
+    mxbus.r_pack4(sch, "RN1", "10kx4", (48.26, 287.02),
+                  [("DOE", "3V3_VID"), ("AOE_LO", "3V3_VID"),
+                   ("AOE_MID", "3V3_VID"), ("AOE_HI", "3V3_VID")])
+    mxbus.r_pack4(sch, "RN2", "10kx4", (78.74, 287.02),
+                  [("VID_BASE", "3V3_VID"), ("DDIR", "GND")])
 
     # Boot straps (firmware-read; decode is firmware in this snoop design):
     # DIS_VID comes from addr_decode JP6 (2026-07-14, was the on-sheet
@@ -166,9 +166,7 @@ def build(sch, lib, expose=True):
     JP1 = sch.place("Connector_Generic:Conn_01x02", "JP1", "VID_BASE", at=(137.16, 40.64))
     L(JP1, "Pin_1", "VID_BASE", dx=2.54)
     L(JP1, "Pin_2", "GND", dx=2.54)
-    r = sch.place("Device:R", "R31", "10k", at=(137.16, 60.96))
-    sch.net(r, "1", "3V3_VID", kind="label", dx=0, dy=-2.54)
-    sch.net(r, "2", "VID_BASE", kind="label", dx=0, dy=2.54)
+    # (VID_BASE's 10k pull-up lives in RN2 with the Hi-Z parks, below)
 
     # ============= kept 74LVC245A: GPIO-budget snoop-bus mux =============
     # (U6 control-snoop and U7 IOCHRDY-driver deleted below -- direct-connected.)
