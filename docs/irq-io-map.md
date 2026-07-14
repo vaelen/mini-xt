@@ -16,9 +16,9 @@ inside the Bus MCU's AT-style soft PIC.
 | IRQ3  | physical | COM2 (0x2F8) — hardwired           | free it by disabling COM2 (fit addr_decode JP2); sidecar can then drive it       |
 | IRQ4  | physical | COM1 (0x3F8) — hardwired           | shared by the virtual COM3 mouse (use one or other); addr_decode JP1 frees it    |
 | IRQ5  | physical | PicoGUS — hardwired                | sole driver; pgusinit sets the firmware to match                                 |
-| IRQ6  | physical | Firmware floppy (virtual event)    | no physical FDC (design doc §10.1); the physical line stays free for the sidecar |
+| IRQ6  | virtual  | Firmware floppy — soft-PIC         | Bus MCU fires it; internal net retired 2026-07-14 (sidecar FDC = EXT_IRQ6)       |
 | IRQ7  | physical | LPT ~Ack (0x378) — hardwired       | tri-state, silent unless IRQ_EN set; fit addr_decode JP3 to free it              |
-| IRQ8  | virtual  | RTC periodic/alarm — soft-PIC      | fired in Bus-MCU firmware; the physical ISA IRQ8 line is undriven/reserved       |
+| IRQ8  | virtual  | RTC periodic/alarm — soft-PIC      | fired in Bus-MCU firmware; internal IRQ8 + EXT_IRQ8 nets retired 2026-07-14      |
 | IRQ12 | virtual  | PS/2 mouse option                  | Bus MCU firmware (default is the COM3 mouse on IRQ4)                             |
 | IRQ14 | physical | XT-IDE INTRQ — hardwired           | motherboard-internal; poll vs interrupt = XTIDE UB config, wired either way      |
 

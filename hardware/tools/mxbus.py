@@ -114,8 +114,11 @@ PRIV_LINK = ["LINK_B2S", "LINK_S2B"]   # Bus->Super TX, Super->Bus TX
 # merge EXT_* with the internal lines in firmware. EXP_DDIR: Bus MCU drives
 # the port data transceiver direction (inward only for reads it knows are
 # externally decoded; default outward).
+# (EXT_IRQ8 retired 2026-07-14 with internal IRQ6/IRQ8: no header pin can
+# ever drive it -- pin 15 is GND -- so its '165 lane ties low. IRQ8 events
+# are firmware-only; physical IRQ6 arrives from a sidecar card as EXT_IRQ6.)
 PRIV_EXP = ["EXP_DDIR", "EXT_DRQ1", "EXT_DRQ2", "EXT_DRQ3"] + \
-           ["EXT_IRQ%d" % i for i in range(2, 9)]
+           ["EXT_IRQ%d" % i for i in range(2, 8)]
 # Supervisor -> POST display + console
 PRIV_SUPER = ["POST_A", "POST_B", "POST_C", "POST_D", "POST_E", "POST_F", "POST_G",
               "POST_DP", "POST_DIG0", "POST_DIG1", "CONSOLE_TX", "CONSOLE_RX"]

@@ -231,6 +231,10 @@ def build(sch, lib):
     d2 = sch.place("Device:D_Schottky", "D2", "SS34", at=(177.8, 165.1))
     L(d2, "2", "VBAT_RTC", dx=-2.54, dy=0)      # 2 = anode
     L(d2, "1", "VDD_RTC", dx=2.54, dy=0)        # 1 = cathode
+    # PWR_FLAG: VDD_RTC is only ever fed through the diode-OR (passive pins),
+    # so ERC can't see a power source driving the PCF8563's VDD -- declare it.
+    fl = sch.place("power:PWR_FLAG", "#FLG1", at=(203.2, 147.32))
+    sch.net(fl, "1", "VDD_RTC", kind="label", dx=0, dy=2.54)
     bt1 = sch.place("Device:Battery_Cell", "BT1", "CR2032", at=(152.4, 177.8))
     L(bt1, "1", "VBAT_RTC", dx=0, dy=-2.54)     # '+'
     L(bt1, "2", "GND", dx=0, dy=2.54)           # '-'

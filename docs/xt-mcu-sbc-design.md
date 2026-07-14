@@ -362,8 +362,9 @@ collector and DMA engine **merge** the `EXT_*` lines with their on-board sources
 arbitration; a card and an on-board peripheral must still not be jumpered to the same line
 simultaneously. (IRQ8 was removed from the header on 2026-07-12, before this redesign — the
 RTC's interrupt is now firmware-internal to the Bus MCU's PIC emulation, so there is nothing
-for a header IRQ8 line to carry; `EXT_IRQ8` exists Bus-MCU-side for symmetry but has no
-physical header pin and idles low.)
+for a header IRQ8 line to carry; `EXT_IRQ8` — and the internal IRQ6/IRQ8 nets, which
+likewise had no possible driver — were formally retired on 2026-07-14, their '165 collector
+lanes tied low with the firmware bit map unchanged.)
 
 **Bus-master limitation, unchanged in spirit:** the port's outbound buffers have a
 **fixed, firmware-chosen direction** (`EXP_DDIR` for data; the address/control banks are
@@ -727,8 +728,9 @@ hardware cost is exactly zero:
   emulated PIT/KBC/COM3 today); a virtual floppy just claims I/O ports and
   answers them in firmware.
 - **IRQ6** is raised inside the soft PIC the same way virtual COM3 raises IRQ4 —
-  a firmware event, no physical line. (The collector's IRQ6 input stays free
-  for a sidecar card.)
+  a firmware event, no physical line. (The internal IRQ6 net is retired, its
+  collector lane tied low; a sidecar FDC would deliver physical IRQ6 as
+  EXT_IRQ6 through the expansion port's isolated lines.)
 - **"DMA":** the emulated 8237 lives in the same chip, and sector transfers into
   conventional memory use the existing bus-master machinery (HOLD/HLDA + the
   §5.1 counter chain) — the same path every other emulated DMA transfer takes.

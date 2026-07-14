@@ -55,7 +55,8 @@ _OUT244 = ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}",           # 10 = 2x '244
            "RESET_DRV", "TC",
            "~{DACK1}", "~{DACK2}", "~{DACK3}", "~{REFRESH}"]
 # inward lines actually present on the header (IRQ8 was dropped for the on-board
-# RTC, so only IRQ2..7 exist here; EXT_IRQ8 stays idle-low via bus_mcu's R).
+# RTC, so only IRQ2..7 exist here; EXT_IRQ8 was formally retired 2026-07-14 --
+# its '165 lane on bus_mcu ties low).
 _INBOUND = [p["name"] for p in isa_conn.ISA_PINS
             if p["name"].startswith(_INWARD)]                   # 6 IRQ + 3 DRQ
 

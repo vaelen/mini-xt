@@ -168,6 +168,13 @@ manufacturable board): large counts of `pin_not_connected`, `pin_not_driven`,
 `lib_symbol_issues` from the CLI. Don't try to drive these to zero, and don't
 report them as findings.
 
+**The full-project ERC report (`hardware/erc.rpt`) is ZERO errors / zero
+warnings as of 2026-07-14 and must stay there** — fix new violations rather
+than rationalizing them (PWR_FLAG for passive-fed rails, retire genuinely
+undrivable nets, etc.). The expected-noise list above applies only to
+single-sheet `validate_sheet.py` runs, where hierarchical pins legitimately
+dangle.
+
 The netlist (`hardware/mini-xt.net`) is the ground truth for connectivity —
 after wiring changes, verify the affected net spans the sheets it should
 (grep for the net name and check its node list).

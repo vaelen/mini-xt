@@ -205,3 +205,15 @@ spare 74AHC14 Schmitt gate (U9 gate 1 there -- the board's only spare
 Park-safety unchanged (R18 parks HLDA low -> ~{HLDA} idles high -> '244s
 off during MCU-Hi-Z). The 74LVC04A parts.py line (C282341) is deleted --
 U17 was its only user. C15 (U17's decoupler) deleted with it.
+
+
+---
+**2026-07-14 (ERC-zero pass): IRQ6/IRQ8/EXT_IRQ8 formally RETIRED** --
+resolving the IRQ8 repurpose-or-retire follow-up flagged in the PINS
+comment. None of the three could ever be driven (IRQ6: firmware floppy
+event, sidecar FDC arrives as EXT_IRQ6; IRQ8: firmware RTC, no header pin
+since 2026-07-12; EXT_IRQ8: no header pin either). Their '165 lanes (U12
+D4/D6, U19 D6) tie LOW at the SAME bit positions, so the firmware scan-bit
+map is unchanged; pulls dropped (RN packs reshuffled to 7 full arrays).
+This, plus the supervisor VDD_RTC PWR_FLAG, takes the board to ERC ZERO
+(0 errors, 0 warnings) -- the standing bar is to keep it there.
