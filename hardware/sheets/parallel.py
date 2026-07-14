@@ -18,9 +18,11 @@ Three classic registers in the 0x378 block (Centronics/SPP):
                              + IRQ-enable); read-back via 74LVC244A
 
 Address decode: 74HC138 selects the three registers (A0-A2) inside the
-~{LPT_CS} block match from addr_decode. 74HC32 ORs the
-register selects with ~{IOR}/~{IOW} to make the read enables and the rising-edge
-write clocks for the '574s. IRQ7 is the (gated) ~Ack edge -- normally polled.
+~{LPT_CS} block match from addr_decode. One 74HC32 (U10) ORs the register
+selects with ~{IOR}/~{IOW} for the read enables and rising-edge '574 write
+clocks; the fifth strobe (~{RD_CTRL}) is NAND-built from U12's spare gates
+(U11, a '32 carrying that one gate, deleted 2026-07-14). IRQ7 is the
+(gated) ~Ack edge -- normally polled.
 
 3.3V single-board redesign (spec 2026-07-14, task 7): the whole sheet moves
 to +3V3 (no chip on this sheet stays 5V -- unlike com_port/network/storage,
@@ -31,8 +33,7 @@ their read-backs; U3, the status read-back; U9, the ~Ack/Busy/Strobe/
 AutoFeed/SelectIn inverter) moves to a 5V-tolerant-input grade (LVC or, for
 U9's hex-inverter body, 74AHC14 -- see questions-parallel.md for why U5 and
 U9 needed this even though the task-7 brief's swap table didn't list them).
-Purely-internal decode glue (U6, U7/U8, U10/U11, U12) moves to plain
-HC-grade instead.
+Purely-internal decode glue (U6, U10, U12) is plain HC-grade.
 """
 import mxbus
 from mxbus import pin
@@ -119,10 +120,16 @@ def build(sch, lib, expose=True):
     pwr(U12)
     L(U12, "P1", "ACK_POS", dx=-2.54); L(U12, "P2", "IRQ_EN", dx=-2.54)
     L(U12, "P3", "~{IRQ_LPT}")
-    for ip in ("P4", "P5", "P9", "P10", "P12", "P13"):   # spares (the ~A8 gate
-        L(U12, ip, "GND", dx=-2.54)                      #  left with the strap)
-    for op in ("P6", "P8", "P11"):
-        sch.no_connect(U12.pin_xy(op))
+    # Gates 2-4: ~{RD_CTRL} = ~{SEL_CTRL} | ~{IOR}, built from the three
+    # spare NANDs (2026-07-14 -- this absorbed U11, a 74HC32 that carried
+    # only this one OR gate). OR = NAND of the inverted inputs; the two
+    # extra gate delays (~20-30ns at HC/3.3V) are noise in an ISA read cycle.
+    L(U12, "P4", "~{SEL_CTRL}", dx=-2.54); L(U12, "P5", "~{SEL_CTRL}", dx=-2.54)
+    L(U12, "P6", "SEL_CTRL_POS")
+    L(U12, "P9", "~{IOR}", dx=-2.54); L(U12, "P10", "~{IOR}", dx=-2.54)
+    L(U12, "P8", "IOR_POS")
+    L(U12, "P12", "SEL_CTRL_POS", dx=-2.54); L(U12, "P13", "IOR_POS", dx=-2.54)
+    L(U12, "P11", "~{RD_CTRL}")
 
     # 74HC138 value override (spec 2026-07-14): purely internal address
     # decode (A0-2, AEN, ~{LPT_EN}, ADDR_MATCH), no DB25 exposure.
@@ -148,14 +155,6 @@ def build(sch, lib, expose=True):
     L(U10, "P4", "~{SEL_CTRL}", dx=-2.54); L(U10, "P5", "~{IOW}", dx=-2.54); L(U10, "P6", "WR_CTRL")
     L(U10, "P9", "~{SEL_DATA}", dx=-2.54); L(U10, "P10", "~{IOR}", dx=-2.54); L(U10, "P8", "~{RD_DATA}")
     L(U10, "P12", "~{SEL_STAT}", dx=-2.54); L(U10, "P13", "~{IOR}", dx=-2.54); L(U10, "P11", "~{RD_STAT}")
-
-    U11 = sch.place("mini-xt:74HCT32", "U11", "74HC32", at=(266.7, 177.8))
-    pwr(U11)
-    L(U11, "P1", "~{SEL_CTRL}", dx=-2.54); L(U11, "P2", "~{IOR}", dx=-2.54); L(U11, "P3", "~{RD_CTRL}")
-    for a, b in (("P4", "P5"), ("P9", "P10"), ("P12", "P13")):       # spare gates
-        L(U11, a, "GND", dx=-2.54); L(U11, b, "GND", dx=-2.54)
-    for o in ("P6", "P8", "P11"):
-        sch.no_connect(U11.pin_xy(o))
 
     # ============================================================
     # Data register  (0x378) -- 74HCT574 latch, always-enabled outputs
@@ -284,7 +283,7 @@ def build(sch, lib, expose=True):
     # ============================================================
     # decoupling
     # ============================================================
-    for i, x in enumerate([30.48, 60.96, 91.44, 121.92, 152.4, 182.88, 213.36, 243.84, 274.32, 304.8]):
+    for i, x in enumerate([30.48, 60.96, 91.44, 121.92, 152.4, 182.88, 213.36, 243.84, 274.32]):
         decouple("C%d" % (i + 1), (x, 264.16))
 
     cb = sch.place("Device:C", "C14", "10uF", at=(30.48, 238.76))

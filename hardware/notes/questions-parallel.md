@@ -150,3 +150,12 @@ bus_mcu's U17 (74LVC04A, 1 of 6 gates used) and its BOM line. Reverse-
 direction dependency, deliberately accepted: it is the board's only spare
 5V-tolerant inverter (HLDA is a raw 5V V20 output). A standalone LPT card
 would ground the input again and the motherboard would re-add an inverter.
+
+---
+**2026-07-14 (fourth pass): U11 (74HC32) absorbed into U12's spare NANDs.**
+U11 survived the decode centralization carrying one gate (~{RD_CTRL} =
+~{SEL_CTRL} | ~{IOR}). Rebuilt as OR-from-NAND on U12's three spares (two
+input inverters + one NAND); the two added gate delays (~20-30ns, HC @3.3V)
+are negligible against the ~840ns ISA read cycle -- the '244 read-back
+enables a hair later and holds a hair longer, both well inside turnaround.
+U12 is now 4/4 used; sheet is 9 ICs.
