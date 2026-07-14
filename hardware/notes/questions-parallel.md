@@ -141,3 +141,12 @@ trade, see questions-addr_decode.md.
 and JP2/R6 moved to `addr_decode` (disable = JP5 there, fit to disable,
 enabled by default); U12's NAND now exports ~{IRQ_LPT} (mxbus.PRIV_IRQREQ)
 and the central '125 drives IRQ7. U6 '138 ~E1 ties to GND.
+
+---
+**2026-07-14 (third pass): U9 gate 1 hosts the motherboard HLDA inverter.**
+The spare Schmitt gate (freed when ~A7 decode moved central) now inverts
+HLDA -> ~{HLDA} (mxbus.PRIV_CPU) for bus_mcu's counter '244s, deleting
+bus_mcu's U17 (74LVC04A, 1 of 6 gates used) and its BOM line. Reverse-
+direction dependency, deliberately accepted: it is the board's only spare
+5V-tolerant inverter (HLDA is a raw 5V V20 output). A standalone LPT card
+would ground the input again and the motherboard would re-add an inverter.

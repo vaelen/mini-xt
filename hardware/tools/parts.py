@@ -147,9 +147,6 @@ PART_MAP = {
     # 5V-tolerant-input inverter on the '04 body (Task-10 fix): bus_mcu U17
     # inverts the V20's 5V HLDA while itself powered at +3V3 -- plain HC04 is
     # NOT 5V-tolerant; LVC04A is. Same standard '04 pinout, SO-14 like the HC/HCT.
-    ("mini-xt:74HCT04", "74LVC04A"):  E("C282341", "74LVC04AD,118", "SO-14", SOIC14,
-                                        "5V-tolerant-input hex inverter (Nexperia); "
-                                        "U17 inverts the V20's 5V HLDA at +3V3 VCC"),
     ("mini-xt:74HCT32", "74HC32"):    E("C52140395", "74HC32D", "SOP-14L", SOIC14,
                                         "verify SOIC-14 footprint match at layout"),
     ("mini-xt:74HCT138", "74HC138"):  E("C5602", "74HC138D,653", "SOIC-16", SOIC16),

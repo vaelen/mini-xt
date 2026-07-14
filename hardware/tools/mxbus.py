@@ -55,6 +55,11 @@ ISA_CTRL = [
 # V20 <-> Bus MCU min-mode bus-master handshake and raw CPU strobes
 PRIV_CPU = [
     "HOLD", "HLDA",            # bus grant handshake
+    "~{HLDA}",                 # HLDA inverted -> gates bus_mcu's counter
+                               # '244s. Derived on the parallel sheet's spare
+                               # 74AHC14 Schmitt gate (the board's only spare
+                               # 5V-tolerant inverter, 2026-07-14 -- replaced
+                               # a 74LVC04A that existed for this one gate)
     "READY",                   # folded wait input to V20
     "~{RD}",                   # raw V20 read strobe (Bus MCU sense; ~{WR} and
                                # IO/~{M} stay cpu_core-internal, gated to

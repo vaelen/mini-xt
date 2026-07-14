@@ -45,7 +45,8 @@ XT/ISA backplane as **slave and master**.  It carries:
 
 Data/address/strobe are wired GPIO<->bus directly (no transceivers, no DIR
 nets); master/slave role is a firmware tri-state.  HLDA still gates the
-counter's '244 output stage (U17 inverts it to ~{HLDA}).  The EXT scan chain
+counter's '244 output stage (inverted to ~{HLDA} on the parallel sheet's
+spare Schmitt gate -- the old U17 hex inverter is deleted).  The EXT scan chain
 (U19/U20 '165, PRIV_EXP EXT_*) extends the IRQ collector to sample the
 expansion port's isolated IRQ/DRQ lines.
 See hardware/notes/questions-bus_mcu.md for design picks.
@@ -66,7 +67,7 @@ _DIR = {
     "DRQ1": "input", "DRQ2": "input", "DRQ3": "input",
     "~{DACK1}": "output", "~{DACK2}": "output", "~{DACK3}": "output",
     # private V20 <-> Bus MCU
-    "HOLD": "output", "HLDA": "input", "READY": "output",
+    "HOLD": "output", "HLDA": "input", "~{HLDA}": "input", "READY": "output",
     "~{RD}": "input",
     "INTR": "output", "~{INTA}": "input", "NMI": "output", "~{CPURESET}": "output",
     "LINK_B2S": "output", "LINK_S2B": "input",
@@ -124,7 +125,7 @@ GPIO_NET.update({
     # V20's 5V-class HOLD input at a clean full swing (Task-10 fix), so a bus-master
     # request = GPIO25 LOW.  The mxbus "HOLD" contract NAME is unchanged; only its
     # active sense flips.  See questions-bus_mcu.md + questions-cpu_core.md Q10.
-    25: "HOLD", 26: "HLDA",                         # HLDA also feeds U17 -> ~{HLDA} ('244 ~OE)
+    25: "HOLD", 26: "HLDA",                         # HLDA also inverted (parallel U9) -> ~{HLDA} ('244 ~OE)
     27: "INTR", 28: "~{INTA}", 29: "NMI",
     30: "IRQ_LOAD", 31: "IRQ_CLK", 32: "IRQ_SER",   # '165 scan chain
     33: "DRQ1", 34: "~{DACK1}", 35: "TC",           # on-board DMA channel; TC drive direct (was M_TC via U13)
@@ -272,23 +273,15 @@ def build(sch, lib):
     decouple("C11", (398.78, 182.88), "3V3_BUS")   # U18 (3.3 V domain)
 
     # Counter -> bus output-enable stage: 74HC244 x3 @ 3V3, enabled ONLY during
-    # master cycles (~OE = ~HLDA, inverted from HLDA by U17).  Complements the
-    # cpu_core '573s (OE = HLDA) for a contention-free address handoff.  These
-    # STAY in the 3.3V design: the '163 counter has no output enable, so without
-    # them the counter would fight the '573 latches on A0-A19 during CPU cycles.
-    # U17 value = 74LVC04A (NOT plain 74HC04): its INPUT is the V20's HLDA, a 5V
-    # push-pull output (cpu_core U1 runs at +5V), while U17 itself is +3V3-powered.
-    # Plain 74HC04 is NOT 5V-tolerant (Task-10 fix); the LVC04A is (5V-tolerant in,
-    # standard '04 pinout on the same HCT04 body).
-    inv = sch.place("mini-xt:74HCT04", "U17", "74LVC04A", at=(236.22, 233.68))
-    N(inv, "VCC", "+3V3", length=2.54)
-    N(inv, "GND", "GND", length=2.54)
-    N(inv, "P1", "HLDA")
-    N(inv, "P2", "~{HLDA}")
-    for p in ("P3", "P5", "P9", "P11", "P13"):   # spare inputs: tie low
-        N(inv, p, "GND")
-    for p in ("P4", "P6", "P8", "P10", "P12"):   # spare outputs: open
-        sch.no_connect(inv.pin_xy(p))
+    # master cycles (~OE = ~HLDA).  Complements the cpu_core '573s (OE = HLDA)
+    # for a contention-free address handoff.  These STAY in the 3.3V design:
+    # the '163 counter has no output enable, so without them the counter would
+    # fight the '573 latches on A0-A19 during CPU cycles.
+    # ~{HLDA} arrives on the interface (2026-07-14): the inversion moved to
+    # the parallel sheet's spare 74AHC14 Schmitt gate -- the board's only
+    # spare 5V-tolerant inverter (HLDA is a raw 5V V20 output) -- deleting
+    # U17, a 74LVC04A that existed for that single gate. Park-safety is
+    # unchanged: R18 parks HLDA low, so ~{HLDA} idles high = '244s off.
     buf_cfg = [("U14", 281.94, [0, 1, 2, 3], [4, 5, 6, 7]),
                ("U15", 327.66, [8, 9, 10, 11], [12, 13, 14, 15]),
                ("U16", 373.38, [16, 17, 18, 19], None)]
@@ -383,7 +376,7 @@ def build(sch, lib):
     # MCU-Hi-Z parking (BOOTSEL flashing / reset-to-init window): AEN and TC are
     # now driven straight from GPIO21/GPIO35, so they float while the MCU is
     # Hi-Z -- park AEN low (cards qualify I/O decode on AEN=0) and TC low.  HLDA
-    # (sensed on GPIO26, also feeding U17 -> '244 ~OE) parks low so the counter
+    # (sensed on GPIO26, also inverted on parallel U9 -> '244 ~OE) parks low so the counter
     # stays off the bus until firmware runs.  (DATADIR's park R16 is gone with U2.)
     pull("R1", "AEN", "GND", (299.72, 25.4))
     pull("R17", "TC", "GND", (314.96, 25.4))
@@ -430,6 +423,5 @@ def build(sch, lib):
     decouple("C12", (281.94, 213.36), "+3V3")      # U14 '244
     decouple("C13", (327.66, 213.36), "+3V3")      # U15 '244
     decouple("C14", (373.38, 213.36), "+3V3")      # U16 '244
-    decouple("C15", (251.46, 213.36), "+3V3")      # U17 '04
     decouple("C16", (35.56, 220.98), "3V3_BUS")    # counter bank
     decouple("C17", (20.32, 220.98), "3V3_BUS")    # 3V3_BUS bulk

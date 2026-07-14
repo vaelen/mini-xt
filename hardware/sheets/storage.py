@@ -36,8 +36,8 @@ Design doc S10. A discrete, period-correct mass-storage soft card:
     -> addr_decode's shared 74LVC125A -> IRQ14, hardwired (AT primary-IDE
     convention; the soft PIC is AT-style anyway). Poll vs interrupt is an
     XTIDE UB config choice -- the '125 only drives while INTRQ is asserted.
-  * All jumpers live on addr_decode: JP2 there = 0x300/0x320 base strap,
-    JP6 there = disable (enabled by default, fit the jumper to disable).
+  * Base address hardwired 0x300 (the 0x320 strap is gone); the disable
+    jumper is addr_decode JP4 (enabled by default, fit the jumper to disable).
 
 3.3V single-board redesign (spec 2026-07-14, task 7): all logic on this
 sheet moves to +3V3 (decode glue -> HC-grade, the data-path/IRQ buffers
@@ -253,8 +253,8 @@ def build(sch, lib, expose=True):
     sch.net(r2, "1", "IDE_IRQ", kind="label", dx=0, dy=-2.54)
     sch.net(r2, "2", "GND", kind="label", dx=0, dy=2.54)
     pullup("R4", "~{IRQ_IDE}", (91.44, 243.84))  # request parks high (Z) when INTRQ low
-    # (All jumpers moved to addr_decode: base strap = JP2 there, disable =
-    # JP6 there -- fitting it forces ~{IDE_CS} inactive, so /CS0, /ODD_SEL and
+    # (Base hardwired 0x300; the disable is addr_decode JP4 --
+    # fitting it forces ~{IDE_CS} inactive, so /CS0, /ODD_SEL and
     # everything downstream (DEC2/DEC3, both '573 latch clocks, the '245
     # enable) are inert and IRQ14 stays quiet: the drive is never selected
     # and R2 holds INTRQ low.)
@@ -265,6 +265,6 @@ def build(sch, lib, expose=True):
     sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)
 
     # =============== strapping notes ==
-    sch.text("Base strap + disable jumper: addr_decode JP2/JP6 (fit JP6 to disable); IRQ14 hardwired (poll vs IRQ = XTIDE UB config).", at=(266.7, 17.78))
+    sch.text("Base hardwired 0x300; disable: addr_decode JP4 (fit to disable); IRQ14 hardwired (poll vs IRQ = XTIDE UB config).", at=(266.7, 17.78))
     sch.text("Populate ONE of J1 (IDE) / J2 (CF): both CSELs are grounded, so both "
              "devices ID as master on the shared cable.", at=(266.7, 12.7))

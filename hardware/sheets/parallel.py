@@ -6,8 +6,9 @@ the IRQ leaves as an active-low request ~{IRQ_LPT} (mxbus.PRIV_CS /
 PRIV_IRQREQ -- shared logic factored out, not an isolation break; a
 standalone-card wrapper would re-add decode + IRQ driver alongside the bus
 headers). addr_decode's shared '125 drives IRQ7 from the request; the
-0x378/0x278 base strap and the disable jumper live there too (JP1/JP5 --
-NOTE: enabled by default now, fit the jumper to disable).
+base address is hardwired 0x378 and the disable jumper is addr_decode JP3
+(enabled by default, fit the jumper to disable). U9's spare gate also hosts
+the motherboard's HLDA inversion (see the U9 comment).
 
 Three classic registers in the 0x378 block (Centronics/SPP):
   * 0x378  Data    (R/W)  -- 74LVC574A output latch -> DB25 pins 2-9
@@ -47,8 +48,11 @@ PINS = (
      pin("~{LPT_CS}", "input")] +  # central block decode (addr_decode sheet);
                                    # no RESET_DRV: the '574s have no reset pin --
                                    # BIOS initializes 0x378/0x37A at POST
-    [pin("~{IRQ_LPT}", "output")]  # active-low IRQ request -> addr_decode's
+    [pin("~{IRQ_LPT}", "output"),  # active-low IRQ request -> addr_decode's
                                    # '125 drives IRQ7 (LPT1 convention)
+     # NOT LPT signals: U9 gate 1 hosts the motherboard's HLDA inversion
+     # (the board's only spare 5V-tolerant inverter -- see U9 comment)
+     pin("HLDA", "input"), pin("~{HLDA}", "output")]
 )
 
 
@@ -86,8 +90,15 @@ def build(sch, lib, expose=True):
     # here rather than adding a new (lib_id, value) entry for a bare LVC04A.
     U9 = sch.place("mini-xt:74HCT04", "U9", "74AHC14", at=(76.2, 177.8))   # inverters
     pwr(U9)
-    L(U9, "P1", "GND", dx=-2.54)                                  # spare (was ~A7,
-    sch.no_connect(U9.pin_xy("P2"))                               #  decode now central)
+    # Gate 1 is a LODGER, not LPT logic: it hosts the motherboard's bus-grant
+    # inversion, HLDA -> ~{HLDA} (mxbus.PRIV_CPU), which gates the address
+    # counter's '244s on bus_mcu. It lives here because this AHC14 is the
+    # board's only spare 5V-tolerant inverter (HLDA is a raw 5V V20 output)
+    # -- using it deleted bus_mcu's U17, a 74LVC04A carrying 1 of 6 gates.
+    # The Schmitt input is a bonus; a lifted standalone LPT card would just
+    # ground this input again (the motherboard would need its inverter back).
+    L(U9, "P1", "HLDA", dx=-2.54)              # V20 bus grant (5V) in
+    L(U9, "P2", "~{HLDA}")                     # -> bus_mcu counter-'244 ~OE
     L(U9, "P3", "P_ACK", dx=-2.54); L(U9, "P4", "ACK_POS")        # ~Ack -> +pulse
     L(U9, "P5", "CTRL0", dx=-2.54); L(U9, "P6", "P_STROBE")       # Strobe (inv)
     L(U9, "P9", "CTRL1", dx=-2.54); L(U9, "P8", "P_AUTOFD")       # AutoFeed (inv)
@@ -267,7 +278,7 @@ def build(sch, lib, expose=True):
 
     # Configuration note (all jumpers live on addr_decode now: JP1 = base
     # 0x378/0x278, JP5 = disable -- fitted jumper disables, default enabled)
-    sch.text("Base strap + disable jumper: addr_decode JP1/JP5; IRQ7 hardwired via its '125",
+    sch.text("Base hardwired 0x378; disable: addr_decode JP3; IRQ7 hardwired via its '125; U9.1 hosts the HLDA inverter",
              at=(299.72, 187.96), size=2.5)
 
     # ============================================================

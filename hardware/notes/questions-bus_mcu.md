@@ -196,3 +196,12 @@ The mxbus "HOLD" contract NAME is intact bus-side (both sheets still call the
 interface net HOLD; mxbus.PRIV_CPU unchanged) -- only the active SENSE flips.
 Prominent comments are at the GPIO25 map entry here and at cpu_core U13. Netlist:
 /HOLD = {M201.26 (GPIO25), U113.13 (U13 gate input)}.
+
+---
+**2026-07-14 (addendum to F1): U17 deleted entirely.** The 74LVC04A carried
+1 of 6 gates; the HLDA -> ~{HLDA} inversion moved to the parallel sheet's
+spare 74AHC14 Schmitt gate (U9 gate 1 there -- the board's only spare
+5V-tolerant inverter), and ~{HLDA} now crosses as a PRIV_CPU interface net.
+Park-safety unchanged (R18 parks HLDA low -> ~{HLDA} idles high -> '244s
+off during MCU-Hi-Z). The 74LVC04A parts.py line (C282341) is deleted --
+U17 was its only user. C15 (U17's decoupler) deleted with it.
