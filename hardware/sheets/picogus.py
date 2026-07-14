@@ -278,7 +278,12 @@ def build(sch, lib):
     L(U7, "P9", "RST_INV", dx=-2.54);      L(U7, "P8", "RST_DLY")
     L(U7, "P13", "ADS", dx=-2.54);         L(U7, "P12", "ADS_INV")
 
-    U8 = sch.place("mini-xt:74HCT00", "U8", "74LVC00", at=(355.6, 127.0))
+    # 74HC00 value override (2026-07-14, was 74LVC00): the LVC grade was
+    # inherited from the 5V-ISA reference design; this island has been all
+    # 3.3V since the redesign, so every input here is 3.3V-driven and plain
+    # HC is in spec -- basic-part, deep stock, and it deletes the board's
+    # thinnest BOM line (74LVC00, ~125 units). Same swap on U9.
+    U8 = sch.place("mini-xt:74HCT00", "U8", "74HC00", at=(355.6, 127.0))
     L(U8, "VCC", "3V3_PGUS", dx=0, dy=-2.54); L(U8, "GND", "GND", dx=0, dy=2.54)
     L(U8, "P9", "AEN", dx=-2.54); L(U8, "P10", "DACK", dx=-2.54); L(U8, "P8", "IOMASK")
     L(U8, "P1", "IOR_POS", dx=-2.54); L(U8, "P2", "IOMASK", dx=-2.54); L(U8, "P3", "~{RIOR}")
@@ -288,7 +293,7 @@ def build(sch, lib):
     L(U8, "P12", "GND", dx=-2.54); L(U8, "P13", "GND", dx=-2.54)
     sch.no_connect(U8.pin_xy("P11"))
 
-    U9 = sch.place("mini-xt:74HCT00", "U9", "74LVC00", at=(355.6, 190.5))
+    U9 = sch.place("mini-xt:74HCT00", "U9", "74HC00", at=(355.6, 190.5))
     L(U9, "VCC", "3V3_PGUS", dx=0, dy=-2.54); L(U9, "GND", "GND", dx=0, dy=2.54)
     L(U9, "P1", "ADS_INV", dx=-2.54); L(U9, "P2", "~{BUSOE}", dx=-2.54); L(U9, "P3", "LATCH_A")
     L(U9, "P4", "LATCH_A", dx=-2.54); L(U9, "P5", "RUN", dx=-2.54); L(U9, "P6", "~{BUSOE}")

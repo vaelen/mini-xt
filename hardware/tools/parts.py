@@ -127,7 +127,6 @@ PART_MAP = {
     ("mini-xt:CB3T3257", "CB3T3257"):  E("C544573", "SN74CB3T3257PWR", "TSSOP-16", TSSOP16, "addr/data mux (FET switch)"),
     ("mini-xt:CB3T3245", "CB3T3245"):  E("C15298", "SN74CB3T3245PWR", "TSSOP-20", TSSOP20, "misc level shift (FET switch)"),
     ("mini-xt:74HCT04", "74AHC14"):        E("C54561786", "74AHC14PW-TP", "TSSOP-14", TSSOP14, "3.3V hex Schmitt inverter, 5V-tolerant in"),
-    ("mini-xt:74HCT00", "74LVC00"):        E("C526338", "74LVC00AS14-13", "SO-14", SOIC14, "3.3V NAND, 5V-tolerant in; THIN stock (~125)"),
     ("mini-xt:74LVC2G06", "74LVC2G06"):    E("C52145914", "74LVC2G06DW-TP", "SOT-23-6", SOT236, "open-drain: IOCHRDY + MIDI"),
     ("mini-xt:PCM5102A", "PCM5102A"):      E("C107671", "PCM5102APWR", "TSSOP-20", TSSOP20, "I2S DAC (PCM5100A-compatible)"),
     ("mini-xt:APS6404L", "APS6404L"):      E("C5333729", "APS6404L-3SQR-SN", "SOP-8", SOIC8, "GUS sample RAM; MUST be -3 (3.0-3.6V) -- the SQN is a 1.8V part"),

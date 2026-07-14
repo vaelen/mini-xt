@@ -84,8 +84,11 @@ silently break the board if JLC substitutes the "obvious" alternative?
   - **M62429 was removed with the wavetable path (Q2)** -- if it's ever
     reinstated, note it MUST be the `M62429L` grade (3-5.5V); plain M62429 is
     a 4-6V part and won't run reliably off this board's 3.3V-derived AVDD_PGUS.
-  - **74LVC00 (the '00-body glue, U8/U9) has thin JLC stock** (~125 units at
-    last check) -- watch for stock-outs before ordering a build run.
+  - **(resolved 2026-07-14, later)** U8/U9 were 74LVC00 -- thin JLC stock,
+    ~125 units -- but the LVC grade was a fossil of the 5V-ISA reference
+    design; with the island all-3.3V they are plain **74HC00** now (basic
+    part, shared BOM line with parallel/addr_decode), and the 74LVC00
+    parts.py line is deleted.
   - **74AHC14 (the '04-body glue, U7)** is a 5V-tolerant-input 3.3V part;
     confirm continued stock before a run since it's a value-override on a
     generic 74HCT04 symbol body (see parts.py comment).
