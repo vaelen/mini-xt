@@ -53,6 +53,7 @@ python3 -c 'import sys;sys.path.insert(0,"hardware/tools");import build;build.bu
 python3 hardware/tools/validate_sheet.py <name>  # build + ERC ONE sheet in isolation (fast loop)
 python3 hardware/tools/pins.py <Lib:Name>      # list a symbol's pins (e.g. mini-xt:V20, 74xx:74HCT573)
 python3 hardware/tools/pins.py -s <substr>     # search symbol names
+python3 hardware/tools/bom_cost.py             # per-sheet component-cost breakdown (prices cached in tools/lcsc_prices.json)
 ```
 
 `build.py` exits nonzero if any **structural** ERC category
