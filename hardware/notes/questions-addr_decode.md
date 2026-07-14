@@ -4,10 +4,11 @@ Central bus-interface sheet for the discrete peripherals (2026-07-14, two
 steps the same day): decodes I/O for com_port / parallel / storage and
 exports ~{COM1_CS} / ~{COM2_CS} / ~{LPT_CS} / ~{IDE_CS} (`mxbus.PRIV_CS`);
 maps their IRQ requests (`mxbus.PRIV_IRQREQ`) onto the real ISA lines
-through one shared 74LVC125A; and carries ALL SIX per-peripheral disable
-jumpers (JP1-JP6: COM1, COM2, LPT, IDE, NIC, VID -- the NIC/VID levels
-travel as `mxbus.PRIV_DIS`). Base addresses are hardwired (third pass,
-same day: the JP1/JP2 base straps were deleted, see #5).
+through one shared 74LVC125A; and carries ALL FIVE per-peripheral disable
+jumpers (JP1-JP5: COM1, COM2, LPT, IDE, VID -- the VID level travels as
+`mxbus.PRIV_DIS`). Base addresses are hardwired (third pass, same day: the
+JP1/JP2 base straps were deleted, see #5). Sections below that mention six
+jumpers / the NIC predate the NIC's removal (see #8).
 
 ## 1. Which peripherals to centralize
 - Q: The request was "all of the peripherals" -- which sheets actually have
@@ -104,3 +105,11 @@ same day: the JP1/JP2 base straps were deleted, see #5).
 - Note: decode path is now '138 + two OR gates (3 levels) vs the old 3-4
   gate-level AND trees -- comparable or faster, and it still reads the
   latched address, so it is identical under V20 or Bus-MCU bus ownership.
+
+## 8. NIC removal (2026-07-14, after the passes above)
+- The RTL8019AS network sheet was removed from the board (user decision;
+  git tag `full-board-with-nic` preserves the last with-NIC design). On
+  this sheet: JP5/DIS_NIC deleted, JP6 (DIS_VID) renumbered to JP5, RN2
+  down to one pulled element (three spares). `mxbus.PRIV_DIS` is now just
+  DIS_VID. IRQ2 was retired as an internal net in bus_mcu (its '165 lane
+  ties low, like IRQ6/IRQ8); expansion cards still reach it as EXT_IRQ2.

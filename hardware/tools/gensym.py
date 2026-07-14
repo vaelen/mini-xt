@@ -447,97 +447,12 @@ aps6404l = make_ic(
     description="APS6404L 64Mbit QSPI PSRAM, SOP-8",
     datasheet="https://www.espressif.com/sites/default/files/documentation/esp-psram32_datasheet_en.pdf")
 
-# ---- RTL8019AS: NE2000-compatible ISA Ethernet controller (TQFP-100) ----
-# Pin numbers/names verified vs datasheet + LCSC C10016 2026-07-12.
-rtl8019as = make_ic(
-    "RTL8019AS",
-    left=[  # ISA side
-        ("5","SA0","input"),("7","SA1","input"),("8","SA2","input"),
-        ("9","SA3","input"),("10","SA4","input"),("11","SA5","input"),
-        ("12","SA6","input"),("13","SA7","input"),("15","SA8","input"),
-        ("16","SA9","input"),("18","SA10","input"),("19","SA11","input"),
-        ("20","SA12","input"),("21","SA13","input"),("22","SA14","input"),
-        ("23","SA15","input"),("24","SA16","input"),("25","SA17","input"),
-        ("26","SA18","input"),("27","SA19","input"),
-        ("36","SD0","bidirectional"),("37","SD1","bidirectional"),
-        ("38","SD2","bidirectional"),("39","SD3","bidirectional"),
-        ("40","SD4","bidirectional"),("41","SD5","bidirectional"),
-        ("42","SD6","bidirectional"),("43","SD7","bidirectional"),
-        ("95","SD8","bidirectional"),("94","SD9","bidirectional"),
-        ("93","SD10","bidirectional"),("92","SD11","bidirectional"),
-        ("91","SD12","bidirectional"),("90","SD13","bidirectional"),
-        ("88","SD14","bidirectional"),("87","SD15","bidirectional"),
-        ("29","IORB","input"),("30","IOWB","input"),
-        ("31","SMEMRB","input"),("32","SMEMWB","input"),
-        ("33","RSTDRV","input"),("34","AEN","input"),
-        ("35","IOCHRDY","open_collector"),("96","IOCS16B","bidirectional"),
-        ("4","INT0","tri_state"),("3","INT1","output"),("2","INT2","output"),
-        ("1","INT3","output"),("100","INT4","output"),("99","INT5","output"),
-        ("98","INT6","output"),("97","INT7","output"),
-    ],
-    right=[  # config straps / BROM bus / EEPROM / medium / LEDs
-        ("65","JP","input"),("66","PNP","input"),
-        ("67","BS0","input"),("68","BS1","input"),("69","BS2","input"),
-        ("71","BS3","input"),("72","BS4","input"),
-        ("73","BA15","output"),("74","PL0","input"),("75","~{BCS}","output"),
-        ("76","EECS","output"),("77","EEDO","bidirectional"),
-        ("78","EEDI","bidirectional"),("79","EESK","bidirectional"),
-        ("80","BD4","bidirectional"),("81","BD3","bidirectional"),
-        ("82","BD2","bidirectional"),("84","BD1","bidirectional"),
-        ("85","BD0","bidirectional"),
-        ("50","X1","input"),("51","X2","output"),
-        ("45","TPOUT+","output"),("46","TPOUT-","output"),
-        ("59","TPIN+","input"),("58","TPIN-","input"),
-        ("49","TX+","output"),("48","TX-","output"),
-        ("56","RX+","input"),("55","RX-","input"),
-        ("54","CD+","input"),("53","CD-","input"),("64","AUI","input"),
-        ("60","LEDBNC","output"),("61","LED0","output"),
-        ("62","LED1","output"),("63","LED2","output"),
-    ],
-    top=[("6","VDD","power_in"),("17","VDD","power_in"),("47","VDD","power_in"),
-         ("57","VDD","power_in"),("70","VDD","power_in"),("89","VDD","power_in")],
-    bottom=[("14","GND","power_in"),("28","GND","power_in"),("44","GND","power_in"),
-            ("52","GND","power_in"),("83","GND","power_in"),("86","GND","power_in")],
-    description="RTL8019AS NE2000-compatible ISA Ethernet, TQFP-100. Pins verified vs datasheet + LCSC C10016 2026-07-12.",
-    datasheet="http://realtek.info/pdf/rtl8019as.pdf")
-
-# ---- AT93C46: 93C46 microwire EEPROM for NIC MAC storage (SOIC-8) ----
-at93c46 = make_ic(
-    "AT93C46",
-    left=[("1","CS","input"),("2","SK","input"),("3","DI","input")],
-    right=[("4","DO","output"),("6","ORG","input"),("7","NC","no_connect")],
-    top=[("8","VCC","power_in")], bottom=[("5","GND","power_in")],
-    description="93C46 microwire EEPROM (NIC MAC storage), SOIC-8. Pins verified vs LCSC C6499.",
-    datasheet="https://www.lcsc.com/datasheet/lcsc_datasheet_2102011832_Microchip-Tech-AT93C46DN-SH-T_C6499.pdf")
-
-# ---- 13F-39MNL: 10BaseT pulse transformer 1:1 w/ filters ----
-lan_xfmr = make_ic(
-    "13F-39MNL",
-    left=[("1","TD+","passive"),("2","TDCT","passive"),("3","TD-","passive"),
-          ("6","RD+","passive"),("7","RDCT","passive"),("8","RD-","passive")],
-    right=[("16","TX+","passive"),("15","TXCT","passive"),("14","TX-","passive"),
-           ("11","RX+","passive"),("10","RXCT","passive"),("9","RX-","passive")],
-    ref="T",
-    description="10BaseT pulse transformer 1:1 w/ filters (pins 4,5,12,13 n/c in package). Pins verified vs LCSC C115949.",
-    datasheet="https://www.lcsc.com/datasheet/lcsc_datasheet_1810311821_Shanghai-YDS-Tech-13F-39MNL_C115949.pdf")
-
-# ---- RJ45_LED: shielded RJ45 jack w/ 2 integral LEDs ----
-rj45_led = make_ic(
-    "RJ45_LED",
-    left=[("1","P1","passive"),("2","P2","passive"),("3","P3","passive"),
-          ("4","P4","passive"),("5","P5","passive"),("6","P6","passive"),
-          ("7","P7","passive"),("8","P8","passive")],
-    right=[("9","LA+","passive"),("10","LA-","passive"),
-           ("11","LB+","passive"),("12","LB-","passive"),
-           ("13","SH1","passive"),("14","SH2","passive")],
-    ref="J",
-    description="RJ45 jack, shielded, 2 LEDs (Ckmtw R-RJ45R08P-C000). Pins verified vs LCSC C386757: 9/10 + 11/12 are the LED anode/cathode pairs, 13/14 shield.",
-    datasheet="https://www.lcsc.com/product-detail/C386757.html")
+# (RTL8019AS / AT93C46 / 13F-39MNL / RJ45_LED symbols removed with the
+# network sheet 2026-07-14 -- tag full-board-with-nic has them.)
 
 lib = ["kicad_symbol_lib", ["version", 20241209], ["generator", "mxsch"],
        ["generator_version", "9.0"], v20, max3241, core2350b, pico,
        cb3t3257, cb3t3245, lvc2g06, pcm5102a, m62429, aps6404l,
-       rtl8019as, at93c46, lan_xfmr, rj45_led,
        is62wv51216, tl16c550pt, pcf8563] + glue_syms
 
 out = os.path.join(HW, "mini-xt.kicad_sym")

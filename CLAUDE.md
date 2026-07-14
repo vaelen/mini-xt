@@ -94,9 +94,9 @@ Boards are fabbed and assembled at JLCPCB. Rules that shape every sheet:
   everywhere; the remaining 5 V presences are: the **V20**; `cpu_core` **U10**
   (74HCT32 strobe combiner, reads the raw 5 V V20 strobes); `cpu_core` **U13**
   (74HCT04 — V20 CLK buffer, and now also the READY/HOLD 5 V re-buffers);
-  the **RTL8019AS + AT93C46** NIC island (isolated behind a gated 74LVC245 +
-  74HC138); the fused **+5V_ISA** expansion-port feed; and the **audio MCP6002**
+  the fused **+5V_ISA** expansion-port feed; and the **audio MCP6002**
   op-amp (analog +5 V). The MAX3241 RS-232 transceivers are now genuinely 3.3 V.
+  (The RTL8019AS NIC island was removed 2026-07-14 — tag `full-board-with-nic`.)
   When JLC
   stock forces an HC-grade part into a 3.3 V-driven position, buffer the
   input through a spare HCT gate, or use LVC-grade if fmax margin is tight
@@ -133,15 +133,15 @@ how-to. `hardware/sheets/cpu_core.py` is the worked reference example. Key rules
   redesign — the whole internal bus is one 3.3V net now, so this is firmware/
   architectural discipline, not an electrically-enforced boundary): soft-card
   sheets (video, com_port, parallel, storage, sidecar, audio, picogus,
-  network, card_*) should still use *only* ISA signals + power, so they stay
+  card_*) should still use *only* ISA signals + power, so they stay
   liftable to a standalone ISA card. Private nets (`PRIV_*` in mxbus: HOLD/HLDA,
   UART link, counter strobes, SPEED_SEL, Y5) remain motherboard-only by
   convention — avoid leaking one into a soft card, but this is a guideline to
   log a question against, not a build-breaking violation. **Standing pattern
   (2026-07-14):** com_port/parallel/storage take `mxbus.PRIV_CS` chip selects
   from, and send `mxbus.PRIV_IRQREQ` IRQ requests to, the central
-  `addr_decode` sheet (which also owns all six per-peripheral disable jumpers
-  JP1-JP6, incl. the NIC/video `mxbus.PRIV_DIS` levels; base addresses are
+  `addr_decode` sheet (which also owns all five per-peripheral disable jumpers
+  JP1-JP5, incl. the video `mxbus.PRIV_DIS` level; base addresses are
   hardwired). Shared logic factored out, NOT an isolation break — the
   nets are functionally equivalent to the gates they replaced, and a
   standalone-card wrapper simply re-adds decode + IRQ driver the same way it
@@ -152,10 +152,11 @@ how-to. `hardware/sheets/cpu_core.py` is the worked reference example. Key rules
   best-guess decision, log it in `hardware/notes/questions-<sheet>.md`
   (question / why / options / pick), and proceed.
 - Custom symbols live in `hardware/mini-xt.kicad_sym` (`mini-xt:` prefix): V20,
-  MAX3241, IS62WV51216, TL16C550PT, PCF8563, Core2350B, Pico, RTL8019AS, and
+  MAX3241, IS62WV51216, TL16C550PT, PCF8563, Core2350B, Pico, and
   flat single-body 74xx glue (KiCad's stock multi-unit 74xx symbols don't work
   with the generator). New flat symbols are generated via `tools/gensym.py`.
-  (DS12C887 was removed from `gensym.py` 2026-07-14 — the RTC is emulated now.)
+  (DS12C887 was removed from `gensym.py` 2026-07-14 — the RTC is emulated now;
+  the RTL8019AS/AT93C46/RJ45/magnetics symbols went with the NIC the same day.)
 
 ## Validation expectations
 

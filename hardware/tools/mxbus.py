@@ -89,12 +89,12 @@ PRIV_CS = ["~{COM1_CS}", "~{COM2_CS}", "~{LPT_CS}", "~{IDE_CS}"]
 PRIV_IRQREQ = ["IRQ_COM1", "IRQ_COM2", "~{COM1_IRQEN}", "~{COM2_IRQEN}",
                "~{IRQ_LPT}", "~{IRQ_IDE}"]
 # Disable levels for the peripherals whose gating hardware must stay local
-# (addr_decode jumpers -> network/video). High = disabled; pulled low on
-# addr_decode, so a bare board runs everything. DIS_NIC drives the network
-# '125 OEs (tri-states IRQ2, parks the RTL8019AS's own AEN high); DIS_VID
-# is a firmware-read boot strap on the video MCU GPIO42 (polarity inverted
-# vs the pre-2026-07-14 on-sheet VID_EN strap).
-PRIV_DIS = ["DIS_NIC", "DIS_VID"]
+# (addr_decode jumpers -> video). High = disabled; pulled low on
+# addr_decode, so a bare board runs everything. DIS_VID is a firmware-read
+# boot strap on the video MCU GPIO42 (polarity inverted vs the
+# pre-2026-07-14 on-sheet VID_EN strap). (DIS_NIC left with the RTL8019AS
+# NIC, removed 2026-07-14 -- tag full-board-with-nic has the last version.)
+PRIV_DIS = ["DIS_VID"]
 # speed select (Bus MCU -> clock mux), set while it holds the V20 in reset
 PRIV_SPEED = ["SPEED_SEL"]
 # PC-speaker PWM: Bus MCU (soft-PIT ch2 / port-61h gate) -> audio sheet

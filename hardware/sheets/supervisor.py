@@ -248,7 +248,7 @@ def build(sch, lib):
     # CL = Ctrim*C_OSCO / (Ctrim+C_OSCO)). Crystal picked at CL=12.5pF (the
     # datasheet's max quartz-CL rating, and JLC's deepest-stock 32.768kHz
     # part, C32346); solving for Ctrim at C_OSCO=25pF typ gives ~25pF --
-    # reuse parts.py's existing 22pF (already sourced for the NIC crystal)
+    # reuse parts.py's existing 22pF (already sourced for the COM baud crystals)
     # rather than add a new SKU. That's within a couple pF of nominal, far
     # inside the crystal's +-20ppm tolerance for this fidelity. No cap on
     # OSCO (internal). ~{INT}: NC (Supervisor polls over I2C, no interrupt

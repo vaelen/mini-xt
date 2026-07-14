@@ -98,7 +98,7 @@ net now). If you think you need a private name, log a question instead.
 
 `python3 tools/pins.py -s <substr>` searches names; `python3 tools/pins.py
 <Lib:Name>` lists pins. Custom parts live in `mini-xt:` (V20, MAX3241,
-IS62WV51216, TL16C550PT, PCF8563, RTL8019AS, Core2350B, Pico,
+IS62WV51216, TL16C550PT, PCF8563, Core2350B, Pico,
 and flat glue 74HC00/02/04/08/32/74/125/138/157/163/165/244/245/573/574).
 Standard KiCad libs available: Device, power, Connector, Connector_Generic, 74xx,
 Interface_UART, Interface_USB (CH224K, USB_C), Interface_LineDriver,

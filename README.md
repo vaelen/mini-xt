@@ -66,7 +66,7 @@ The video sheet exists in both forms — on the motherboard *and* as a standalon
 PCB in `hardware/cards/`, with two chainable 60-pin ISA headers (standard 8-bit
 ISA pinout) so it can be fabbed and daisy-chained against the ISA tester before
 the motherboard exists.
-The other peripherals (COM ×2, LPT, RTC, storage, network) live on the motherboard only —
+The other peripherals (COM ×2, LPT, RTC, storage) live on the motherboard only —
 still one isolated sheet each, jumper-configured like real cards (enable, base
 address, IRQ), so any of them can still be lifted onto a separate PCB later by
 re-adding a small `card_*` wrapper.
@@ -161,20 +161,11 @@ replace:
   tri-state driver is silent unless the drive asserts INTRQ. No boot ROM
   on the interface: the Bus MCU shadow-loads XTIDE Universal BIOS into
   SRAM at boot.
-- **Network** — an NE2000-compatible 10BaseT Ethernet port: a real
-  **RTL8019AS** (the one other vintage-design chip still purchasable new),
-  transcribed from Manawyrm's open-hardware **ISA8019** card with every
-  configuration jumper replaced by straps — I/O **0x340**, IRQ hardwired to
-  **IRQ2** (delivered as IRQ9 via the soft PIC's AT redirect), 10BaseT with
-  link test, PnP off. The boot-ROM socket is gone (the Bus MCU shadow-loads
-  option ROMs; the NIC needs none) but the little 93C46 EEPROM stays — it
-  holds the MAC address, ships blank, and is programmed once from DOS with
-  `RSET8019.EXE`. The single JP1 strap disables the card completely: a
-  74HCT125 tri-states its IRQ2 driver and parks the chip's AEN high, so a
-  disabled NIC frees both the I/O window and the IRQ line for a sidecar
-  card. Magnetics + shielded RJ45 (link/activity LEDs) per the upstream
-  design, with the line-side center-tap capacitors kept at the original
-  2 kV rating (they sit on the Ethernet isolation barrier).
+- **Network** — none on board. The RTL8019AS NE2000 NIC (an ISA8019
+  transcription) was removed on 2026-07-14; git tag `full-board-with-nic`
+  preserves the complete design. A real NE2000 card on the buffered
+  expansion port fills the role if networking is ever needed (its IRQ2
+  arrives as EXT_IRQ2 and redirects to IRQ9 in the soft PIC).
 
 The on-board video instance carries the same straps as its standalone card
 (VID_EN + CGA/MDA window strap). Disabling an on-board port (or re-strapping

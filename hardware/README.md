@@ -25,21 +25,23 @@ descend into a subsystem.
 | `sheets/supervisor`       | RP2040: USB host, setup UI, POST, console, link, battery-backed PCF8563 RTC |
 | `sheets/video`            | RP2350B soft CGA/MDA/Herc → HDMI + VGA; 4× 74LVC245A PIO time-share mux |
 | `sheets/com_port`         | 2× TL16C550CPFBR + MAX3241 + DB9 (COM1+COM2)      |
-| `sheets/addr_decode`      | central I/O decode + IRQ mapping + disable jumpers JP1-JP6 (bases hardwired) |
+| `sheets/addr_decode`      | central I/O decode + IRQ mapping + disable jumpers JP1-JP5 (bases hardwired) |
 | `sheets/parallel`         | discrete 74HC/74LVC LPT @ 0x378 + DB25            |
 | `sheets/power`            | USB-C 5 V in → 3.3 V buck                         |
 | `sheets/storage`          | XT-IDE (Chuck-mod) + CompactFlash                |
 | `sheets/audio`            | PC-speaker + op-amp summer → line-out            |
 | `sheets/sidecar`          | buffered 5V-compatible ISA expansion port: 60-pin (2×30) header + ~9-package isolation bank |
 | `sheets/picogus`          | PicoGUS chip-down copy: RP2040 AdLib/SB/GUS/MPU  |
-| `sheets/network`          | RTL8019AS NE2000 NIC @ 0x340, IRQ2→9 + RJ45 (5V island, isolated) |
 | `sheets/card_video`       | Video soft-card as a standalone 5V ISA card (chainable ISA headers) |
 | `sheets/card_isatest`     | Pico ISA host/bus-master test card (standalone; ISA slot + expansion port) |
-| `mini-xt.kicad_sym`       | custom symbols (V20, MAX3241, IS62WV51216, TL16C550PT, PCF8563, RTL8019AS, flat 74xx)|
+| `mini-xt.kicad_sym`       | custom symbols (V20, MAX3241, IS62WV51216, TL16C550PT, PCF8563, flat 74xx)|
 
 There is no `sheets/rtc` any more — the RTC is emulated in the Bus MCU
 (ports 0x70/0x71) with battery-backed timekeeping on the Supervisor
 (PCF8563 + CR2032); see `notes/open-questions.md`'s 2026-07-14 entry.
+There is no `sheets/network` any more either — the RTL8019AS NE2000 NIC was
+removed 2026-07-14 (git tag `full-board-with-nic` has the last design that
+carried it); a real NE2000 card on the expansion port fills the role.
 
 ## How these were generated
 

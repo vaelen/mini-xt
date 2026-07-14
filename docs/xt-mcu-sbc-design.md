@@ -43,7 +43,7 @@ and `hardware/notes/3v3-verification.md`.
 | Chipset link | **2-wire full-duplex UART** between Bus MCU ↔ Supervisor (boot image push + HID/menu/POST/RTC-sync events) |
 | Video | **RP2350B** soft CGA/MDA/Hercules (snoop-and-mirror), **VGA + HDMI** out (config-selected); 4× 74LVC245A kept as a PIO-driven time-share address/data mux (GPIO budget), not level shifters on this 3.3V board |
 | Audio | **On-board PicoGUS (bare RP2040 "chip-down" copy, stock firmware)** — AdLib/SB/GUS/MPU/etc.; no gameport (USB HID instead) |
-| Network | **On-board RTL8019AS NE2000 NIC** @ 0x340, IRQ2→9 — a deliberate **5V island**: its 8-bit data bus (SD0-7) sits behind a gated 74LVC245 + 74HC138 decode, AEN/INT0 via 74LVC125A |
+| Network | **None on board** (the RTL8019AS NE2000 NIC was removed 2026-07-14 — git tag `full-board-with-nic` has the last full design); a real NE2000 card can plug into the buffered expansion port |
 | Input | **USB-A HID host** on the **Supervisor** MCU (keyboard; mouse via user's hub) |
 | Mouse | Emulated **virtual COM3 serial mouse** (default) or **PS/2 on IRQ12** (option) |
 | Storage | Discrete **XT-IDE** (8-bit, Chuck-mod) + CompactFlash; XTIDE Universal BIOS. Floppy = **all-firmware emulation** (§10.1, no FDC hardware) |
@@ -53,7 +53,7 @@ and `hardware/notes/3v3-verification.md`.
 | Config | **Pre-BIOS setup menu** (Supervisor MCU), shown on **video + MCU console**, entered by keypress |
 | BIOS | **Xi 8088** (Sergey Kiselev), expected to be **forked** for our chipset |
 | Debug | **2-digit hex POST display** (port 0x80), MCU console, logic-analyzer header |
-| Power | Single **5 V in** (USB-C) → on-board **3.3 V buck** carrying nearly the whole board; no ±12 V. 5V presences that remain: V20; cpu_core U10 (74HCT32 strobe combiner); cpu_core U13 (74HCT04 — V20 CLK + READY/HOLD buffers); the RTL8019AS NIC island; the fused +5V_ISA port feed; the audio MCP6002 (analog). MAX3241s are 3.3V |
+| Power | Single **5 V in** (USB-C) → on-board **3.3 V buck** carrying nearly the whole board; no ±12 V. 5V presences that remain: V20; cpu_core U10 (74HCT32 strobe combiner); cpu_core U13 (74HCT04 — V20 CLK + READY/HOLD buffers); the fused +5V_ISA port feed; the audio MCP6002 (analog). MAX3241s are 3.3V |
 
 **MCU count: 2× RP2350B** (Bus MCU, video) **+ 2× RP2040** (Supervisor, PicoGUS).
 The chipset is deliberately split across two MCUs (§5) for clean separation: the **Bus MCU**
@@ -74,8 +74,7 @@ onto a standalone ISA card later.**
 
 **2026-07-14 update:** the whole internal bus is now 3.3V, so soft cards on the
 motherboard tie their MCU GPIOs to it **directly** — no local level shifters —
-except where a chip is a genuine 5V island (the on-board RTL8019AS NIC) or the
-video card's GPIO-budget mux (below). Local shifters remain load-bearing only at
+except the video card's GPIO-budget mux (below). Local shifters remain load-bearing only at
 the buffered expansion port (§4.3) and on any card that plugs into it as a real
 5V ISA card.
 
@@ -97,8 +96,7 @@ Three classes of node:
    peripherals on the bus, GPIOs tied directly to the 3.3V bus (video keeps a 4×
    74LVC245A PIO-driven time-share mux for GPIO budget, not for level shifting).
 3. **Real period-style chips** — V20, one IS62WV51216BLL SRAM, 2× TL16C550CPFBR UART,
-   RTL8019AS NIC (a 5V island, isolated behind its own buffer/decode), plus discrete
-   74HC/74HCT/74LVC glue for the bus, LPT, and XT-IDE.
+   plus discrete 74HC/74HCT/74LVC glue for the bus, LPT, and XT-IDE.
 
 **Portability guideline** (downgraded 2026-07-14 from a hard schematic rule — decision
 #8 of the 3.3V redesign). A **soft card** (class 2) is still meant to use **only
@@ -121,18 +119,17 @@ hands **~COM1_CS / ~COM2_CS / ~LPT_CS / ~IDE_CS** (`mxbus.PRIV_CS`) to the COM/L
 sheets, and its shared **74LVC125A** drives the real IRQ lines (COM1→IRQ4, COM2→IRQ3,
 LPT→IRQ7, IDE→IRQ14) from the peripherals' private requests (`mxbus.PRIV_IRQREQ`; the COM
 channels stay ~OUT2-gated per the PC convention). Base addresses are **hardwired** (LPT 0x378, IDE
-0x300 — the straps went the way of COM's, 2026-07-14 later the same day). All six
-per-peripheral **disable jumpers JP1–JP6** (COM1, COM2, LPT, IDE, NIC, VID — enabled by
+0x300 — the straps went the way of COM's, 2026-07-14 later the same day). All five
+per-peripheral **disable jumpers JP1–JP5** (COM1, COM2, LPT, IDE, VID — enabled by
 default; fit a jumper to disable) live here: COM/LPT/IDE gate their chip selects through
-a second '32 rank, while **DIS_NIC / DIS_VID** (`mxbus.PRIV_DIS`) are just the jumper
-levels routed to gating that must stay local (the NIC's isolation '125 inside its 5V
-island; the video MCU's firmware boot strap, polarity inverted vs the old VID_EN). These private nets are
+a second '32 rank, while **DIS_VID** (`mxbus.PRIV_DIS`) is just the jumper
+level routed to gating that must stay local (the video MCU's firmware boot strap,
+polarity inverted vs the old VID_EN). These private nets are
 shared logic factored out, not an isolation break: each is functionally equivalent to
 the gate chips it replaced, and a block broken out to a standalone card gets decode + IRQ
 driver back in its wrapper schematic exactly as it gets the bus edge connector
-(`questions-addr_decode.md`). The NIC's *decode* is not centralized — the RTL8019AS
-self-decodes and its '138/'125 isolation gates stay in the 5V island — and
-video/PicoGUS/Bus-MCU decode in firmware; only their disable jumpers moved here.
+(`questions-addr_decode.md`). Video/PicoGUS/Bus-MCU decode in firmware; only their
+disable jumpers moved here.
 
 ### Block diagram
 
@@ -154,7 +151,7 @@ video/PicoGUS/Bus-MCU decode in firmware; only their disable jumpers moved here.
    └──────────────────┘          │   (+ MEMR/W, IOR/W, ALE, AEN, CLK, OSC, RESET,
          ┌───────────────────────┴────IOCHRDY, IOCHCK, IRQ, DRQ/DACK, +3V3, GND)
          │
-  ┌──────┼────────┬────────────────┬────────────────┬───────────┬───────────────┬──────┐
+  ┌──────┼────────┬────────────────┬────────────────┬───────────┬───────────────┐
       ┌──┴──┐ ┌───┴──────────┐ ┌───┴──────────┐ ┌───┴────┐ ┌────┴────────┐ ┌────┴──────┐
       │SRAM │ │   BUS MCU    │ │  VIDEO MCU   │ │PicoGUS │ │ 2×TL16C550  │ │port bank  │
       │1M×8 │ │   RP2350B    │ │   RP2350B    │ │RP2040  │ │CPT+MAX3241  │ │ (~9 LVC   │
@@ -165,14 +162,14 @@ video/PicoGUS/Bus-MCU decode in firmware; only their disable jumpers moved here.
          │    └───┬───────┬──┘ │  level-shift)│ └───┬────┘ │  + CF     │   │ header    │
    74HC138        │       │ ▲  └──────────────┘     │I2S   └───────────┘   │ (60p 2x30)│
    +NAND          │ glue: │ │UART link            PCM5102A ┌──────────┐    └───────────┘
-   (SRAM /CE)     │5×'163 │ │(2-wire,             audio    │ disc. LPT│  ┌───────────┐
-                  │counter│ │full-duplex)     PC-spkr ─┐   │ @0x378   │  │RTL8019AS  │
-                  │ '165  │ │  RTC sync   op-amp ──────┴─► └──────────┘  │ NIC: 5V   │
-                  │IRQ-in │ ▼              summer → line-out             │ island,   │
-                  │   ┌───┴────────────┐                                 │ gated     │
-                  │   │  SUPERVISOR    │  USB-A host (kbd/mouse hub)     │ LVC245/   │
-                  │   │    RP2040      │  setup UI · config (flash)      │ HC138     │
-                  │   │  off the bus   │  BIOS/opt-ROM images (flash)    └───────────┘
+   (SRAM /CE)     │5×'163 │ │(2-wire,             audio    │ disc. LPT│
+                  │counter│ │full-duplex)     PC-spkr ─┐   │ @0x378   │
+                  │ '165  │ │  RTC sync   op-amp ──────┴─► └──────────┘
+                  │IRQ-in │ ▼              summer → line-out
+                  │   ┌───┴────────────┐
+                  │   │  SUPERVISOR    │  USB-A host (kbd/mouse hub)
+                  │   │    RP2040      │  setup UI · config (flash)
+                  │   │  off the bus   │  BIOS/opt-ROM images (flash)
                   │   │  PCF8563 RTC   │  console UART · POST display
                   │   │  + CR2032      │  (Bus MCU emulates ports 0x70/71,
                   │   └────────────────┘   synced from here over the link)
@@ -318,12 +315,9 @@ Everywhere else on the board, an MCU's GPIOs (or a 3.3V-native chip's pins) sit 
 - **PicoGUS:** stays a stock RP2040 design; its former 3-package level-shift stage (address/
   data mux excepted — that one is functional, not a shifter, see `questions-picogus.md`) is
   gone now that the bus it sits on is already 3.3V.
-- **RTL8019AS NIC — the one deliberate exception.** The NIC chip itself is a genuine **5V
-  island**: its 8-bit data bus (SD0–7) is isolated from the 3.3V bus behind a **gated
-  74LVC245 + 74HC138 decode** (`network` U4/U5), and `AEN`/`INT0` cross through a 74LVC125A.
-  Its MAC EEPROM is on the same 5V island. This is the one place outside the V20 boundary
-  and the expansion port where a real level-shift/isolation stage still exists, because the
-  chip itself is unavoidably 5V.
+- (The RTL8019AS NIC — formerly the one deliberate 5V-island exception, isolated behind
+  its own gated 74LVC245 + 74HC138 — was **removed 2026-07-14**; git tag
+  `full-board-with-nic` has the last design that carried it.)
 
 ### 4.3 The buffered expansion port (`sidecar` sheet)
 The only other 5V↔3.3V crossing on the board is a dedicated **isolation/buffer bank**
@@ -595,7 +589,7 @@ modern display, fully decoupled from the CPU.
   which is what keeps it liftable to a standalone ISA card unchanged. (The motherboard's Y5
   block-strobe, §4.1, is for the SRAM #2 decode only; the video card never sees it.)
 - **Boot straps** (firmware-read GPIOs — decode lives in firmware, so there is no
-  hardware chip-select to gate): **DIS_VID** (from **addr_decode JP6**, 2026-07-14 —
+  hardware chip-select to gate): **DIS_VID** (from **addr_decode JP5**, 2026-07-14 —
   replaced the on-sheet VID_EN jumper, polarity inverted) high = card disabled — firmware
   keeps every bus-facing OE off, and all its drivers are MCU-gated tri-states, so a
   disabled card is electrically silent; **JP1 (VID_BASE)** picks the default window set,
@@ -648,7 +642,7 @@ The hardware is specified **VGA-capable** from the start; scope is a firmware mi
 
 ---
 
-## 9. Audio & Network — on-board PicoGUS + RTL8019AS NIC
+## 9. Audio — on-board PicoGUS
 
 A **faithful copy of the upstream PicoGUS 2.0 "chip-down" design** (CERN-OHL-P;
 `picogus/hw-chipdown/` sources): a **bare RP2040** + W25Q128 flash + 12 MHz crystal (the
@@ -677,24 +671,13 @@ Sound Blaster, Gravis UltraSound, MPU-401, CMS/Game Blaster, Tandy/PCjr**.
   documented soft-card isolation exception. All removed blocks remain in the reference
   sources if ever wanted back.
 
-### 9.1 Network — RTL8019AS NE2000 NIC
+### 9.1 Network — removed
 
-A **NE2000-compatible NIC** built around the **RTL8019AS** (the same ISA8019 lineage as
-the original Realtek NE2000 clone cards) — **10BaseT only** (twisted-pair, link test
-enabled via PL=00; no AUI/BNC). **I/O 0x340–0x35F, hardwired** (no base-address strap);
-**IRQ2**, delivered as **IRQ9** via the soft PIC's standard AT redirect (the same '165
-collector line and redirect path the rest of the 8-bit IRQs use).
-
-- **No boot ROM.** Like XT-IDE, a NIC boot ROM would need Bus MCU shadow-loading — but
-  nothing on this board needs PXE/RPL boot, so none is populated.
-- **MAC address** lives in a **93C46 EEPROM**, shipped **blank**; program it once with
-  Realtek's **RSET8019.EXE** (the same utility period NE2000 clones used).
-- **Disable = addr_decode JP5** (2026-07-14: the on-sheet JP1 moved there, sense
-  inverted — enabled by default, fit to disable): DIS_NIC high tri-states the IRQ2 line
-  through the island's **74LVC125A** gate and forces the chip's **AEN input high**, so a
-  disabled NIC ignores every I/O cycle and frees IRQ2 for the sidecar. The gate stays
-  local (the RTL8019AS self-decodes; the disable must reach inside the 5V island) — only
-  the jumper is central, same row as the other disables (addr_decode JP1–JP6).
+The on-board **RTL8019AS NE2000 NIC** (I/O 0x340, IRQ2→9, 10BaseT, ISA8019 lineage) was
+**removed 2026-07-14** — git tag **`full-board-with-nic`** preserves the last full design
+(sheet, symbols, part bindings) if it is ever wanted back. Networking, if needed, arrives
+as a real NE2000 card on the buffered expansion port (its IRQ comes in as EXT_IRQ2 and
+redirects to IRQ9 in the soft PIC, exactly as the on-board chip's did).
 
 ---
 
@@ -781,9 +764,9 @@ space if a physical drive or Gotek must plug in; nothing else requires it.)*
   later — note **COM3 0x3E8 is reserved for the emulated serial mouse**, §11.4.) The 60-pin
   expansion-port header carries only the standard 8-bit ISA IRQ lines (IRQ2–7; IRQ8 has no
   header pin at all — the RTC that once justified it is now firmware-emulated off-bus,
-  §11.3), so an expansion COM4 cannot use IRQ10+ — and the bus IRQ2 line is now hardwired to
-  the on-board NE2000 NIC (§9.1): **an expansion COM4 (0x2E8) needs a freed line — disable
-  COM2 (addr_decode JP2) for IRQ3, or the NIC (addr_decode JP5) to reclaim IRQ2→9** — still avoiding the ISA
+  §11.3), so an expansion COM4 cannot use IRQ10+ — but **IRQ2 is free** (the on-board NIC
+  that claimed it was removed, §9.1): **an expansion COM4 (0x2E8) uses IRQ2→9 directly**,
+  or disable COM2 (addr_decode JP2) for IRQ3 — still avoiding the ISA
   edge-triggered IRQ-sharing problem. The virtual COM3 mouse keeps
   **IRQ4** (the convention mouse drivers expect), so it *does* share IRQ4 with COM1; in
   practice you use one or the other (most mouse use implies COM1 is free).
@@ -884,7 +867,7 @@ Xi 8088's CMOS setup the same as before — only the hardware backing it changed
 | 0x3F0–0x3F7 | (reserved) **firmware floppy** tier-2 registers, §10.1 (Bus MCU) |
 | 0x2E8 | COM4 (expansion port; needs a freed IRQ — see §11.1) |
 | 0x300–0x31F | XT-IDE (base hardwired; addr_decode JP4 disables) |
-| 0x340–0x35F | NE2000 NIC (RTL8019AS, §9.1; IRQ2→9; addr_decode JP5 disables) |
+| 0x340–0x35F | (free — was the on-board NE2000 NIC, removed 2026-07-14, §9.1) |
 | 0x378 | LPT1 (base hardwired; addr_decode JP3 disables) |
 | 0x3B0–0x3BF / 0x3D0–0x3DF | MDA-Hercules / CGA (video MCU) |
 
@@ -892,7 +875,7 @@ Xi 8088's CMOS setup the same as before — only the hardware backing it changed
 | IRQ | Use | | IRQ | Use |
 |---|---|---|---|---|
 | 0 | Timer | | 8 | RTC — **firmware-internal only** (Bus MCU soft-PIC event; no expansion-port pin) |
-| 1 | Keyboard (USB-HID) | | 9 | IRQ2 redirect (on-board NE2000 NIC) |
+| 1 | Keyboard (USB-HID) | | 9 | IRQ2 redirect (expansion-port cards, via EXT_IRQ2) |
 | 2 | cascade → slave | | 10 | spare (no line on 8-bit header) |
 | 3 | COM2 | | 11 | spare (no line on 8-bit header) |
 | 4 | COM1 (+ COM3 mouse, shared) | | 12 | PS/2 mouse (if used) |
@@ -927,13 +910,13 @@ Xi 8088's CMOS setup the same as before — only the hardware backing it changed
 | PIC / PIT / KBC / DMA / RTC | 8259 / 8253 / 8042 / 8237 / MC146818 | **Bus MCU: RP2350B (soft-emulated)**, GPIOs direct on the 3.3V bus (no local transceivers) |
 | Chipset Supervisor | (part of the chipset) | **RP2040** — USB host, setup UI, config + BIOS-image flash, console, POST, battery-backed RTC |
 | Bus-master address | (8237 internal + 74LS612 page) | **5× 74HC161** loadable counter + 3× 74HC244 tri-state (Bus MCU drives load/count) |
-| IRQ collector | (8259 internal) | **74HCT165** shift register (IRQ2–8, 14 → 3 pins) |
+| IRQ collector | (8259 internal) | **74HC165** shift chain (internal IRQ3–7/14 + expansion EXT lines → 3 pins) |
 | Chipset link | — | **2-wire UART** (Bus MCU ↔ Supervisor) |
 | RAM | 9× 4164 + parity | **1× IS62WV51216BLL-55TLI** (512K×16, 3.3V) wired 1M×8 via the byte-lane trick |
 | ROM / BIOS | mask ROM / 2764 | **none — shadow-loaded into SRAM by the Bus MCU (image from Supervisor flash)** |
 | Video | MC6845 + discrete + RGBI | **RP2350B (soft CGA/MDA/Herc) → VGA + HDMI**; 4× 74LVC245A PIO-mux (GPIO budget, not level-shift) |
 | FM / digital audio | AdLib / Sound Blaster | **on-board PicoGUS (RP2040, stock fw)** |
-| Network | (none, period) | **on-board RTL8019AS NE2000 NIC** — 5V island, isolated behind gated 74LVC245 + 74HC138 |
+| Network | (none, period) | (none — on-board NIC removed 2026-07-14; NE2000 card on the expansion port if needed) |
 | Game port | discrete 558 | **(none — USB HID on the Supervisor)** |
 | UART | 8250 | **2× TL16C550CPFBR** (TQFP-48, 3.3V, soldered — thin JLC stock, C882798) |
 | RS-232 | 1488/1489 | **MAX3241 (full DB9, 3.3V)** |

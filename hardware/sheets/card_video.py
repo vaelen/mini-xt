@@ -31,7 +31,7 @@ def build(sch, lib):
     # The soft-card logic, tied to the same bus net names (expose=False: no parent
     # hierarchical pins -- everything joins the on-card header nets by name).
     card.build(sch, lib, expose=False)
-    # DIS_VID is a motherboard net (addr_decode JP6); standalone, the wrapper
+    # DIS_VID is a motherboard net (addr_decode JP5); standalone, the wrapper
     # re-adds the strap locally (the documented PRIV_* lift pattern): pulled
     # low = enabled by default, fit JP2 to disable. 3V3_VID levels -- the
     # strap feeds the module GPIO, not the 5V ISA side.

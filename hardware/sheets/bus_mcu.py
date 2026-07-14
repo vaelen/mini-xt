@@ -79,15 +79,16 @@ _CTRL = ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}", "BALE", "AEN", "IOCHRDY",
 PINS = (
     [pin(s, "bidirectional") for s in mxbus.ADDR] +
     [pin(s, "bidirectional") for s in mxbus.DATA] +
-    # Only the IRQs with a real internal source: IRQ2-5/7 (on-board cards)
+    # Only the IRQs with a real internal source: IRQ3-5/7 (on-board cards)
     # and IRQ14 (storage). IRQ9-13/15 have no possible driver -- re-add
-    # alongside a second '165 if a 16-bit source ever appears. IRQ6 and IRQ8
-    # are RETIRED as internal nets (2026-07-14, resolving the old follow-up):
-    # nothing on the board can drive either -- the floppy raises IRQ6 as a
+    # alongside a second '165 if a 16-bit source ever appears. IRQ2, IRQ6 and
+    # IRQ8 are RETIRED as internal nets (2026-07-14): nothing on the board can
+    # drive them -- IRQ2's NIC was removed (tag full-board-with-nic; a
+    # sidecar NIC would arrive as EXT_IRQ2), the floppy raises IRQ6 as a
     # firmware event (a sidecar FDC would arrive as EXT_IRQ6), and IRQ8's RTC
     # is firmware-emulated with the PCF8563 polled over I2C. Their '165 lanes
-    # (U12 D4/D6, U19 D6) tie LOW so the firmware bit map is unchanged.
-    [pin("IRQ%d" % n, "input") for n in (2, 3, 4, 5, 7, 14)] +
+    # (U12 D0/D4/D6, U19 D6) tie LOW so the firmware bit map is unchanged.
+    [pin("IRQ%d" % n, "input") for n in (3, 4, 5, 7, 14)] +
     [pin(s, _DIR[s]) for s in _CTRL] +
     # (~{WR} / IO/~{M} are not in PRIV_CPU anymore: not sensed here -- GPIO
     # budget -- writes are tracked via the gated MEMW/IOW strobes instead.)
@@ -312,7 +313,7 @@ def build(sch, lib):
     #    MCU(IRQ_SER) <- U12.Q7  U12.DS <- U19.Q7  U19.DS <- U20.Q7  U20.DS=GND
     #
     #  CHAIN ORDER (each '165 shifts D7 first): firmware clocks 24 bits --
-    #    U12 (internal: IRQ2-5/7 + IRQ14; D4/D6 = retired IRQ6/IRQ8, tied low),
+    #    U12 (internal: IRQ3-5/7 + IRQ14; D0/D4/D6 = retired IRQ2/IRQ6/IRQ8, tied low),
     #    then U19 (expansion port EXT_IRQ2-7; D6 = retired EXT_IRQ8, tied low),
     #    then U20 (expansion port EXT_DRQ1-3).
     #  U20 is FURTHEST from the MCU (DS=GND, end of chain).  The EXT_* are the
@@ -322,7 +323,8 @@ def build(sch, lib):
     U12 = sch.place("mini-xt:74HCT165", "U12", "74HC165", at=(200.66, 233.68))
     N(U12, "VCC", "+3V3", length=2.54)
     N(U12, "GND", "GND", length=2.54)
-    for i, net in enumerate(["IRQ2", "IRQ3", "IRQ4", "IRQ5",
+    for i, net in enumerate(["GND",          # D0: was IRQ2 -- retired (NIC removed)
+                             "IRQ3", "IRQ4", "IRQ5",
                              "GND",          # D4: was IRQ6 -- retired (fw event)
                              "IRQ7",
                              "GND"]):        # D6: was IRQ8 -- retired (fw RTC)
@@ -364,7 +366,7 @@ def build(sch, lib):
     # 2026-07-14 consolidation: 4x10k isolated arrays (basic part) replace 31
     # discrete pulls -- elements are isolated, so packs mix rails freely.
     # Semantics unchanged per net:
-    #  * IRQ2-5/7/14, DRQ1-3, TC idle LOW (released/active-high lines; no
+    #  * IRQ3-5/7/14, DRQ1-3, TC idle LOW (released/active-high lines; no
     #    floating '165 inputs; DRQ2/3 + DACK2/3 declared-undriven, GPIO budget)
     #  * IOCHRDY/~{IOCHCK} wire-OR/open-collector: idle HIGH
     #  * MCU-Hi-Z parking (BOOTSEL/reset window): AEN low (cards see I/O
@@ -373,7 +375,7 @@ def build(sch, lib):
     #    (deasserted; nets sit on RP2350B pins)
     #  * EXT_* idle low so the EXT '165s (U19/U20) never float
     mxbus.r_pack4(sch, "RN1", "10kx4", (86.36, 25.4),
-                  [("IRQ2", "GND"), ("IRQ3", "GND"), ("IRQ4", "GND"), ("IRQ5", "GND")])
+                  [("IRQ3", "GND"), ("IRQ4", "GND"), ("IRQ5", "GND")])
     mxbus.r_pack4(sch, "RN2", "10kx4", (109.22, 25.4),
                   [("IRQ7", "GND"), ("IRQ14", "GND"),
                    ("DRQ1", "GND"), ("DRQ2", "GND")])

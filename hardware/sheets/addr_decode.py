@@ -16,21 +16,19 @@ now owns ALL the discrete peripherals' bus-interface plumbing --
      ~OE = ~{COMx_IRQEN} (the UART's ~{OUT2} -- software masks by clearing
      OUT2, tri-stating the line). LPT/IDE channels strap the input high and
      pulse on their active-low requests, same as their old local stages.
-  3. DISABLE JUMPERS (JP1-JP6, one per peripheral -- COM1, COM2, LPT, IDE,
-     NIC, VID): peripherals are ENABLED by default; fitting a jumper pulls
+  3. DISABLE JUMPERS (JP1-JP5, one per peripheral -- COM1, COM2, LPT, IDE,
+     VID): peripherals are ENABLED by default; fitting a jumper pulls
      DIS_x high. For COM/LPT/IDE a second 74HC32 forces that ~CS inactive --
      the peripheral never decodes, its IRQ request never fires (same
      causality as the old on-sheet enables: COM MCR resets to 0, LPT's
      idle-high ~Ack keeps its request off, IDE's INTRQ pulldown keeps Q1
-     off), and an expansion-port card can take over the address. DIS_NIC and
-     DIS_VID (mxbus.PRIV_DIS) are just the jumper levels routed to the
-     hardware that must stay local: DIS_NIC drives the network sheet's '125
-     OEs (high = IRQ2 tri-stated + the chip's own AEN parked high -- the
-     RTL8019AS decodes its own address, so the disable must reach inside the
-     5V island); DIS_VID is a firmware-read boot strap on the video MCU's
+     off), and an expansion-port card can take over the address. DIS_VID
+     (mxbus.PRIV_DIS) is just the jumper level routed to the hardware that
+     must stay local: a firmware-read boot strap on the video MCU's
      GPIO42 (polarity INVERTED vs the old on-sheet VID_EN: high = disabled).
      NOTE the sense is INVERTED vs all the old per-sheet jumpers (those
-     needed a jumper fitted to enable).
+     needed a jumper fitted to enable). (The RTL8019AS NIC and its DIS_NIC
+     jumper were removed 2026-07-14 -- tag full-board-with-nic.)
 
 Base addresses are HARDWIRED (2026-07-14, later): LPT 0x378, IDE 0x300 --
 the old base straps are gone, per the same reasoning as COM's (rarely used
@@ -63,7 +61,7 @@ PINS = (
     [pin("AEN", "input")] +                         # not a DMA cycle
     [pin(s, "output") for s in mxbus.PRIV_CS] +     # one chip select per peripheral
     [pin(s, "input") for s in mxbus.PRIV_IRQREQ] +  # peripheral IRQ requests
-    [pin(s, "output") for s in mxbus.PRIV_DIS] +    # NIC/VID disable levels
+    [pin(s, "output") for s in mxbus.PRIV_DIS] +    # VID disable level
     [pin("IRQ4", "output"),      # COM1 (hardwired PC convention)
      pin("IRQ3", "output"),      # COM2
      pin("IRQ7", "output"),      # LPT1
@@ -161,8 +159,8 @@ def build(sch, lib, expose=True):
     # ENABLED by default (pulldown holds DIS_x low); fit the jumper to
     # disable. COM/LPT/IDE: kills the chip select via U4, which also
     # silences the IRQ request at its source and frees the address for an
-    # expansion-port card. NIC/VID: the level is routed to the peripheral's
-    # own gating (network '125 OEs / video MCU boot-strap GPIO).
+    # expansion-port card. VID: the level is routed to the video MCU's
+    # boot-strap GPIO (its own gating).
     def dis_jp(jref, net, label, x, y):
         jp = sch.place("Connector_Generic:Conn_01x02", jref, label, at=(x, y))
         L(jp, "Pin_1", net, dx=2.54)
@@ -172,15 +170,14 @@ def build(sch, lib, expose=True):
     dis_jp("JP2", "DIS_COM2", "DIS COM2", 254.0, 152.4)
     dis_jp("JP3", "DIS_LPT", "DIS LPT", 304.8, 152.4)
     dis_jp("JP4", "DIS_IDE", "DIS IDE", 355.6, 152.4)
-    dis_jp("JP5", "DIS_NIC", "DIS NIC", 203.2, 177.8)
-    dis_jp("JP6", "DIS_VID", "DIS VID", 254.0, 177.8)
+    dis_jp("JP5", "DIS_VID", "DIS VID", 203.2, 177.8)
     # DIS_x default-low pulldowns, consolidated into 4x10k basic arrays
-    # (2026-07-14; isolated elements, RN2 has two spares)
+    # (2026-07-14; isolated elements, RN2 has three spares)
     mxbus.r_pack4(sch, "RN1", "10kx4", (398.78, 152.4),
                   [("DIS_COM1", "GND"), ("DIS_COM2", "GND"),
                    ("DIS_LPT", "GND"), ("DIS_IDE", "GND")])
     mxbus.r_pack4(sch, "RN2", "10kx4", (398.78, 177.8),
-                  [("DIS_NIC", "GND"), ("DIS_VID", "GND")])
+                  [("DIS_VID", "GND")])
 
     # ---------------- decoupling ----------------
     for i, x in enumerate([101.6, 116.84, 132.08, 147.32, 162.56]):
@@ -190,7 +187,7 @@ def build(sch, lib, expose=True):
 
     sch.text("One decode for all discrete peripherals, bases hardwired: "
              "COM1 0x3F8, COM2 0x2F8, LPT 0x378, IDE 0x300", (101.6, 210.82))
-    sch.text("JP1-JP6 (COM1/COM2/LPT/IDE/NIC/VID): peripheral ENABLED by default; "
+    sch.text("JP1-JP5 (COM1/COM2/LPT/IDE/VID): peripheral ENABLED by default; "
              "fit jumper to disable (kills decode/IRQ, frees the slot)",
              (101.6, 213.36))
     sch.text("U5 maps IRQ requests -> ISA lines: COM1=IRQ4, COM2=IRQ3, LPT=IRQ7, "

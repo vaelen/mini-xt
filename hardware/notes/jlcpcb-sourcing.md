@@ -87,7 +87,7 @@ query time; **thin** flags anything to re-check before ordering.
 | Octal xceiver, 3.3V, 5V-tol (cpu_core data, sidecar) | 74LVC245A (existing symbol/value) | — | — | see existing `parts.py` entry |
 | Octal buffer, 3.3V, 5V-tol (sidecar) | 74LVC244APW,118        | C6079     | TSSOP-20   | 23,742 |
 | Octal D-FF (parallel.py LPT latch, was 74HCT574) | 74LVC574AT20-13 | C842658 | TSSOP-20 | 88 **thin** |
-| Quad tri-state (cpu_core U11/U15, network AEN/INT0) | 74LVC125AD,118 | C6057 | SOIC-14 | 17,935 |
+| Quad tri-state (cpu_core U11/U15, addr_decode IRQ driver) | 74LVC125AD,118 | C6057 | SOIC-14 | 17,935 |
 | Dual open-drain (sidecar IOCHRDY/IOCHCK̄) | 74LVC2G07GW,125 (2G06 body, value override) | C24478 | SOT-363-6 | 6,631 |
 | ÷2 clock divider (cpu_core U8, was 74HCT74) | 74LVC74APW,118 | C6100 | TSSOP-14 | 7,807 |
 | ÷3 clock divider (cpu_core U9, was 74HC161) | 74LVC161PW,118 | C548136 | TSSOP-16 | 100 **thin** |
@@ -168,23 +168,13 @@ that day — thin JLC stock, see the thin-stock list below).
   not socketed**. A socketed PLCC-44 fallback (TL16C550CIFNR, C2653193)
   exists if a future revision wants sockets back.
 
-## Network card (2026-07-12)
+## Network card (2026-07-12) — REMOVED 2026-07-14
 
-RTL8019AS NE2000 NIC soft-card sourcing pass (schematic from Tasks 1-3):
-
-- **RTL8019AS**: bound to **C22465363** (~$19.5, 202 pcs on 2026-07-12). The
-  cheaper alternative **C10016** (~$11) has only 4 pcs in stock — not enough
-  for a build. Re-check both at order time.
-- **RJ45 jack**: the upstream reference's part **C133529 is EOL** →
-  swapped to **C386757** (Ckmtw R-RJ45R08P-C000).
-- **Line-side CT caps**: 1nF/2kV 1206 (**C9196**), matching the upstream
-  reference design.
-- **New passives** (all basic library, verified live 2026-07-12): 27k
-  (C22967), 1M (C22935), 200R (C8218), 20pF (C1648), 1nF (C1588).
-- **Custom symbols pin-verified** against EasyEDA + datasheet on 2026-07-12:
-  **RTL8019AS**, **AT93C46** (MAC EEPROM), **13F-39MNL** (RJ45 magnetics
-  jack), **RJ45_LED** (the jack's integrated LEDs) — all four new
-  hand-authored symbols this card needed.
+The RTL8019AS NE2000 NIC and its whole sourcing tree (RTL8019AS C22465363,
+AT93C46 C6499, 13F-39MNL magnetics C115949, RJ45 C386757, plus the
+NIC-only passives 27k/1M/200R/20pF/1nF/1nF-2kV and the 20 MHz crystal)
+were removed from the board on 2026-07-14. Git tag **`full-board-with-nic`**
+preserves the last design with the full sourcing detail this section held.
 
 ## Passives audit (2026-07-14) — basic-library sweep + resistor arrays
 
@@ -192,7 +182,7 @@ Every discrete R and C value on the board audited against the JLC library:
 all were already **basic** (the 27R USB terminator is "preferred" = also
 fee-free) except three, resolved as follows:
 
-- **Ferrite beads (x3, picogus AVDD + network)**: extended Murata
+- **Ferrite beads (picogus AVDD; was x3 incl. the removed NIC)**: extended Murata
   BLM18KG101TN1D (100R@100MHz) -> **basic BLM18PG121SN1D, C14709**
   (120R@100MHz, 2A) -- same family/role, fee-free.
 - **100uF SMD electrolytic (power, x2, C2887276)** and **2.2uH/4.8A buck
@@ -227,8 +217,6 @@ supervisor I2C pair + RUN, and singletons.
 - TPS563200DDCR (C97253): down to **4 pcs** as of the 2026-07-11 review (was
   ~256 on 2026-07-03) — re-verify before any order; TPS563201DDCR (D-CAP2,
   different feedback network) or another 3A 5→3.3V buck is the fallback.
-- RTL8019AS (C22465363): 202 pcs on 2026-07-12 — healthy for now, but the
-  cheaper C10016 alt sits at only 4 pcs; re-verify before ordering.
 - **74LVC161PW,118** (C548136, ÷3 clock divider): ~100 pcs. **74LVC574AT20-13**
   (C842658, LPT data latch): ~88 pcs. Both new 2026-07-14 picks — re-verify
   before BOM lock.

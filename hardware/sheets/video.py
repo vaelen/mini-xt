@@ -5,7 +5,7 @@ standard ISA backplane + power plus ONE central level, DIS_VID (mxbus.PRIV_DIS
 -- a standalone card's wrapper would put the strap back locally). It owns its
 own video RAM and SELF-DECODES the 0xA0000-0xBFFFF window and the CRTC/mode
 ports from the latched A17-A19 / A0-A9 it snoops (no Y5, no MCU link, no host
-memory). DIS_VID (GPIO42, addr_decode JP6 -- 2026-07-14: replaced the on-sheet
+memory). DIS_VID (GPIO42, addr_decode JP5 -- 2026-07-14: replaced the on-sheet
 VID_EN/JP1 strap, POLARITY INVERTED: high = disabled, enabled by default) and
 VID_BASE (GPIO43, JP1 here) are boot-read straps: firmware honors DIS_VID
 before enabling any bus-facing OE, and VID_BASE selects the default window
@@ -56,7 +56,7 @@ PINS = (
     [pin(s, "input") for s in ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}",
                                "BALE", "AEN", "CLK", "RESET_DRV"]] +
     [pin("IOCHRDY", "output"),                               # card wait-states reads
-     pin("DIS_VID", "input")]   # addr_decode JP6 level: high = card disabled (fw-read)
+     pin("DIS_VID", "input")]   # addr_decode JP5 level: high = card disabled (fw-read)
 )
 
 
@@ -156,7 +156,7 @@ def build(sch, lib, expose=True):
                   [("VID_BASE", "3V3_VID"), ("DDIR", "GND")])
 
     # Boot straps (firmware-read; decode is firmware in this snoop design):
-    # DIS_VID comes from addr_decode JP6 (2026-07-14, was the on-sheet
+    # DIS_VID comes from addr_decode JP5 (2026-07-14, was the on-sheet
     # VID_EN/JP1 -- polarity inverted): low/default -> card enabled; jumper
     # fitted -> high -> firmware keeps every bus-facing OE off (all drivers
     # are MCU-gated tri-states) = card disabled.
@@ -271,5 +271,5 @@ def build(sch, lib, expose=True):
     sch.text("SOFT CARD: ISA bus + power ONLY. Self-decodes 0xA0000-0xBFFFF and "
              "3B4/3B5/3B8/3BA/3BF + 3D4/3D5/3D8/3D9/3DA from snooped A17-A19/A0-A9. "
              "No Y5, no link, no host RAM (design S8). "
-             "Disable: addr_decode JP6 (DIS_VID high, firmware keeps all OEs off; enabled by default). JP1 = CGA (closed) / MDA (open) window set.", (38.1, 20.32))
+             "Disable: addr_decode JP5 (DIS_VID high, firmware keeps all OEs off; enabled by default). JP1 = CGA (closed) / MDA (open) window set.", (38.1, 20.32))
     sch.text("HDMI: +5V fused (F1); HPD sensed on GPIO41. Add TMDS ESD array (TPD4E05U06-class, <=0.15pF) at layout -- no KiCad symbol yet.", (266.7, 33.02))

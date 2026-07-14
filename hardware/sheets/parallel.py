@@ -25,7 +25,7 @@ clocks; the fifth strobe (~{RD_CTRL}) is NAND-built from U12's spare gates
 (gated) ~Ack edge -- normally polled.
 
 3.3V single-board redesign (spec 2026-07-14, task 7): the whole sheet moves
-to +3V3 (no chip on this sheet stays 5V -- unlike com_port/network/storage,
+to +3V3 (no chip on this sheet stays 5V -- unlike com_port/storage,
 the DB25 Centronics connector carries no VCC pin, so there's no equivalent
 "external device needs real 5V" case here). Every part with a pin tied
 directly to a DB25-connected net (U1/U2/U4/U5, the data+control latches and

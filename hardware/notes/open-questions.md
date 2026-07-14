@@ -453,3 +453,27 @@ as actually implemented, including drift from the original plan):
 - **Component count**: netlist-counted at **481** components (was ~350
   estimated in the spec, ~455 before any redesign work) — see the spec's
   "Component-count" section for the reconciliation.
+
+---
+
+## 2026-07-14 (later) — NIC removed from the board
+
+**User decision**, made right after tagging **`full-board-with-nic`** (the tag
+preserves the last design that carried it). The RTL8019AS NE2000 network
+sheet is gone: sheet + `questions-network.md` deleted, its custom symbols
+(RTL8019AS, AT93C46, 13F-39MNL, RJ45_LED) removed from `gensym.py`, and all
+NIC-only `parts.py` bindings dropped (27k/1M/200R/20pF/1nF/1nF-2kV passives,
+20 MHz crystal, magnetics, jack). Knock-ons:
+
+- **addr_decode**: JP5/DIS_NIC deleted; JP6 (DIS_VID) renumbered to **JP5**;
+  `mxbus.PRIV_DIS` is now just DIS_VID.
+- **IRQ2 retired as an internal net** (same treatment as IRQ6/IRQ8): the NIC
+  was its only on-board driver, so bus_mcu's '165 lane U12-D0 ties low and
+  the IRQ2 pull is dropped. Expansion-port cards still deliver IRQ2 as
+  EXT_IRQ2 → soft-PIC IRQ9 redirect; an expansion COM4 can now use IRQ2→9
+  without disabling anything.
+- The NIC's 5V island was the last 5V logic outside cpu_core, so the 5V
+  presence list shrinks to: V20, cpu_core U10/U13, +5V_ISA feed, audio
+  MCP6002.
+- Full rebuild: 12 sheets, ERC 0/0, netlist clean (no DIS_NIC/EARTH/IRQ2
+  internals remain).

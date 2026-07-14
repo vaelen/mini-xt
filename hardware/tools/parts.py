@@ -226,20 +226,9 @@ PART_MAP = {
                                                        SOT236, "USB host-port ESD array"),
     ("Device:Q_NMOS", "2N7002"):  E("C8545", "2N7002", "SOT-23", SOT23,
                                     "storage IRQ5 tri-state inverter"),
-    # ---- network (NE2000, ISA8019 transcription) 2026-07-12 ----
-    ("mini-xt:RTL8019AS", "RTL8019AS"): E("C22465363", "RTL8019AS-LF_R", "QFP-100(14x20)",
-        "Package_QFP:PQFP-100_14x20mm_P0.65mm",
-        "NE2000 NIC. Alt C10016 (~$11) had only 4 pcs on 2026-07-12; C22465363 (~$19.5, 202 pcs) is the safe bind -- re-check both at order time"),
-    ("mini-xt:AT93C46", "AT93C46"): E("C6499", "AT93C46DN-SH-T", "SOIC-8", SOIC8,
-        "NIC MAC EEPROM; ships blank -- program once with RSET8019.EXE"),
-    ("mini-xt:13F-39MNL", "13F-39MNL"): E("C115949", "13F-39MNL", "SMD-16P 12.7x7.1mm",
-        "mini-xt:LAN_13F-39MNL",
-        "10BaseT magnetics, as ISA8019 upstream; custom fp -- import EasyEDA at layout"),
-    ("mini-xt:RJ45_LED", "RJ45_LED"): E("C386757", "R-RJ45R08P-C000", "RJ45 TH right-angle",
-        "mini-xt:RJ45_R-RJ45R08P-C000",
-        "shielded + 2 LEDs; successor to upstream C133529 (EOL); custom fp -- import EasyEDA at layout"),
-    ("Device:Crystal", "20MHz"): E("C110936", "X322520MSB4SI", "SMD-3225", XTAL3225,
-        "NIC 20 MHz crystal, as ISA8019 upstream"),
+    # (NIC part bindings -- RTL8019AS, AT93C46, 13F-39MNL magnetics, RJ45,
+    # 20MHz crystal -- removed with the network sheet 2026-07-14; tag
+    # full-board-with-nic has them.)
     # ---- socketed vintage / user-stock parts: LCSC number = the SOCKET ----
     # Machined-pin (round-hole) sockets, all 600 mil row spacing: better grip,
     # repeated-insertion tolerant, gentler on 40-year-old pins than stamped tin.
@@ -278,9 +267,6 @@ PART_MAP = {
     ("Device:R", "270"):   E("C22966", "0603WAF2700T5E", "0603", R0603),
     ("Device:R", "2k"):    E("C22975", "0603WAF2001T5E", "0603", R0603),
     ("Device:R", "33k"):   E("C4216", "0603WAF3302T5E", "0603", R0603),
-    ("Device:R", "27k"):   E("C22967", "0603WAF2702T5E", "0603", R0603, "NIC SLOT16 8-bit strap"),
-    ("Device:R", "1M"):    E("C22935", "0603WAF1004T5E", "0603", R0603, "NIC crystal bias"),
-    ("Device:R", "200"):   E("C8218", "0603WAF2000T5E", "0603", R0603, "NIC TPIN termination"),
     ("Device:R", "4.7k"):  E("C23162", "0603WAF4701T5E", "0603", R0603),
     ("Device:R", "5.1k"):  E("C23186", "0603WAF5101T5E", "0603", R0603),
     ("Device:R", "510"):   E("C23193", "0603WAF5100T5E", "0603", R0603),
@@ -293,10 +279,6 @@ PART_MAP = {
     ("Device:C", "1uF"):   E("C15849", "CL10A105KB8NNNC", "0603", C0603),
     ("Device:C", "30pF"):  E("C1658", "0603CG300J500NT", "0603", C0603, "12MHz crystal load (CL=20pF)"),
     ("Device:C", "22pF"):  E("C1653", "CL10C220JB8NNNC", "0603", C0603),
-    ("Device:C", "20pF"):  E("C1648", "CL10C200JB8NNNC", "0603", C0603, "NIC 20 MHz crystal load"),
-    ("Device:C", "1nF"):   E("C1588", "CL10B102KB8NNNC", "0603", C0603, "NIC magnetics center-tap bypass"),
-    ("Device:C", "1nF/2kV"): E("C9196", "1206B102K202NT", "1206", C1206,
-                               "NIC line-side CT caps on the isolation barrier (2kV, as ISA8019 upstream)"),
     ("Device:C", "2.2nF"): E("C1604", "0603B222K500NT", "0603", C0603),
     ("Device:C", "2.2uF"): E("C23630", "CL10A225KO8NNNC", "0603", C0603),
     ("Device:C", "47uF"):  E("C16780", "CL21A476MQYNNNE", "0805", C0805),
@@ -318,7 +300,7 @@ PART_MAP = {
                                              "Inductor_SMD:L_0603_1608Metric",
         "basic-library swap 2026-07-14 (was extended BLM18KG101TN1D 100R): "
         "same Murata 0603 family, 120R@100MHz, 2A -- plenty for the AVDD "
-        "supply-filter roles on picogus/network"),
+        "supply-filter roles on picogus"),
     ("Device:Polyfuse", "500mA"): E("C46641014", "SMD1206-050-16", "1206",
                                     "Fuse:Fuse_1206_3216Metric"),
     # ---- connectors ----
