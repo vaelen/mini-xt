@@ -120,3 +120,25 @@ card_com's own JP2 was deleted (the sheet's strap comes along for free).
   (U2/MAX3241) stays +5V. Added a new +3V3 bulk cap (C14) alongside the
   existing +5V bulk (C13, now MAX3241-only) since the sheet now has two
   real supply domains.
+
+---
+**2026-07-14: COM1+COM2 merged onto ONE sheet (was one generic sheet instanced ×2).**
+
+- Q: Keep two instances of a generic port, or one sheet with both ports?
+- Decision: **One sheet, both ports**, so the per-copy glue collapses:
+  - ONE address decoder: 0x3F8/0x2F8 differ only in A8, so the common term
+    (A3..A7,A9=1, AEN=0) is built once and ANDed with A8 (COM1) / ~A8 (COM2).
+    Glue is now 1× 74HC04 + 2× 74HC08 (all 8 AND gates used) — was 2×04 + 4×08.
+  - ONE 74LVC125A gates both IRQs (each copy used 1 of its 4 buffers).
+  - Net effect: 12 ICs → 8 on the COM subsystem.
+- Consequences (supersedes Q1 and Q5 above):
+  - **J2 base-address straps deleted, addresses hardwired.** The strap existed
+    only because one generic sheet had to serve both addresses; with both ports
+    explicit there is nothing to configure, and the "J2 must always be
+    jumpered or A8_SEL floats" hazard goes away. (IRQs were already hardwired.)
+  - **TTL console header (J3) + RX-select jumper (JP1) exist once, on COM1
+    only** — matching design S11.1's intent; the old ×2 layout placed them on
+    both and DNP'd COM2's. COM2's SIN is driven directly by its MAX3241 R1OUT
+    (push-pull), so it needs no selector and no idle pull-up.
+  - Port enables are now JP3 (COM1) / JP4 (COM2); interface pins IRQ4/IRQ3
+    replace the per-instance COM_IRQ remap. Sheet is A2 (two ports outgrow A3).

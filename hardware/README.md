@@ -24,7 +24,7 @@ descend into a subsystem.
 | `sheets/bus_mcu`          | Bus-master RP2350B: soft chipset (incl. RTC ports 0x70/71) + addr counter + IRQ collector, GPIOs direct on the 3.3V bus (no local level shifters) |
 | `sheets/supervisor`       | RP2040: USB host, setup UI, POST, console, link, battery-backed PCF8563 RTC |
 | `sheets/video`            | RP2350B soft CGA/MDA/Herc → HDMI + VGA; 4× 74LVC245A PIO time-share mux |
-| `sheets/com_port` (×2)    | TL16C550CPT + MAX3241 + DB9 (COM1/COM2)           |
+| `sheets/com_port`         | 2× TL16C550CPT + MAX3241 + DB9, shared decode/IRQ glue (COM1+COM2) |
 | `sheets/parallel`         | discrete 74HC/74LVC LPT @ 0x378 + DB25            |
 | `sheets/power`            | USB-C 5 V in → 3.3 V buck                         |
 | `sheets/storage`          | XT-IDE (Chuck-mod) + CompactFlash                |

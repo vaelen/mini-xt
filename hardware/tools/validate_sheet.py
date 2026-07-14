@@ -25,7 +25,8 @@ CLI = __import__("mxsch").kicad_cli()
 def main(name):
     lib = load_lib()
     mod = importlib.import_module(name)
-    sch = mxsch.Schematic(lib, title=getattr(mod, "TITLE", name), rev="1")
+    sch = mxsch.Schematic(lib, title=getattr(mod, "TITLE", name), rev="1",
+                          paper=getattr(mod, "PAPER", "A3"))
     mod.build(sch, lib)
     outdir = os.path.join(HERE, "_val", name)
     os.makedirs(outdir, exist_ok=True)

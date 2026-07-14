@@ -76,8 +76,8 @@ def build_subsheet(modname, lib):
 
 
 # Standalone soft-card PCBs (each = logic + two chainable ISA headers, isa_conn).
-# COM/LPT/storage live on the motherboard only (their sheets carry enable +
-# base-addr/IRQ straps); RTC is no longer a motherboard sheet at all -- it's
+# COM/LPT/storage live on the motherboard only (their sheets carry enable
+# straps, plus base-addr straps on LPT/IDE; COM bases/IRQs are hardwired); RTC is no longer a motherboard sheet at all -- it's
 # emulated in the Bus MCU + a PCF8563 on the Supervisor (2026-07-14). The
 # remaining standalone cards are the ones that earn a separate PCB: video
 # (HDMI/VGA bring-up) and the isatest jig (the bus HOST -- opposite role,

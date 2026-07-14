@@ -355,9 +355,9 @@ Only two soft cards earn a **separate PCB** (`hardware/cards/`): **video** and t
 **isatest jig** (a Pico playing the bus *host* — the opposite role — so any card can be
 exercised with no motherboard present). Both are now genuine **5V ISA cards** that plug into
 this port and keep their own local level shifters, same as any real period card would.
-**COM ×2, LPT, and storage are motherboard-only** (§10/§11): each is still its own isolated
-soft-card sheet, and its enable/base-address/IRQ jumpers free the slot for an expansion-port
-replacement. (The RTC no longer has an on-board ISA sheet at all — it moved off-bus, §11.3.)
+**COM ×2, LPT, and storage are motherboard-only** (§10/§11): each is still a soft-card
+sheet (COM1+COM2 share one merged sheet since 2026-07-14), and its enable jumpers (plus
+base-address straps on LPT/IDE) free the slot for an expansion-port replacement. (The RTC no longer has an on-board ISA sheet at all — it moved off-bus, §11.3.)
 
 ---
 
@@ -669,7 +669,7 @@ collector line and redirect path the rest of the 8-bit IRQs use).
 - **JP1 (disable)**: open tri-states the IRQ2 line through a spare **74HCT125** gate and
   forces the chip's **AEN input high**, so a disabled NIC ignores every I/O cycle and
   frees IRQ2 for the sidecar — the same self-isolating pattern as the other on-board
-  cards' enable jumpers (LPT JP2, COM JP3, XT-IDE JP2).
+  cards' enable jumpers (LPT JP2, COM JP3/JP4, XT-IDE JP2).
 
 ---
 
@@ -734,13 +734,16 @@ space if a physical drive or Gotek must plug in; nothing else requires it.)*
 ### 11.1 Serial (2× COM)
 - **2× TL16C550CPT** (LQFP-48, soldered directly at 3.3V — 2026-07-14 update: replaces the
   socketed PLCC-44 16C550; zero JLC stock at either device revision, so this part is
-  **sourced elsewhere**, see `hardware/notes/jlcpcb-sourcing.md`) (one `com_port` sheet,
-  instanced twice): **COM1 0x3F8/IRQ4**, **COM2 0x2F8/IRQ3** — the IRQs are **hardwired**
-  per instance (the PC convention; no strap to misconfigure). On-board only — no standalone
-  COM card — remaining jumpers: **J2** base address (0x3F8/0x2F8), **JP3** enable (open
-  parks the UART's spare active-high CS1, so the port never decodes; the IRQ driver is
-  tri-state and MCR resets to 0, so a disabled port is silent on every line — disabling a
-  port is how you free its IRQ).
+  **sourced elsewhere**, see `hardware/notes/jlcpcb-sourcing.md`) (ONE `com_port` sheet
+  carrying both ports — merged 2026-07-14 from the instanced-×2 layout so the ports share
+  glue: one 74HC04 + two 74HC08 decode both addresses off a common A3–A7,A9,~AEN term, and
+  one 74LVC125A gates both IRQs — 4 glue chips instead of 8): **COM1 0x3F8/IRQ4**,
+  **COM2 0x2F8/IRQ3** — base addresses and IRQs are **hardwired** (the PC convention; no
+  strap to misconfigure — the old J2 base strap existed only because one generic sheet was
+  instanced at both addresses). On-board only — no standalone COM card — remaining jumpers:
+  **JP3/JP4** per-port enable (open parks the UART's spare active-high CS1, so the port
+  never decodes; the IRQ driver is tri-state and MCR resets to 0, so a disabled port is
+  silent on every line — disabling a port is how you free its IRQ).
 - **MAX3241** per port (3.3V — Task-10 moved it onto the 3.3V rail so its receiver
   outputs no longer swing 5V into U1's non-5V-tolerant inputs; caps resized to the
   datasheet 3.0–3.6V column) — 3 drivers + 5 receivers = a **full DB9**
@@ -752,7 +755,7 @@ space if a physical drive or Gotek must plug in; nothing else requires it.)*
   header pin at all — the RTC that once justified it is now firmware-emulated off-bus,
   §11.3), so an expansion COM4 cannot use IRQ10+ — and the bus IRQ2 line is now hardwired to
   the on-board NE2000 NIC (§9.1): **an expansion COM4 (0x2E8) needs a freed line — disable
-  COM2 (JP3) for IRQ3, or the NIC (JP1) to reclaim IRQ2→9** — still avoiding the ISA
+  COM2 (JP4) for IRQ3, or the NIC (JP1) to reclaim IRQ2→9** — still avoiding the ISA
   edge-triggered IRQ-sharing problem. The virtual COM3 mouse keeps
   **IRQ4** (the convention mouse drivers expect), so it *does* share IRQ4 with COM1; in
   practice you use one or the other (most mouse use implies COM1 is free).
