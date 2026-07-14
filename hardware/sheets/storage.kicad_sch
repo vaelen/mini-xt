@@ -11234,7 +11234,7 @@
 		)
 		(uuid "9e5d652b-4841-542c-98d6-9e283f336af2")
 	)
-	(text "Base hardwired 0x300; disable: addr_decode JP4 (fit to disable); IRQ14 hardwired (poll vs IRQ = XTIDE UB config)."
+	(text "Base hardwired 0x300; disable: addr_decode JP1.4 (cap to disable); IRQ14 hardwired (poll vs IRQ = XTIDE UB config)."
 		(at 266.7 17.78 0)
 		(effects
 			(font
@@ -11340,7 +11340,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "U801")
 					(unit 1)
 				)
@@ -11435,7 +11435,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "U803")
 					(unit 1)
 				)
@@ -11530,7 +11530,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "U804")
 					(unit 1)
 				)
@@ -11592,7 +11592,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "Q801")
 					(unit 1)
 				)
@@ -11693,7 +11693,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "U806")
 					(unit 1)
 				)
@@ -11794,7 +11794,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "U807")
 					(unit 1)
 				)
@@ -11895,7 +11895,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "U811")
 					(unit 1)
 				)
@@ -12008,7 +12008,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "U808")
 					(unit 1)
 				)
@@ -12121,7 +12121,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "U809")
 					(unit 1)
 				)
@@ -12234,7 +12234,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "U810")
 					(unit 1)
 				)
@@ -12259,7 +12259,7 @@
 				)
 			)
 		)
-		(property "Value" "Conn_02x20_Odd_Even"
+		(property "Value" "IDE 40-pin (boxed)"
 			(at 292.1 132.08 0)
 			(effects
 				(font
@@ -12267,7 +12267,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_2x20_P2.54mm_Vertical"
+		(property "Footprint" "Connector_IDC:IDC-Header_2x20_P2.54mm_Vertical"
 			(at 292.1 127 0)
 			(effects
 				(font
@@ -12276,7 +12276,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC Part Num" "C2333"
+		(property "LCSC Part Num" "C9138"
 			(at 292.1 127 0)
 			(effects
 				(font
@@ -12407,7 +12407,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "J801")
 					(unit 1)
 				)
@@ -12610,7 +12610,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "J802")
 					(unit 1)
 				)
@@ -12687,7 +12687,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "RN801")
 					(unit 1)
 				)
@@ -12746,7 +12746,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "C801")
 					(unit 1)
 				)
@@ -12805,7 +12805,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "C802")
 					(unit 1)
 				)
@@ -12864,7 +12864,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "C803")
 					(unit 1)
 				)
@@ -12923,7 +12923,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "C804")
 					(unit 1)
 				)
@@ -12982,7 +12982,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "C805")
 					(unit 1)
 				)
@@ -13041,7 +13041,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "C806")
 					(unit 1)
 				)
@@ -13100,7 +13100,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "C807")
 					(unit 1)
 				)
@@ -13159,7 +13159,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "C808")
 					(unit 1)
 				)
@@ -13218,7 +13218,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "C809")
 					(unit 1)
 				)
@@ -13277,7 +13277,7 @@
 		)
 		(instances
 			(project "mini-xt"
-				(path "/26736c46-8b40-5460-874f-03596d17270c/972bbf88-a469-5cda-af99-5a47d228ddba"
+				(path "/26736c46-8b40-5460-874f-03596d17270c/cea63665-b003-57d2-b8d8-5d97642a4726"
 					(reference "C812")
 					(unit 1)
 				)

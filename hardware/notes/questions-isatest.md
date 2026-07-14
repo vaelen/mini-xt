@@ -1,5 +1,7 @@
 # card_isatest -- decisions & open questions
 
+> **2026-07-14: card DELETED** (with card_video + build_cards()) -- superseded by the planned ISA backplane expansion board on the sidecar port. This file is kept as the design record; git history has the last sheet.
+
 Board: standalone Pico-based ISA host/bus-master card tester.
 Spec: docs/superpowers/specs/2026-07-01-isa-test-card-design.md
 

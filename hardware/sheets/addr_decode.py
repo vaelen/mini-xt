@@ -16,9 +16,11 @@ now owns ALL the discrete peripherals' bus-interface plumbing --
      ~OE = ~{COMx_IRQEN} (the UART's ~{OUT2} -- software masks by clearing
      OUT2, tri-stating the line). LPT/IDE channels strap the input high and
      pulse on their active-low requests, same as their old local stages.
-  3. DISABLE JUMPERS (JP1-JP5, one per peripheral -- COM1, COM2, LPT, IDE,
-     VID): peripherals are ENABLED by default; fitting a jumper pulls
-     DIS_x high. For COM/LPT/IDE a second 74HC32 forces that ~CS inactive --
+  3. DISABLE JUMPERS -- ONE 2x5 block, JP1 (2026-07-15; was five 1x2s).
+     Position n = COM1, COM2, LPT, IDE, VID; odd pin (top row) = DIS_x,
+     even pin (bottom row) = +3V3, so a cap across column n disables
+     peripheral n. Docs refer to positions as JP1.1 .. JP1.5. Peripherals
+     are ENABLED by default; fitting a cap pulls DIS_x high. For COM/LPT/IDE a second 74HC32 forces that ~CS inactive --
      the peripheral never decodes, its IRQ request never fires (same
      causality as the old on-sheet enables: COM MCR resets to 0, LPT's
      idle-high ~Ack keeps its request off, IDE's INTRQ pulldown keeps Q1
@@ -156,21 +158,19 @@ def build(sch, lib, expose=True):
     L(U5, "P11", "IRQ14")
 
     # ---------------- per-peripheral disable jumpers ----------------
-    # ENABLED by default (pulldown holds DIS_x low); fit the jumper to
-    # disable. COM/LPT/IDE: kills the chip select via U4, which also
-    # silences the IRQ request at its source and frees the address for an
-    # expansion-port card. VID: the level is routed to the video MCU's
-    # boot-strap GPIO (its own gating).
-    def dis_jp(jref, net, label, x, y):
-        jp = sch.place("Connector_Generic:Conn_01x02", jref, label, at=(x, y))
-        L(jp, "Pin_1", net, dx=2.54)
-        L(jp, "Pin_2", "+3V3", dx=2.54)
-
-    dis_jp("JP1", "DIS_COM1", "DIS COM1", 203.2, 152.4)
-    dis_jp("JP2", "DIS_COM2", "DIS COM2", 254.0, 152.4)
-    dis_jp("JP3", "DIS_LPT", "DIS LPT", 304.8, 152.4)
-    dis_jp("JP4", "DIS_IDE", "DIS IDE", 355.6, 152.4)
-    dis_jp("JP5", "DIS_VID", "DIS VID", 203.2, 177.8)
+    # ONE 2x5 block (JP1): position n = COM1/COM2/LPT/IDE/VID; odd pin =
+    # DIS_x, even pin = +3V3 -- cap across a column disables. A single
+    # fixed 2x5 part (parts.py) replaces five breakaway 1x2s. ENABLED by
+    # default (pulldown holds DIS_x low). COM/LPT/IDE: fitting kills the
+    # chip select via U4, which also silences the IRQ request at its source
+    # and frees the address for an expansion-port card. VID: the level is
+    # routed to the video MCU's boot-strap GPIO (its own gating).
+    JP = sch.place("Connector_Generic:Conn_02x05_Odd_Even", "JP1",
+                   "DIS block (2x5)", at=(203.2, 152.4))
+    for i, net in enumerate(["DIS_COM1", "DIS_COM2", "DIS_LPT",
+                             "DIS_IDE", "DIS_VID"]):
+        L(JP, str(2 * i + 1), net, dx=-2.54)      # odd row: the DIS level
+        L(JP, str(2 * i + 2), "+3V3", dx=2.54)    # even row: +3V3
     # DIS_x default-low pulldowns, consolidated into 4x10k basic arrays
     # (2026-07-14; isolated elements, RN2 has three spares)
     mxbus.r_pack4(sch, "RN1", "10kx4", (398.78, 152.4),
@@ -187,8 +187,8 @@ def build(sch, lib, expose=True):
 
     sch.text("One decode for all discrete peripherals, bases hardwired: "
              "COM1 0x3F8, COM2 0x2F8, LPT 0x378, IDE 0x300", (101.6, 210.82))
-    sch.text("JP1-JP5 (COM1/COM2/LPT/IDE/VID): peripheral ENABLED by default; "
-             "fit jumper to disable (kills decode/IRQ, frees the slot)",
-             (101.6, 213.36))
+    sch.text("JP1 2x5 disable block, pos 1-5 = COM1/COM2/LPT/IDE/VID: ENABLED "
+             "by default; cap across a column disables (kills decode/IRQ, "
+             "frees the slot)", (101.6, 213.36))
     sch.text("U5 maps IRQ requests -> ISA lines: COM1=IRQ4, COM2=IRQ3, LPT=IRQ7, "
              "IDE=IRQ14 (hardwired conventions)", (101.6, 215.9))

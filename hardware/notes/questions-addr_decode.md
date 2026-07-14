@@ -113,3 +113,15 @@ jumpers / the NIC predate the NIC's removal (see #8).
   down to one pulled element (three spares). `mxbus.PRIV_DIS` is now just
   DIS_VID. IRQ2 was retired as an internal net in bus_mcu (its '165 lane
   ties low, like IRQ6/IRQ8); expansion cards still reach it as EXT_IRQ2.
+
+## Disable jumpers folded into ONE 2x5 block (2026-07-15, user decision)
+
+JP1-JP5 (five Conn_01x02 breakaway 1x2s) -> ONE Conn_02x05_Odd_Even block,
+ref **JP1**, value "DIS block (2x5)". Position n = COM1, COM2, LPT, IDE,
+VID; odd pin (row 1) carries DIS_x, even pin (row 2) is +3V3, so a jumper
+cap across column n disables peripheral n. Referenced in docs as JP1.n.
+parts.py binds the value to **C492422** (XFCN PZ254V-12-10P, fixed 2x5
+vertical male, ~137k stock) instead of the C2333 breakaway strip -- one
+purchasable part for the whole block, and the fab places one component
+instead of five. Electrically identical to the five separate jumpers
+(same DIS_x / +3V3 pairs, same RN1/RN2 pulldowns).

@@ -51,8 +51,8 @@ PINS = (
     [pin(s, "input") for s in mxbus.ADDR[:10]] +          # A0..A9
     [pin(s, "bidirectional") for s in mxbus.DATA] +       # D0..D7
     [pin(s, "input") for s in ["~{IOR}", "~{IOW}", "AEN", "RESET_DRV", "TC",
-                               "~{DACK1}", "~{DACK3}"]] +
-    [pin("IOCHRDY", "output"), pin("DRQ1", "output"), pin("DRQ3", "output")] +
+                               "~{DACK}"]] +
+    [pin("IOCHRDY", "output"), pin("DRQ", "output")] +
     [pin("IRQ5", "output")] +      # hardwired (the free line); pgusinit sets the firmware to match
     [pin("PG_L", "output"), pin("PG_R", "output")] +       # post-filter audio -> audio sheet summer
     [pin("PGUS_USB_DP", "bidirectional"), pin("PGUS_USB_DM", "bidirectional")]
@@ -114,10 +114,10 @@ def build(sch, lib):
     # GPIO15 (18)        | A9        | A9                            | DIRECT (U6 deleted)
     # GPIO4  (6)         | ~{RIOW}   | ~{IOW}, AEN-masked            | U7/U8 gates
     # GPIO5  (7)         | ~{RIOR}   | ~{IOR}, AEN-masked            | U7/U8 gates
-    # GPIO19 (30)        | ~{RDACK}  | ~{DACK1}/~{DACK3} (jumper J1)  | senses jumpered ack
+    # GPIO19 (30)        | ~{RDACK}  | ~{DACK} (hardwired ch1)      | via U7 gate
     # GPIO20 (31)        | TC        | TC (ISA terminal count, in)   | DIRECT (U6 deleted)
     # GPIO21 (32)        | IRQ5      | IRQ5 (out, hardwired free)    | DIRECT (U6 deleted)
-    # GPIO22 (34)        | DRQ       | DRQ1/DRQ3 (out, jumper J1)     | DIRECT (U6 deleted)
+    # GPIO22 (34)        | DRQ       | DRQ (out, hardwired ch1)     | DIRECT (U6 deleted)
     # GPIO26 (38)        | RIOCHRDY  | IOCHRDY (out, open-drain)     | U10 74LVC2G06
     # GPIO27 (39)        | ADS       | (mux select/timing, not ISA)  | drives U4/U5/U9
     # GPIO0-3 (2-5)      | SPI_*     | (not ISA -- APS6404L SPI)     | unaffected
@@ -135,7 +135,7 @@ def build(sch, lib):
         ("GPIO10", "AD4"), ("GPIO11", "AD5"), ("GPIO12", "AD6"), ("GPIO13", "AD7"),
         ("GPIO14", "A8"), ("GPIO15", "A9"),                # direct (was RA8/RA9 via U6)
         ("GPIO16", "DIN"), ("GPIO17", "BCK"), ("GPIO18", "LRCK"),
-        ("GPIO19", "~{RDACK}"), ("GPIO20", "TC"), ("GPIO21", "IRQ5"), ("GPIO22", "DRQ"),  # direct (was RTC_LS/RIRQ/RDRQ via U6)
+        ("GPIO19", "~{RDACK}"), ("GPIO20", "TC"), ("GPIO21", "IRQ5"), ("GPIO22", "DRQ"),  # direct (was RTC_LS/RIRQ/RDRQ via U6); DRQ hardwired (DMA jumper deleted 2026-07-14)
         ("GPIO23", "LED_A"), ("GPIO24", "RV_DATA"), ("GPIO25", "RV_CLK"),
         ("GPIO26/ADC0", "RIOCHRDY"), ("GPIO27/ADC1", "ADS"),
         ("GPIO28/ADC2", "MIDI_TX"), ("GPIO29/ADC3", "GND"),
@@ -273,7 +273,7 @@ def build(sch, lib):
     L(U7, "VCC", "3V3_PGUS", dx=0, dy=-2.54); L(U7, "GND", "GND", dx=0, dy=2.54)
     L(U7, "P1", "~{IOR}", dx=-2.54);       L(U7, "P2", "IOR_POS")
     L(U7, "P3", "~{IOW}", dx=-2.54);       L(U7, "P4", "IOW_POS")
-    L(U7, "P5", "DACK", dx=-2.54);         L(U7, "P6", "~{RDACK}")
+    L(U7, "P5", "~{DACK}", dx=-2.54);     L(U7, "P6", "~{RDACK}")
     L(U7, "P11", "RESET_DRV", dx=-2.54);   L(U7, "P10", "RST_INV")
     L(U7, "P9", "RST_INV", dx=-2.54);      L(U7, "P8", "RST_DLY")
     L(U7, "P13", "ADS", dx=-2.54);         L(U7, "P12", "ADS_INV")
@@ -285,7 +285,7 @@ def build(sch, lib):
     # thinnest BOM line (74LVC00, ~125 units). Same swap on U9.
     U8 = sch.place("mini-xt:74HCT00", "U8", "74HC00", at=(355.6, 127.0))
     L(U8, "VCC", "3V3_PGUS", dx=0, dy=-2.54); L(U8, "GND", "GND", dx=0, dy=2.54)
-    L(U8, "P9", "AEN", dx=-2.54); L(U8, "P10", "DACK", dx=-2.54); L(U8, "P8", "IOMASK")
+    L(U8, "P9", "AEN", dx=-2.54); L(U8, "P10", "~{DACK}", dx=-2.54); L(U8, "P8", "IOMASK")
     L(U8, "P1", "IOR_POS", dx=-2.54); L(U8, "P2", "IOMASK", dx=-2.54); L(U8, "P3", "~{RIOR}")
     L(U8, "P4", "IOW_POS", dx=-2.54); L(U8, "P5", "IOMASK", dx=-2.54); L(U8, "P6", "~{RIOW}")
     # MIDI inverter gate removed with the MIDI port (design change 2026-07-11):
@@ -318,29 +318,20 @@ def build(sch, lib):
     L(R8, "1", "3V3_PGUS", dx=0, dy=-2.54); L(R8, "2", "RUN", dx=0, dy=2.54)
     C20 = sch.place("Device:C", "C20", "100nF", at=(266.7, 25.4))
     L(C20, "1", "RUN", dx=0, dy=-2.54); L(C20, "2", "GND", dx=0, dy=2.54)
-    # R9 pulls DACK (idle-high = deasserted) to 3V3_PGUS, not +5V: DACK feeds
-    # U7/U8 gate inputs on the 3V3_PGUS domain, and with no jumper installed
-    # it must not park at a stray 5V while everything reading it is 3.3V
-    # (3.3V bus redesign, 2026-07-14 -- matches the R7/R8 pull-up convention
-    # on this sheet).
-    R9 = sch.place("Device:R", "R9", "15k", at=(279.4, 25.4))
-    L(R9, "1", "3V3_PGUS", dx=0, dy=-2.54); L(R9, "2", "DACK", dx=0, dy=2.54)
+    # (R9, the old DACK idle pull, went with the DMA jumper: ~{DACK} is
+    # driven by the Bus MCU and park-pulled on bus_mcu (RN6), so a local
+    # pull here would just leak between 3V3_PGUS and 3V3_BUS.)
     sch.text("BUSOE latch: ~{BUSOE} parks HIGH (buffers off) through bus reset,\n"
               "latches LOW (buffers on) once firmware first toggles ADS.",
               at=(355.6, 215.9))
 
-    # =================================================== 6. IRQ/DMA jumpers ====
-    J1 = sch.place("Connector_Generic:Conn_02x04_Odd_Even", "J1", "DMA_JP", at=(431.8, 63.5))
-    dma_odd = {1: "DRQ1", 3: "~{DACK1}", 5: "DRQ3", 7: "~{DACK3}"}
-    for num, net in dma_odd.items():
-        L(J1, str(num), net, dx=-2.54)
-    for num in (2, 6):
-        L(J1, str(num), "DRQ", dx=2.54)
-    for num in (4, 8):
-        L(J1, str(num), "DACK", dx=2.54)
-    sch.text("DMA jumpers: one DRQ/DACK pair -- our Bus MCU services DMA ch1\n"
-              "ONLY, so jumper DRQ1/DACK1. IRQ hardwired to IRQ5 (the free\n"
-              "line, sole driver); pgusinit sets the firmware to match.", at=(431.8, 25.4))
+    # ============================================= 6. IRQ/DMA -- hardwired ====
+    # DMA jumper J1 deleted 2026-07-14: the Bus MCU services DMA ch1 ONLY, so
+    # DRQ/~{DACK} are hardwired (GPIO22 drives DRQ; ~{DACK} feeds the
+    # U7/U8 gates directly). The reference card's ch3 option is gone with it.
+    sch.text("DMA hardwired to ch1 timing (DRQ/DACK; jumper deleted -- Bus MCU\n"
+              "services ch1 ONLY). IRQ hardwired to IRQ5 (the free line, sole\n"
+              "driver); pgusinit sets the firmware to match.", at=(431.8, 25.4))
 
     # ========================================================= 7. sample RAM ===
     U11 = sch.place("mini-xt:APS6404L", "U11", at=(63.5, 203.2))

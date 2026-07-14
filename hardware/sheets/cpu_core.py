@@ -23,10 +23,10 @@ V20 runs at 5 V, everything past the boundary latches is a 3.3 V bus.
     74HCT04 5 V buffer (U13) -> V20 CLK, plus 5 V re-buffering of the V20's
     READY/HOLD handshake inputs (the one gate package that MUST stay 5 V: V20 CLK
     needs Vkh = 4.0 V, unreachable from 3.3 V). U13 drives only private V20 nets.
-  * 74LVC125A bus re-buffer (U15, 3.3 V): the BALE/CLK/OSC bus copies are buffered
+  * 74LVC125A bus re-buffer (U15, 3.3 V): the BALE/CLK bus copies are buffered
     to 3.3 V here -- no 5 V push-pull output may drive a shared bus net (they reach
     the non-5V-tolerant sidecar RP2040). BALE's input is the raw 5 V V20 ALE (LVC
-    5 V-tolerant); CLK from CLK7, OSC from OSC_3V3 (both 3.3 V).
+    5 V-tolerant); CLK from CLK7 (3.3 V). (Bus OSC retired 2026-07-14.)
   * TCM809 reset supervisor (cold start) -- 3.3 V so its reset net is clean 3.3 V.
 
 Exposes the buffered ISA backplane plus the private V20<->Bus-MCU side channels.
@@ -47,7 +47,9 @@ PINS = (
      pin("BALE", "output"),
      # (AEN / IOCHRDY intentionally absent: AEN is generated on bus_mcu and
      # IOCHRDY folds into READY there -- nothing on this sheet touches either.)
-     pin("CLK", "output"), pin("OSC", "output"),
+     # (OSC left the bus contract 2026-07-14 with the 50-pin expansion header:
+     # no consumer remained. OSC_3V3 still clocks the dividers sheet-locally.)
+     pin("CLK", "output"),
      pin("RESET_DRV", "output")] +
     # private V20 <-> Bus MCU  (~{WR} / IO/~{M} are sheet-internal: the Bus MCU
     # doesn't sense them -- GPIO budget -- so only ~{RD} crosses the boundary)
@@ -236,10 +238,9 @@ def build(sch, lib):
     L(RAM, "~{CE}", "RAM_CE", dx=-2.54)    # = NOT(Y5_INT): 1MB less video window
 
     # ---------------- clock tree ----------------
-    # 14.318 canned oscillators are only stocked as 3.3 V parts (JLC), so the
-    # XO runs from +3V3 and a spare U13 HCT gate (TTL Vih reads 3.3 V) squares
-    # it up to the 5 V OSC that feeds the dividers and the ISA OSC pin.
-    # (Clock phase inversion through the gate is irrelevant.)
+    # 14.318 canned oscillators are only stocked as 3.3 V parts (JLC); the XO
+    # runs from +3V3 and OSC_3V3 clocks the dividers directly (the bus OSC
+    # copy was retired 2026-07-14 with the 50-pin expansion header).
     osc = sch.place("Oscillator:ACO-xxxMHz", "OSC1", "14.31818MHz", at=(40.64, 45.72))
     L(osc, "Vcc", "+3V3", dx=0, dy=-2.54); L(osc, "GND", "GND", dx=0, dy=2.54)
     L(osc, "OUT", "OSC_3V3")
@@ -302,7 +303,7 @@ def build(sch, lib):
     # -- Task-10 -- the V20's READY_V20/HOLD_V20 handshake buffers) drives ONLY
     # PRIVATE V20 nets; U13 must NOT drive any shared bus net (review fix Q8): the
     # 5V push-pull output would reach the non-5V-tolerant sidecar RP2040.
-    # The bus CLK/OSC copies are re-buffered at 3.3V by U15 below.
+    # The bus CLK copy is re-buffered at 3.3V by U15 below.
     # Placed at x=152.4 (was 147.32): its left-edge input stubs must clear U12
     # mux's output pin column at x=130.81 -- at the old x, P1/P3's dx=-2.54 stubs
     # landed exactly on U12 Zc/Zd (a no_connect_connected once P3 carries READY_MID).
@@ -326,25 +327,27 @@ def build(sch, lib):
     L(buf, "P3", "READY_MID", dx=-2.54); L(buf, "P4", "READY_V20")
     P(buf, "P13", "HOLD", shape="input", dx=-2.54); L(buf, "P12", "HOLD_V20")
 
-    # ---------------- 3.3V bus re-buffers (BALE / CLK / OSC) -- review fix Q8 ----
+    # ---------------- 3.3V bus re-buffers (BALE / CLK) -- review fix Q8 ----
     # No 5V push-pull output may drive a shared ISA bus net: those nets reach the
-    # non-5V-tolerant sidecar RP2040. So the three bus copies that were previously
-    # driven at 5V -- BALE (raw V20 ALE), CLK (via U13), OSC (via U13) -- are re-
-    # buffered here by a 74LVC125A: +3V3-powered (3.3V bus swing) with 5V-tolerant
-    # inputs (BALE's input is the raw 5V V20 ALE; CLK7/OSC_3V3 are 3.3V). ~OE tied
-    # low = always enabled. CLK is buffered from CLK7 (FIXED 7.16 MHz -- the speed
-    # mux only retimes the private CPUCLK, so ISA CLK never drops to 4.77 MHz in
-    # turbo-down; cards are strobe-timed, nothing times off bus CLK). Non-inverting
-    # here (vs the old inverting U13 path) is fine: ISA CLK/OSC polarity is unspec'd.
+    # non-5V-tolerant sidecar RP2040. So the bus copies that were previously
+    # driven at 5V -- BALE (raw V20 ALE), CLK (via U13) -- are re-buffered here
+    # by a 74LVC125A: +3V3-powered (3.3V bus swing) with 5V-tolerant inputs
+    # (BALE's input is the raw 5V V20 ALE; CLK7 is 3.3V). ~OE tied low = always
+    # enabled. CLK is buffered from CLK7 (FIXED 7.16 MHz -- the speed mux only
+    # retimes the private CPUCLK, so ISA CLK never drops to 4.77 MHz in
+    # turbo-down; cards are strobe-timed, nothing times off bus CLK). Non-
+    # inverting here (vs the old inverting U13 path) is fine: ISA CLK polarity
+    # is unspec'd.
     rebuf = sch.place("mini-xt:74HCT125", "U15", "74LVC125A", at=(266.7, 195.58))
     L(rebuf, "VCC", "+3V3", dx=0, dy=-2.54); L(rebuf, "GND", "GND", dx=0, dy=2.54)
     L(rebuf, "P1", "GND", dx=-2.54);  L(rebuf, "P2", "ALE_RAW", dx=-2.54)
     P(rebuf, "P3", "BALE", shape="output")
     L(rebuf, "P4", "GND", dx=-2.54);  L(rebuf, "P5", "CLK7", dx=-2.54)
     P(rebuf, "P6", "CLK", shape="output")
-    L(rebuf, "P10", "GND", dx=-2.54); L(rebuf, "P9", "OSC_3V3", dx=-2.54)
-    P(rebuf, "P8", "OSC", shape="output")
-    # 4th gate unused: park input, NC output.
+    # 3rd gate (was the bus OSC copy -- OSC retired 2026-07-14 with the 50-pin
+    # expansion header) and 4th gate unused: park inputs, NC outputs.
+    L(rebuf, "P10", "GND", dx=-2.54); L(rebuf, "P9", "GND", dx=-2.54)
+    sch.no_connect(rebuf.pin_xy("P8"))
     L(rebuf, "P13", "GND", dx=-2.54); L(rebuf, "P12", "GND", dx=-2.54)
     sch.no_connect(rebuf.pin_xy("P11"))
 

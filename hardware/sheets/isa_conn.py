@@ -1,96 +1,75 @@
-"""Shared ISA expansion connector -- STANDARD 8-bit ISA pinout on a 60-pin
-2.54 mm header (2x30), laid out exactly like the PicoGUS `Bus_ISA_8bit` header so
-our sidecar and dev cards are pin-compatible with real 8-bit ISA cards. The 60-pin
-ribbon/header is far easier to source than a 64-pin one.
+"""Shared ISA expansion connector -- project-private 8-bit ISA subset on a
+50-pin 2.54 mm header (2x25).  50-way IDC ribbons/headers are far easier to
+source than 60-way ones; the cost is that this is OUR pinout now, not the
+PicoGUS/standard-edge layout the old 60-pin header mirrored (2026-07-14).
 
-We don't use the ISA analog rails (design S13: no +-12V / -5V), so those three
-pins are reclaimed for signals we DO need:
+vs. real 8-bit ISA the header carries everything a card needs EXCEPT:
 
-    pin  7 : -5V   -> ~{IOCHCK}   (I/O channel check -> NMI)
-    pin 11 : -12V  -> GND         (extra return; improves ribbon signal integrity)
-    pin 15 : +12V  -> GND         (second extra return; was IRQ8, dropped -- the
-                                   RTC is on-board now and IRQ8 is exclusively its
-                                   push-pull net to the Bus MCU, never a card's)
+  * OSC (14.318 MHz)   -- dropped to fit 50 pins; no on-board consumer.
+  * ~{REFRESH}         -- dropped; no DRAM-refresh support on the port.
+                          The planned ISA backplane board re-creates both
+                          locally for any vintage card that needs them.
+  * DRQ2/3, DACK0/2/3  -- ONE DMA channel exists (DRQ / ~{DACK}, the
+                          soft-8237's ch1 timing), pins 9/13.
+  * -5V / +-12V        -- never carried (design S13).
 
-Everything else follows the standard ISA edge pinout (our net names in []):
-RESET DRV[RESET_DRV], SD0-7[D0-D7], SA0-19[A0-A19], SMEMR/W[~{MEMR}/~{MEMW}],
-IOR/W[~{IOR}/~{IOW}], IO CH RDY[IOCHRDY], AEN, CLK, OSC, ALE[BALE], T/C[TC],
-IRQ2-7, DRQ1-3, DACK1-3[~{DACK1..3}].  Pin 35 (the DACK0/REFRESH# pin) carries
-~{REFRESH}, driven by the Bus MCU so DRAM-based ISA cards get refreshed.  Pin 13
-(the reserved/0WS pin) is left
-unconnected, as on the PicoGUS header.
+Pins 1-38 keep the classic ISA B/A-row ordering where possible (odd = B/left,
+even = A/right); pins 41-50 pack the remaining address lines.  +5V on pin 3
+(~3A at 2.54 mm header ratings; the motherboard fuses it at 2A), grounds on
+11 and 39.
 
 Connectivity is by net NAME, so two headers with the same nets form a chainable
-IN/OUT pass-through. `remap` renames pins for a specific board (e.g. a COM card
-tapping IRQ4 as COM_IRQ); apply the same remap to both headers on that card.
-
-Dropped vs. our previous 64-pin header: the non-standard IRQ10/11/14 (they were
-spare/unused, and on a real AT live on the 16-bit extension connector, not here).
-
-Power budget: the header carries +5V on just two pins (3 and 55, ~3 A each at
-2.54 mm header ratings) and chain current is cumulative -- keep daisy-chains to
-2-3 cards. On the motherboard the sidecar feeds this rail through a 2 A
-polyfuse + SMBJ5.0A clamp (net +5V_ISA), so a faulted card trips its own fuse
-instead of dropping the board.
+IN/OUT pass-through. `remap` renames pins for a specific board (e.g. the
+sidecar's port-local X_* nets); apply the same remap to both headers on a card.
 """
 import mxbus  # noqa: F401  (kept for callers; net names are spelled out below)
 from mxbus import pin
 
-_NC = None  # pin 13: reserved / 0WS# on real ISA -- left unconnected
-
-# Standard 8-bit ISA pinout, pin 1..60 (odd = solder/B row, even = component/A
-# row), with our three substitutions. Index i -> net on pin (i+1).
+# Pin 1..50 (odd = left row, even = right row). Index i -> net on pin (i+1).
 PIN_NETS = [
-    "RESET_DRV",  "D7",    # 1  2
-    "+5V",        "D6",    # 3  4
-    "IRQ2",       "D5",    # 5  6
-    "~{IOCHCK}",  "D4",    # 7(-5V->IOCHCK)  8
-    "DRQ2",       "D3",    # 9  10
-    "GND",        "D2",    # 11(-12V->GND)  12
-    _NC,          "D1",    # 13(reserved)  14
-    "GND",        "D0",    # 15(+12V->GND; was IRQ8 -- RTC on-board) 16
-    "GND",        "IOCHRDY",   # 17 18
-    "~{MEMW}",    "AEN",       # 19 20
-    "~{MEMR}",    "A19",       # 21 22
-    "~{IOW}",     "A18",       # 23 24
-    "~{IOR}",     "A17",       # 25 26
-    "~{DACK3}",   "A16",       # 27 28
-    "DRQ3",       "A15",       # 29 30
-    "~{DACK1}",   "A14",       # 31 32
-    "DRQ1",       "A13",       # 33 34
-    "~{REFRESH}", "A12",       # 35(DACK0/REFRESH# -- driven by Bus MCU)  36
-    "CLK",        "A11",       # 37 38
-    "IRQ7",       "A10",       # 39 40
-    "IRQ6",       "A9",        # 41 42
-    "IRQ5",       "A8",        # 43 44
-    "IRQ4",       "A7",        # 45 46
-    "IRQ3",       "A6",        # 47 48
-    "~{DACK2}",   "A5",        # 49 50
-    "TC",         "A4",        # 51 52
-    "BALE",       "A3",        # 53 54
-    "+5V",        "A2",        # 55 56
-    "OSC",        "A1",        # 57 58
-    "GND",        "A0",        # 59 60
+    "RESET_DRV",  "D7",        #  1  2
+    "+5V",        "D6",        #  3  4
+    "IRQ2",       "D5",        #  5  6
+    "~{IOCHCK}",  "D4",        #  7  8
+    "DRQ",        "D3",        #  9 10
+    "GND",        "D2",        # 11 12
+    "~{DACK}",    "D1",        # 13 14
+    "TC",         "D0",        # 15 16
+    "~{MEMW}",    "IOCHRDY",   # 17 18
+    "~{MEMR}",    "AEN",       # 19 20
+    "~{IOW}",     "A19",       # 21 22
+    "~{IOR}",     "A18",       # 23 24
+    "CLK",        "A17",       # 25 26
+    "BALE",       "A16",       # 27 28
+    "IRQ7",       "A15",       # 29 30
+    "IRQ6",       "A14",       # 31 32
+    "IRQ5",       "A13",       # 33 34
+    "IRQ4",       "A12",       # 35 36
+    "IRQ3",       "A11",       # 37 38
+    "GND",        "A10",       # 39 40
+    "A8",         "A9",        # 41 42
+    "A6",         "A7",        # 43 44
+    "A4",         "A5",        # 45 46
+    "A2",         "A3",        # 47 48
+    "A0",         "A1",        # 49 50
 ]
-assert len(PIN_NETS) == 60, "expected 60 pins, got %d" % len(PIN_NETS)
+assert len(PIN_NETS) == 50, "expected 50 pins, got %d" % len(PIN_NETS)
 
 # Signals carried (the sheet interface; power stays global so it's excluded here).
-_SIGNALS = [n for n in PIN_NETS if n and n not in ("+5V", "GND")]
+_SIGNALS = [n for n in PIN_NETS if n not in ("+5V", "GND")]
 ISA_PINS = [pin(n) for n in dict.fromkeys(_SIGNALS)]   # de-duped, order-preserving
 
 
 def place_header(sch, ref, at, label=None, remap=None):
-    """Place a 60-pin 2x30 ISA header (standard pinout) at `at`, labelling each
-    pin with its bus net name. Two headers with identical nets pass through.
-    `remap` {net: newname} renames pins for a specific board."""
+    """Place a 50-pin 2x25 ISA header at `at`, labelling each pin with its bus
+    net name. Two headers with identical nets pass through. `remap`
+    {net: newname} renames pins for a specific board; apply the same remap to
+    both headers on that board."""
     remap = remap or {}
-    J = sch.place("Connector_Generic:Conn_02x30_Odd_Even", ref,
-                  label or "ISA 8-bit (60p)", at=at)
+    J = sch.place("Connector_Generic:Conn_02x25_Odd_Even", ref,
+                  label or "ISA 8-bit (50p)", at=at)
     for i, net in enumerate(PIN_NETS):
         num = str(i + 1)
-        if net is _NC:
-            sch.no_connect(J.pin_xy(num))       # reserved / 0WS# -- unconnected
-            continue
         dx = -2.54 if (i + 1) % 2 == 1 else 2.54  # odd = left row, even = right row
         sch.net(J, num, remap.get(net, net), kind="label", dx=dx)
     return J

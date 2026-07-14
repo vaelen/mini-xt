@@ -29,26 +29,31 @@ XT/ISA backplane as **slave and master**.  It carries:
         '573 latches on A0-A19 during CPU cycles).
   * RESET_DRV is NOT driven here: the MCU sequences reset via ~{CPURESET} and
         cpu_core's NAND combine drives V20 RESET + bus RESET_DRV.
-  * IRQ collector (§5.2): 2x 74HCT165 PISO (U12, U19) -- collects 16 IRQ lines onto 3 pins
-        (IRQ_LOAD / IRQ_CLK / IRQ_SER): 16-bit shift, U12 IRQ2-9 then U19 IRQ10-15.
+  * IRQ collector (§5.2): ONE 74HC165 PISO (U12) + ONE 74HC32 OR rank (U19) --
+        8-bit shift onto 3 pins (IRQ_LOAD / IRQ_CLK / IRQ_SER). The '32 merges
+        the four internal IRQs that share a header pin with the expansion port
+        (IRQ3/4/5/7 | EXT_IRQ3/4/5/7); EXT_IRQ2/6 (no internal source) feed the
+        '165 directly. 2026-07-14 consolidation: replaced the 3-chip 24-bit
+        chain (U12/U19/U20) after EXT_DRQ1-3 were deleted with ISA-card DMA.
   * UART cross-MCU link to the Supervisor (§5.3): LINK_B2S (TX), LINK_S2B (RX).
   * SPEED_SEL (out) -> clock mux in cpu_core: set before releasing V20 reset
     (moved here from the Supervisor; Supervisor sends the choice over the link).
     Address/control transceiver DIR is HLDA-derived externally to free the GPIO.
-  * ~{REFRESH} (out) -> bus REFRESH# (pin 35): driven from the same internal
-    ~15 us refresh timer as the 0x61-bit-4 toggle, so DRAM-based ISA cards on the
-    bus get refreshed. A refresh cycle reuses the bus-master engine -- it walks the
-    refresh row address on A0-A7 via the §5.1 counter and pulses MEMR# -- so only
-    the REFRESH# strobe itself needs a GPIO (reclaimed from the raw ~WR sense).
+  * Expansion-port DMA channel (2026-07-14): EXT_DRQ arrives via the '165
+    scan (U12 D6, the spare lane); ~{EXT_DACK} is driven from GPIO47 --
+    reclaimed from ~{REFRESH}, which was retired with the 50-pin header
+    (no DRAM-refresh support on the port; the port-61h bit-4 refresh toggle
+    stays firmware-internal). Separate nets from the internal PicoGUS ch1
+    pair (DRQ/~{DACK}) so a port card never sees the on-board acknowledge.
   * SPKR (out) -> audio sheet: PIT ch2 tone / port-61h speaker gate PWM (GPIO22; the bus-CLK
     sense was dropped for it -- PIO tracks bus timing from BALE/strobes).
 
 Data/address/strobe are wired GPIO<->bus directly (no transceivers, no DIR
 nets); master/slave role is a firmware tri-state.  HLDA still gates the
 counter's '244 output stage (inverted to ~{HLDA} on the parallel sheet's
-spare Schmitt gate -- the old U17 hex inverter is deleted).  The EXT scan chain
-(U19/U20 '165, PRIV_EXP EXT_*) extends the IRQ collector to sample the
-expansion port's isolated IRQ/DRQ lines.
+spare Schmitt gate -- the old U17 hex inverter is deleted).  The expansion
+port's isolated EXT_IRQ lines enter the same single-'165 scan via U19's OR
+gates (EXT_IRQ2/6 directly).
 See hardware/notes/questions-bus_mcu.md for design picks.
 """
 import mxbus
@@ -64,8 +69,11 @@ _DIR = {
     "~{IOR}": "bidirectional", "~{IOW}": "bidirectional",
     "BALE": "input", "AEN": "output", "IOCHRDY": "bidirectional",
     "~{IOCHCK}": "input", "TC": "output",
-    "DRQ1": "input", "DRQ2": "input", "DRQ3": "input",
-    "~{DACK1}": "output", "~{DACK2}": "output", "~{DACK3}": "output",
+    # (DRQ2/3 + ~{DACK2/3} retired 2026-07-14; ch1 renamed to plain DRQ /
+    # ~{DACK} -- it is the board's only internal channel, hardwired to the
+    # PicoGUS. The expansion port has its OWN pair, EXT_DRQ / ~{EXT_DACK}.)
+    "DRQ": "input",
+    "~{DACK}": "output",
     # private V20 <-> Bus MCU
     "HOLD": "output", "HLDA": "input", "~{HLDA}": "input", "READY": "output",
     "~{RD}": "input",
@@ -73,8 +81,7 @@ _DIR = {
     "LINK_B2S": "output", "LINK_S2B": "input",
 }
 _CTRL = ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}", "BALE", "AEN", "IOCHRDY",
-         "~{IOCHCK}", "TC", "DRQ1", "DRQ2", "DRQ3",
-         "~{DACK1}", "~{DACK2}", "~{DACK3}"]
+         "~{IOCHCK}", "TC", "DRQ", "~{DACK}"]
 
 PINS = (
     [pin(s, "bidirectional") for s in mxbus.ADDR] +
@@ -83,11 +90,11 @@ PINS = (
     # and IRQ14 (storage). IRQ9-13/15 have no possible driver -- re-add
     # alongside a second '165 if a 16-bit source ever appears. IRQ2, IRQ6 and
     # IRQ8 are RETIRED as internal nets (2026-07-14): nothing on the board can
-    # drive them -- IRQ2's NIC was removed (tag full-board-with-nic; a
-    # sidecar NIC would arrive as EXT_IRQ2), the floppy raises IRQ6 as a
-    # firmware event (a sidecar FDC would arrive as EXT_IRQ6), and IRQ8's RTC
-    # is firmware-emulated with the PCF8563 polled over I2C. Their '165 lanes
-    # (U12 D0/D4/D6, U19 D6) tie LOW so the firmware bit map is unchanged.
+    # drive them -- IRQ2's NIC was removed (tag full-board-with-nic), the
+    # floppy raises IRQ6 as a firmware event, and IRQ8's RTC is
+    # firmware-emulated with the PCF8563 polled over I2C. Sidecar cards still
+    # reach IRQ2/6 as EXT_IRQ2/6 (straight onto U12 D0/D4); the IRQ8 lane
+    # (U12 D6) ties LOW, so the firmware bit map is the original 8-bit layout.
     [pin("IRQ%d" % n, "input") for n in (3, 4, 5, 7, 14)] +
     [pin(s, _DIR[s]) for s in _CTRL] +
     # (~{WR} / IO/~{M} are not in PRIV_CPU anymore: not sensed here -- GPIO
@@ -96,13 +103,16 @@ PINS = (
     # (PRIV_COUNTER dropped from the interface: the 20-bit counter chain lives
     # on this sheet, so CNT_* never leaves it.)
     [pin("LINK_B2S", "output"), pin("LINK_S2B", "input"),
-     pin("SPEED_SEL", "output"), pin("~{REFRESH}", "output"), pin("SPKR", "output")] +
+     pin("SPEED_SEL", "output"), pin("SPKR", "output")] +
     # expansion-port isolation bank (mxbus.PRIV_EXP): EXP_DDIR drives the sidecar
-    # data-xcvr direction (out); the ten EXT_* are the port's inward IRQ/DRQ,
-    # collected on the EXT scan chain -- NEVER merged with the internal IRQ/DRQ
-    # nets in hardware (firmware ORs them into the soft-PIC / soft-8237).
-    [pin("EXP_DDIR", "output")] +
-    [pin(n, "input") for n in mxbus.PRIV_EXP if n != "EXP_DDIR"]
+    # data-xcvr direction (out); ~{EXT_DACK} is the port's DMA acknowledge
+    # (out, GPIO47 -- freed by the ~{REFRESH} retirement 2026-07-14); the six
+    # EXT_IRQ* + EXT_DRQ are the port's inward request lines. They never touch
+    # the internal IRQ/DRQ NETS (no driver fights) -- the merge happens at
+    # U19's OR-gate INPUTS / U12's '165 lanes, feeding the collector.
+    [pin("EXP_DDIR", "output"), pin("~{EXT_DACK}", "output")] +
+    [pin(n, "input") for n in mxbus.PRIV_EXP
+     if n not in ("EXP_DDIR", "~{EXT_DACK}")]
 )
 
 # RP2350B GPIO -> internal/interface net.  ~48 GPIO budget (§5.2).  The 3.3V bus
@@ -127,22 +137,22 @@ GPIO_NET.update({
     25: "HOLD", 26: "HLDA",                         # HLDA also inverted (parallel U9) -> ~{HLDA} ('244 ~OE)
     27: "INTR", 28: "~{INTA}", 29: "NMI",
     30: "IRQ_LOAD", 31: "IRQ_CLK", 32: "IRQ_SER",   # '165 scan chain
-    33: "DRQ1", 34: "~{DACK1}", 35: "TC",           # on-board DMA channel; TC drive direct (was M_TC via U13)
+    33: "DRQ", 34: "~{DACK}", 35: "TC",             # internal DMA channel (PicoGUS); TC drive direct (was M_TC via U13)
     36: "CNT_CLK", 37: "CNT_LD0", 38: "CNT_LD1", 39: "CNT_LD2",
     40: "LINK_B2S", 41: "LINK_S2B",                 # UART link to Supervisor
     42: "SPEED_SEL", 43: "EXP_DDIR",                # SPEED_SEL out; GPIO43 freed by U2 deletion (was DATADIR) -> expansion data-xcvr dir
     44: "READY", 45: "~{CPURESET}",                 # V20 handshake (private)
     46: "~{RD}",                                    # raw V20 read-strobe sense
-    47: "~{REFRESH}",     # drives bus REFRESH# (was raw ~WR; writes are tracked via
-})                        # the gated MEMW/IOW it already senses on GPIO17/19)
+    47: "~{EXT_DACK}",    # expansion-port DMA acknowledge (was ~{REFRESH},
+})                        # retired 2026-07-14 -- no DRAM-refresh on the port)
 # net -> hier-label shape, so MCU stubs carry the right cross-sheet direction
 _NET_SHAPE = {"IOCHRDY": "bidirectional", "~{IOCHCK}": "input",
               "HOLD": "output", "HLDA": "input", "INTR": "output",
               "~{INTA}": "input", "NMI": "output", "READY": "output",
               "~{CPURESET}": "output", "~{RD}": "input",
-              "DRQ1": "input", "~{DACK1}": "output",
+              "DRQ": "input", "~{DACK}": "output",
               "LINK_B2S": "output", "LINK_S2B": "input",
-              "SPEED_SEL": "output", "~{REFRESH}": "output", "SPKR": "output"}
+              "SPEED_SEL": "output", "~{EXT_DACK}": "output", "SPKR": "output"}
 _HIER = set(_NET_SHAPE) | {"IRQ_LOAD", "IRQ_CLK", "IRQ_SER"}  # IRQ_* are internal labels
 
 
@@ -306,97 +316,91 @@ def build(sch, lib):
              (236.22, 213.36))
 
     # =================================================================
-    #  IRQ + EXT scan chain -- 3x 74HC165 PISO @ 3V3, §5.2.  Serial cascade,
-    #  all sharing IRQ_LOAD/IRQ_CLK and costing just the 3 MCU pins
-    #  (IRQ_LOAD/IRQ_CLK/IRQ_SER):
+    #  IRQ scan -- ONE 74HC165 PISO (U12) + ONE 74HC32 OR rank (U19), §5.2.
+    #  3 MCU pins (IRQ_LOAD/IRQ_CLK/IRQ_SER), 8-bit shift, D7 first.
     #
-    #    MCU(IRQ_SER) <- U12.Q7  U12.DS <- U19.Q7  U19.DS <- U20.Q7  U20.DS=GND
-    #
-    #  CHAIN ORDER (each '165 shifts D7 first): firmware clocks 24 bits --
-    #    U12 (internal: IRQ3-5/7 + IRQ14; D0/D4/D6 = retired IRQ2/IRQ6/IRQ8, tied low),
-    #    then U19 (expansion port EXT_IRQ2-7; D6 = retired EXT_IRQ8, tied low),
-    #    then U20 (expansion port EXT_DRQ1-3).
-    #  U20 is FURTHEST from the MCU (DS=GND, end of chain).  The EXT_* are the
-    #  sidecar's ISOLATED lines -- collected here, ORed into the soft-PIC /
-    #  soft-8237 in firmware, never wired onto the internal IRQ/DRQ nets.
+    #  2026-07-14 consolidation (with the EXT_DRQ1-3 deletion): the old 3-chip
+    #  24-bit chain (U12 internal + U19 EXT_IRQ + U20 EXT_DRQ) collapses into
+    #  U12 alone. The four internal IRQs that share a header pin with the
+    #  expansion port merge with their EXT twins in U19's OR gates
+    #  (IRQn_ANY = IRQn | EXT_IRQn, n = 3/4/5/7); EXT_IRQ2/6 have no internal
+    #  source since the NIC removal / floppy retirement, so they feed U12
+    #  directly. Bit map (D0..D7): IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7,
+    #  EXT_DRQ, IRQ14 -- the original single-'165 layout with the spare D6
+    #  lane taken by the expansion port's DMA request (2026-07-14). Firmware
+    #  can no longer tell internal from sidecar assertion of the same IRQ;
+    #  the soft-PIC ORed them anyway, so nothing is lost.
     # =================================================================
     U12 = sch.place("mini-xt:74HCT165", "U12", "74HC165", at=(200.66, 233.68))
     N(U12, "VCC", "+3V3", length=2.54)
     N(U12, "GND", "GND", length=2.54)
-    for i, net in enumerate(["GND",          # D0: was IRQ2 -- retired (NIC removed)
-                             "IRQ3", "IRQ4", "IRQ5",
-                             "GND",          # D4: was IRQ6 -- retired (fw event)
-                             "IRQ7",
-                             "GND"]):        # D6: was IRQ8 -- retired (fw RTC)
+    for i, net in enumerate(["EXT_IRQ2",     # D0: sidecar only (IRQ2->9 redirect)
+                             "IRQ3_ANY", "IRQ4_ANY", "IRQ5_ANY",   # U19 OR outputs
+                             "EXT_IRQ6",     # D4: sidecar only (internal IRQ6 = fw event)
+                             "IRQ7_ANY",
+                             "EXT_DRQ"]):    # D6: expansion-port DMA request
+                                             # (2026-07-14; lane was spare/low, so
+                                             # the IRQ bits keep their positions)
         N(U12, "D%d" % i, net)
     N(U12, "D7", "IRQ14")                           # storage strap (AT primary IDE)
     N(U12, "~{PL}", "IRQ_LOAD")                     # parallel load strobe
     N(U12, "CP", "IRQ_CLK")                         # shift clock
     N(U12, "~{CE}", "GND")                          # clock enable (active low)
-    N(U12, "DS", "IRQ_CHAIN1")                      # <- U19.Q7 (EXT chain)
+    N(U12, "DS", "GND")                             # single '165 -- chain end
     N(U12, "Q7", "IRQ_SER")                         # serial out to MCU
     sch.no_connect(U12.pin_xy("~{Q7}"))
 
-    def ext165(ref, at, ds_net, q7_net, dpins):
-        u = sch.place("mini-xt:74HCT165", ref, "74HC165", at=at)
-        N(u, "VCC", "+3V3", length=2.54)
-        N(u, "GND", "GND", length=2.54)
-        N(u, "~{PL}", "IRQ_LOAD")
-        N(u, "CP", "IRQ_CLK")
-        N(u, "~{CE}", "GND")
-        N(u, "DS", ds_net)
-        N(u, "Q7", q7_net)
-        sch.no_connect(u.pin_xy("~{Q7}"))
-        for i in range(8):
-            N(u, "D%d" % i, dpins[i] if dpins[i] else "GND")  # unused inputs tied low
-        return u
-    # U19: expansion IRQs (EXT_IRQ2..EXT_IRQ7 on D0-D5; D6 = retired
-    # EXT_IRQ8 lane and D7 both grounded -- bit map unchanged)
-    ext165("U19", (60.96, 304.8), "IRQ_CHAIN2", "IRQ_CHAIN1",
-           ["EXT_IRQ%d" % n for n in range(2, 8)] + [None, None])
-    # U20: expansion DRQs (EXT_DRQ1-3 on D0-D2; D3-D7 grounded); DS=GND = chain end
-    ext165("U20", (152.4, 304.8), "GND", "IRQ_CHAIN2",
-           ["EXT_DRQ1", "EXT_DRQ2", "EXT_DRQ3", None, None, None, None, None])
-    sch.text("§5.2 IRQ+EXT scan: 3x 74HC165 -> 3 MCU pins; order U12(IRQ)->U19(EXT_IRQ)->U20(EXT_DRQ)",
+    # U19: internal|EXT merge. 74HC32 value override (all inputs 3.3V-driven,
+    # same rationale as addr_decode U3/U4).
+    U19 = sch.place("mini-xt:74HCT32", "U19", "74HC32", at=(60.96, 304.8))
+    N(U19, "VCC", "+3V3", length=2.54)
+    N(U19, "GND", "GND", length=2.54)
+    N(U19, "P1", "IRQ3"); N(U19, "P2", "EXT_IRQ3"); N(U19, "P3", "IRQ3_ANY")
+    N(U19, "P4", "IRQ4"); N(U19, "P5", "EXT_IRQ4"); N(U19, "P6", "IRQ4_ANY")
+    N(U19, "P9", "IRQ5"); N(U19, "P10", "EXT_IRQ5"); N(U19, "P8", "IRQ5_ANY")
+    N(U19, "P12", "IRQ7"); N(U19, "P13", "EXT_IRQ7"); N(U19, "P11", "IRQ7_ANY")
+    sch.text("§5.2 IRQ scan: 1x 74HC165 -> 3 MCU pins; U19 '32 ORs internal|EXT "
+             "(IRQ3/4/5/7); EXT_IRQ2/6 direct; D6 = EXT_DRQ (port DMA request).",
              (180.34, 210.82))
-    decouple("C18", (35.56, 304.8), "+3V3")        # U19 (EXT '165)
-    decouple("C19", (190.5, 304.8), "+3V3")        # U20 (EXT '165)
+    decouple("C18", (35.56, 304.8), "+3V3")        # U19 ('32 OR rank)
 
     # ---- bus-line idle pulls: wire-OR / releasable lines need defined levels.
     # 2026-07-14 consolidation: 4x10k isolated arrays (basic part) replace 31
     # discrete pulls -- elements are isolated, so packs mix rails freely.
     # Semantics unchanged per net:
-    #  * IRQ3-5/7/14, DRQ1-3, TC idle LOW (released/active-high lines; no
-    #    floating '165 inputs; DRQ2/3 + DACK2/3 declared-undriven, GPIO budget)
+    #  * IRQ3-5/7/14, DRQ, EXT_DRQ, TC idle LOW (released/active-high lines;
+    #    no floating '165/'32 inputs; DRQ2/3 + DACK2/3 retired outright)
     #  * IOCHRDY/~{IOCHCK} wire-OR/open-collector: idle HIGH
     #  * MCU-Hi-Z parking (BOOTSEL/reset window): AEN low (cards see I/O
     #    decode deasserted), HLDA low ('244s off), ~{CPURESET} low (V20 held
-    #    in reset until firmware runs), ~{DACK1}/~{REFRESH} to 3V3_BUS
+    #    in reset until firmware runs), ~{DACK}/~{EXT_DACK} to 3V3_BUS
     #    (deasserted; nets sit on RP2350B pins)
-    #  * EXT_* idle low so the EXT '165s (U19/U20) never float
+    #  * EXT_IRQ*/EXT_DRQ idle low so U19/U12 inputs never float
+    #    (belt-and-braces -- the sidecar '244s drive them push-pull, but
+    #    they're parked during a Bus-MCU-less bring-up of this sheet)
     mxbus.r_pack4(sch, "RN1", "10kx4", (86.36, 25.4),
-                  [("IRQ3", "GND"), ("IRQ4", "GND"), ("IRQ5", "GND")])
+                  [("IRQ3", "GND"), ("IRQ4", "GND"), ("IRQ5", "GND"),
+                   ("~{CPURESET}", "GND")])
     mxbus.r_pack4(sch, "RN2", "10kx4", (109.22, 25.4),
                   [("IRQ7", "GND"), ("IRQ14", "GND"),
-                   ("DRQ1", "GND"), ("DRQ2", "GND")])
+                   ("DRQ", "GND")])
     mxbus.r_pack4(sch, "RN3", "10kx4", (132.08, 25.4),
-                  [("DRQ3", "GND"), ("TC", "GND"),
+                  [("TC", "GND"),
                    ("AEN", "GND"), ("HLDA", "GND")])
     mxbus.r_pack4(sch, "RN4", "10kx4", (154.94, 25.4),
-                  [("~{CPURESET}", "GND"), ("EXT_DRQ1", "GND"),
-                   ("EXT_DRQ2", "GND"), ("EXT_DRQ3", "GND")])
-    mxbus.r_pack4(sch, "RN5", "10kx4", (177.8, 25.4),
                   [("EXT_IRQ2", "GND"), ("EXT_IRQ3", "GND"),
                    ("EXT_IRQ4", "GND"), ("EXT_IRQ5", "GND")])
-    mxbus.r_pack4(sch, "RN6", "10kx4", (200.66, 25.4),
+    mxbus.r_pack4(sch, "RN5", "10kx4", (177.8, 25.4),
                   [("EXT_IRQ6", "GND"), ("EXT_IRQ7", "GND"),
                    ("IOCHRDY", "+3V3"), ("~{IOCHCK}", "+3V3")])
-    mxbus.r_pack4(sch, "RN7", "10kx4", (223.52, 25.4),
-                  [("~{DACK2}", "+3V3"), ("~{DACK3}", "+3V3"),
-                   ("~{DACK1}", "3V3_BUS"), ("~{REFRESH}", "3V3_BUS")])
-    sch.text("DMA ch2/3 + raw ~WR/IO-M are NOT wired to the MCU (48-GPIO budget, "
-             "S5.2): DACK2/3 parked high, DRQ2/3 low. First candidates for a "
-             "second '165/'595 if sidecar DMA is ever needed.", (86.36, 15.24))
+    mxbus.r_pack4(sch, "RN6", "10kx4", (200.66, 25.4),
+                  [("~{DACK}", "3V3_BUS"), ("~{EXT_DACK}", "3V3_BUS"),
+                   ("EXT_DRQ", "GND")])
+    sch.text("Two DMA channels, both soft-8237 ch1 timing: internal DRQ/~{DACK} "
+             "hardwired to the PicoGUS; EXT_DRQ/~{EXT_DACK} to the expansion "
+             "port (separate nets -- a port card never sees the PicoGUS "
+             "acknowledge). ~{EXT_DACK} = GPIO47, freed by the ~{REFRESH} "
+             "retirement 2026-07-14.", (86.36, 15.24))
 
     sch.text("3.3V bus: data/addr/strobe/BALE/AEN/TC wired GPIO<->bus directly (no '245s);",
              (200.66, 116.84))

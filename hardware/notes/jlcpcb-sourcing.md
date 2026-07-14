@@ -155,10 +155,12 @@ that day — thin JLC stock, see the thin-stock list below).
 
 ## Not available at JLCPCB (source elsewhere / consign)
 
-- **8-bit ISA card-edge slot** (card_isatest J1) — 3.96 mm edge connector;
-  consign or CONNFLY/EDAC from another distributor.
-- **VGA HD15 (DE15) connector** (video card) — THT part from another
-  distributor, or build the video card HDMI-only initially.
+- ~~**8-bit ISA card-edge slot** (card_isatest J1)~~ — parts.py entry retired
+  2026-07-14 with the card_isatest dev card. The planned ISA backplane board
+  will want these again: 3.96 mm edge connector, consign or CONNFLY/EDAC from
+  another distributor.
+- **VGA HD15 (DE15) connector** (video sheet) — THT part from another
+  distributor, or build the video output HDMI-only initially.
 - **16C550 UART — RESOLVED (2026-07-14, later), moved to the thin-stock
   list.** The LQFP-48 PT revisions (TL16C550CPTR C181382, PTRG4 C2653207)
   remain at **0 units**, but the active **TL16C550CPFBR** (TQFP-48,

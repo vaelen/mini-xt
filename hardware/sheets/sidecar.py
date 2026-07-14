@@ -2,18 +2,24 @@
 
 On the 3.3V single board this sheet is the board's ONLY real-ISA attachment
 point.  It is an isolation/buffer bank between the internal 3.3V bus and an
-external 60-pin (2x30) ISA header, so real 5V ISA cards can be driven and read
+external 50-pin (2x25) ISA header, so real 5V ISA cards can be driven and read
 without damaging the 3.3V logic:
 
-  * The header (isa_conn building block, standard 8-bit ISA pinout) presents its
-    bus-side nets as PORT-LOCAL nets (prefix "X_", e.g. X_A0, X_D3, X_IRQ5) via
-    place_header(remap=...).  Nothing internal touches the raw external pins.
+  * The header (isa_conn building block, project-private 50-pin pinout,
+    2026-07-14) presents its bus-side nets as PORT-LOCAL nets (prefix "X_",
+    e.g. X_A0, X_D3, X_IRQ5) via place_header(remap=...).  Nothing internal
+    touches the raw external pins.
   * Between X_* and the internal bus sit LVC buffers (74LVC245A / 74LVC244A):
     5V-TOLERANT inputs, 3.3V-TTL-legal outputs.  Outbound (internal -> X_) lines
     are DIR-strapped one way; inbound status/IRQ/DRQ lines feed dedicated EXT_*
     nets (never the internal IRQ/DRQ nets -- see mxbus.PRIV_EXP), so a floating
     external line can't fight an internal driver.  IOCHRDY / ~{IOCHCK} come back
     through open-drain gates (wired-AND, no contention).
+  * The port has its OWN single DMA channel (2026-07-14): header DRQ is
+    buffered inward onto EXT_DRQ; header ~{DACK} is driven from the Bus MCU's
+    ~{EXT_DACK} through the strobe '244.  The internal ch1 pair (DRQ/~{DACK},
+    PicoGUS) never reaches the header, so a port card can't false-trigger on
+    on-board transfers.
 
 LIMITATION: the data transceiver has a FIXED, firmware-chosen direction
 (EXP_DDIR from the Bus MCU).  External BUS-MASTER cards (a card driving the ISA
@@ -35,30 +41,34 @@ NAME = "sidecar"
 TITLE = "Sidecar -- buffered 5V-compatible ISA expansion port"
 
 # --- Sheet interface (PINS surgery, task-9 brief) -----------------------------
-# Start from the full ISA contract, but the inward IRQ/DRQ lines no longer pass
-# straight through: they are buffered onto the private EXT_* nets instead, so
-# they LEAVE the ISA pin list here.  IOCHRDY / ~{IOCHCK} STAY (our open-drain
-# gates drive the internal nets).  The PRIV_EXP pins are ADDED.
-# NOTE: build a filtered COPY -- never mutate isa_conn.ISA_PINS (other cards
-# import it unchanged).
-_INWARD = ("IRQ", "DRQ")   # buffered to EXT_*, not passed through
+# Start from the full ISA contract, but the inward IRQ/DRQ lines don't pass
+# straight through: they are buffered onto the private EXT_* nets (EXT_IRQ2-7,
+# EXT_DRQ). The header's ~{DACK} pin is likewise driven from ~{EXT_DACK}, not
+# the internal ~{DACK} (that's PicoGUS ch1's acknowledge -- it must never
+# reach a port card). So IRQ*/DRQ/~{DACK} all LEAVE the ISA pin list here.
+# IOCHRDY / ~{IOCHCK} STAY (our open-drain gates drive the internal nets).
+# The PRIV_EXP pins are ADDED.
+# NOTE: build a filtered COPY -- never mutate isa_conn.ISA_PINS.
+_INWARD = ("IRQ", "DRQ")   # buffered onto EXT_* nets
 _KEEP = [p for p in isa_conn.ISA_PINS
-         if not p["name"].startswith(_INWARD)]
+         if not p["name"].startswith(_INWARD) and p["name"] != "~{DACK}"]
+_EXP_IN = ("EXP_DDIR", "~{EXT_DACK}")          # Bus MCU -> this sheet
 PINS = _KEEP \
-    + [pin("EXP_DDIR", "input")] \
-    + [pin(n, "output") for n in mxbus.PRIV_EXP if n != "EXP_DDIR"]
+    + [pin(n, "input") for n in _EXP_IN] \
+    + [pin(n, "output") for n in mxbus.PRIV_EXP if n not in _EXP_IN]
 
 # Signal groups (canonical mxbus spellings) --------------------------------
 _ADDR = mxbus.ADDR                                             # A0..A19
-_OUT245 = _ADDR + ["BALE", "AEN", "CLK", "OSC"]                # 24 = 3x '245
-_OUT244 = ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}",           # 10 = 2x '244
-           "RESET_DRV", "TC",
-           "~{DACK1}", "~{DACK2}", "~{DACK3}", "~{REFRESH}"]
-# inward lines actually present on the header (IRQ8 was dropped for the on-board
-# RTC, so only IRQ2..7 exist here; EXT_IRQ8 was formally retired 2026-07-14 --
-# its '165 lane on bus_mcu ties low).
+_OUT245 = _ADDR + ["BALE", "AEN", "CLK"]                       # 23 = 3x '245
+# (OSC left the bus 2026-07-14 with the 50-pin header squeeze.)
+_OUT244 = ["~{MEMR}", "~{MEMW}", "~{IOR}", "~{IOW}",           # 6 straight +
+           "RESET_DRV", "TC"]                                  # ~{EXT_DACK}
+# (~{REFRESH} dropped 2026-07-14 -- no DRAM-refresh on the port; its GPIO
+# became ~{EXT_DACK}, which joins this '244 as the 7th channel below, driving
+# the header's X_~{DACK} pin.)
+# inward lines buffered onto EXT_*: IRQ2..7 plus the port's DRQ.
 _INBOUND = [p["name"] for p in isa_conn.ISA_PINS
-            if p["name"].startswith(_INWARD)]                   # 6 IRQ + 3 DRQ
+            if p["name"].startswith("IRQ")] + ["DRQ"]           # 6 IRQ + DRQ
 
 
 def _chunk(seq, n):
@@ -76,6 +86,11 @@ def build(sch, lib, expose=True):
         for i, (a, b) in enumerate(pairs):
             sch.net(u, "A%d" % i, a, kind="label", dx=-2.54)
             sch.net(u, "B%d" % i, b, kind="label", dx=2.54)
+        # spare channels (always enabled, DIR-strapped A->B): don't float the
+        # A input on the real chip -- tie it GND, NC the B output.
+        for i in range(len(pairs), 8):
+            sch.net(u, "A%d" % i, "GND", kind="label", dx=-2.54)
+            sch.no_connect(u.pin_xy("B%d" % i))
         sch.net(u, "1", dir_net, kind="label", dy=-2.54)   # DIR
         sch.net(u, "CE", "GND", kind="label", dy=2.54)     # ~OE tied enabled
         sch.net(u, "VCC", "+3V3", kind="label", dx=2.54, dy=-2.54)
@@ -120,10 +135,11 @@ def build(sch, lib, expose=True):
         pairs = [(s, "X_" + s) for s in chunk]
         buf245("U%d" % (n + 1), (63.5, 45.72 + n * 63.5), pairs, "+3V3")
 
-    # -- Outbound command strobes: 2x 74LVC244A --------------------------------
-    for n, chunk in enumerate(_chunk(_OUT244, 8)):
-        pairs = [(s, "X_" + s) for s in chunk]   # 1A/2A in (internal), 1Y/2Y out (X_)
-        buf244("U%d" % (4 + n), (114.3, 45.72 + n * 63.5), pairs)
+    # -- Outbound command strobes: 1x 74LVC244A --------------------------------
+    # 6 straight pass-throughs + the port DMA acknowledge: ~{EXT_DACK} (Bus
+    # MCU GPIO47) drives the header's X_~{DACK} pin. 7 of 8 channels.
+    buf244("U4", (114.3, 45.72),
+           [(s, "X_" + s) for s in _OUT244] + [("~{EXT_DACK}", "X_~{DACK}")])
 
     # -- Data transceiver: 1x 74LVC245A, DIR = EXP_DDIR ------------------------
     # A-side = internal D0..D7, B-side = X_D0..X_D7.  Truth table (74LVC245A):
@@ -137,9 +153,10 @@ def build(sch, lib, expose=True):
            [("D%d" % i, "X_D%d" % i) for i in range(8)], "EXP_DDIR")
     # (EXP_DDIR's default-outbound pull-up lives in RN1, below)
 
-    # -- Inbound IRQ/DRQ: 2x 74LVC244A onto EXT_* nets -------------------------
+    # -- Inbound IRQ + DRQ: 1x 74LVC244A onto EXT_* nets -----------------------
     # X_<sig> in (5V-tol), EXT_<sig> out.  100k pull-DOWN on every X_ input so an
-    # unplugged port reads all-zeros (active-high IRQ/DRQ idle low).
+    # unplugged port reads all-zeros (active-high IRQ/DRQ idle low). 7 of 8
+    # channels (IRQ2-7 + the port DRQ -> EXT_DRQ, re-added 2026-07-14).
     inbound = [("X_" + s, "EXT_" + s) for s in _INBOUND]
     for n, chunk in enumerate(_chunk(inbound, 8)):
         buf244("U%d" % (7 + n), (63.5, 172.72 + n * 63.5), chunk)
@@ -202,11 +219,12 @@ def build(sch, lib, expose=True):
     sch.text("Data xcvr direction = EXP_DDIR (Bus MCU); R1 pulls it OUTBOUND-safe "
              "at power-on. External BUS-MASTER cards are UNSUPPORTED -- fixed, "
              "firmware-chosen direction, no port arbitration.", (200.66, 106.68))
-    sch.text("IRQ2-7/DRQ1-3 buffered onto private EXT_* nets (soft-PIC/soft-8237 "
-             "merge them in firmware), NOT the internal IRQ/DRQ nets. IOCHRDY / "
-             "~{IOCHCK} return via open-drain (wired-AND).", (200.66, 116.84))
-    sch.text("J1: 60-pin (2x30) standard 8-bit ISA pinout; same as the soft-card "
-             "IN/OUT headers (isa_conn). +5V feed fused (2A) + TVS-clamped; "
-             "header power ~3A/pin, keep chains to 2-3 cards.", (200.66, 127.0))
-    sch.text("Pin 13 = reserved/0WS# (unconnected), per the standard/PicoGUS header.",
-             (200.66, 218.44))
+    sch.text("IRQ2-7 + DRQ buffered onto private EXT_* nets (merged into the "
+             "soft-PIC/soft-8237 via bus_mcu's '32 OR rank + '165), NOT the "
+             "internal IRQ/DRQ nets. Header ~{DACK} driven from ~{EXT_DACK} "
+             "(port's own channel). IOCHRDY / ~{IOCHCK} return via open-drain "
+             "(wired-AND).", (200.66, 116.84))
+    sch.text("J1: 50-pin (2x25) project-private 8-bit ISA subset (isa_conn; "
+             "OSC + REFRESH# dropped 2026-07-14 -- the planned backplane board "
+             "re-creates them). +5V feed fused (2A) + TVS-clamped; header power "
+             "~3A/pin, keep chains to 2-3 cards.", (200.66, 127.0))

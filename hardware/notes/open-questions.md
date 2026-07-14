@@ -477,3 +477,23 @@ NIC-only `parts.py` bindings dropped (27k/1M/200R/20pF/1nF/1nF-2kV passives,
   MCP6002.
 - Full rebuild: 12 sheets, ERC 0/0, netlist clean (no DIS_NIC/EARTH/IRQ2
   internals remain).
+
+---
+
+## 2026-07-14 (later still) — IRQ scan consolidation + ISA-card DMA removed
+
+**User decision** (after the NIC removal, three passes): ISA-card DMA
+removed outright — EXT_DRQ1-3 deleted and the sidecar NCs the header's
+DRQ1-3 AND DACK1-3 pins; the PicoGUS DMA jumper (J1) went too, hardwiring
+ch1 (GPIO22 -> DRQ1, ~{DACK1} -> the U7/U8 gates; its R9 pull retired with
+it). DRQ2/3 + DACK2/3 are fully retired as nets — ch1 is the only DMA
+channel that exists, and it belongs to the on-board PicoGUS. The 3-chip
+24-bit IRQ/DRQ scan chain collapsed to ONE 74HC165 (U12, original 8-bit
+map) + ONE 74HC32 (U19) that ORs internal IRQ3/4/5/7 with their EXT_IRQ
+twins; EXT_IRQ2/6 feed the '165 directly. NCing the DACKs also shrank the
+sidecar's outbound strobe group to one '244 and eliminated the DACK1
+false-respond hazard. No IRQ or DMA jumper remains anywhere on the board.
+Net: bus_mcu -3 packages (2x '165 + 1 RN pack out, '32 in), sidecar -5
+components (2x '244 + 3x 100k), picogus -2 (J1 + R9). Full detail in
+`questions-bus_mcu.md` / `questions-picogus.md`; ERC stays 0/0
+(362 components, was 372 this morning).

@@ -97,3 +97,34 @@ Done generically inside `buf244()` (loop `range(len(pairs), 8)`), so it also
 covers any future short bank. Netlist (post-fix): the only remaining
 `unconnected-(U1105-* / U1108-*` nets are the deliberately-NC'd **Y outputs**;
 **zero A-input pads float** -- all A pads (U1105: 6, U1108: 7) are on GND.
+
+## 50-pin header + port DMA channel (2026-07-14, user decision)
+
+Three linked changes, decided together:
+
+1. **Header 60-pin (2x30) -> 50-pin (2x25).** 50-way IDC ribbons/headers are
+   far easier to source than 60-way. Cost: the pinout is now PROJECT-PRIVATE
+   (the 60-pin layout mirrored the PicoGUS `Bus_ISA_8bit` standard-edge
+   arrangement). The pin budget forced two signal drops -- 47 signals +
+   one +5V + two GND = 50 exactly:
+   - **OSC (14.318 MHz) dropped.** No on-board consumer (cpu_core's U15 '125
+     OSC re-buffer gate freed; OSC left mxbus/cpu_core PINS). A real CGA card
+     would want it for colorburst -- the planned **ISA backplane expansion
+     board** re-creates it locally.
+   - **~{REFRESH} dropped.** No DRAM-refresh support on the port; DRAM-based
+     ISA cards are the only casualty (also backplane-recoverable). This freed
+     Bus MCU **GPIO47**, which is exactly what the DACK below needed.
+   - BALE KEPT (the video sheet senses it; a standalone video card would take
+     it from this header). TC KEPT (DMA lives, see below).
+2. **Port DMA re-added as ONE channel: EXT_DRQ / ~{EXT_DACK}** (pins 9/13,
+   header names DRQ / ~{DACK}). EXT_DRQ rides the inbound '244's spare channel
+   onto the '165 collector's spare D6 lane (zero GPIO); ~{EXT_DACK} = GPIO47
+   out through the strobe '244's spare channel (7 of 8 used). Deliberately
+   SEPARATE nets from the internal PicoGUS pair -- the false-trigger hazard
+   that motivated NCing the old DACK pins stays solved.
+3. **DRQ1/~{DACK1} renamed DRQ/~{DACK}** (mxbus, bus_mcu, picogus): ch2/3 are
+   long retired, so the suffix carried no information.
+
+Also that day: **card_video + card_isatest deleted** (sheets, hardware/cards/,
+build_cards(), the parts.py ISA-edge-slot entry). Long-term plan is the ISA
+backplane board on this port; git history has the last card versions.

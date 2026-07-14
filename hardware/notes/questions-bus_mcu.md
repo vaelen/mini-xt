@@ -217,3 +217,47 @@ D4/D6, U19 D6) tie LOW at the SAME bit positions, so the firmware scan-bit
 map is unchanged; pulls dropped (RN packs reshuffled to 7 full arrays).
 This, plus the supervisor VDD_RTC PWR_FLAG, takes the board to ERC ZERO
 (0 errors, 0 warnings) -- the standing bar is to keep it there.
+
+## IRQ scan collapsed to one '165 + one '32; ISA-card DMA removed (2026-07-14, after the NIC removal)
+
+User decision, three parts:
+
+1. **EXT_DRQ1-3 deleted** (with U20, their '165): ISA-card DMA was never
+   really supported -- only ch1 has a DACK, and it belongs to the on-board
+   PicoGUS -- so the sidecar now leaves the header's DRQ1-3 AND ~{DACK1-3}
+   pins unconnected (`isa_conn.place_header(nc=...)`; the DACKs were a
+   second user pass the same day). Sidecar sheds its DRQ inbound '244 +
+   3x 100k pulls AND a strobe-output '244 (the outbound group fell from
+   10 lines to 7 without the DACKs -- fits one chip). Internal
+   DRQ1/~{DACK1}/TC (PicoGUS ch1) are untouched; **DRQ2/3 + ~{DACK2/3}
+   are retired as nets** (sidecar was ch2's last consumer; ch3's was the
+   PicoGUS DMA jumper, deleted the same day -- see
+   questions-picogus.md -- so ch1 is hardwired everywhere and is the only
+   DMA channel that exists on the board).
+2. **U19 became a 74HC32 OR rank**: the four internal IRQs that share a
+   header pin with the expansion port merge in hardware --
+   IRQn_ANY = IRQn | EXT_IRQn for n = 3/4/5/7 -- instead of occupying
+   separate '165 lanes merged in firmware. Firmware loses the ability to
+   tell internal from sidecar assertion; the soft-PIC ORed them anyway.
+3. **U12 is the whole scan again** (DS = GND): D0 = EXT_IRQ2, D1-D3 =
+   IRQ3/4/5_ANY, D4 = EXT_IRQ6, D5 = IRQ7_ANY, D6 = spare (low),
+   D7 = IRQ14 -- the original pre-expansion 8-bit bit map, 8 clocks
+   instead of 24.
+
+Net: -2 '165, -2 '244 (sidecar), -1 RN pack, +1 '32. NCing the DACK pins
+also ELIMINATES a hazard: a driven header DACK1̄ would have false-triggered
+any card strapped to ch1 during on-board PicoGUS transfers -- now no
+acknowledge can reach a card at all.
+
+## GPIO47: ~{REFRESH} -> ~{EXT_DACK}; '165 D6 -> EXT_DRQ (2026-07-14, port DMA)
+
+User decision (with the 50-pin sidecar header): ~{REFRESH} is RETIRED -- the
+50-pin header has no room for it, no on-board device needs refresh (SRAM
+board), and the planned ISA backplane re-creates it for DRAM cards. That frees
+GPIO47 for **~{EXT_DACK}**, the expansion port's DMA acknowledge (park to
+3V3_BUS in RN6, same as ~{DACK}). **EXT_DRQ** takes U12's spare D6 lane
+(bit positions of all IRQs unchanged; RN6 gained its idle pull-down).
+Internal ch1 renamed DRQ1/~{DACK1} -> DRQ/~{DACK}. The port-61h bit-4
+refresh toggle was always firmware-only and is unaffected. (The alternative
+considered -- reclaiming GPIO46 ~{RD} like the old ~WR reclaim -- was not
+needed.)

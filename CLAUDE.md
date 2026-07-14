@@ -30,8 +30,9 @@ sources are:
 - `hardware/tools/mxsch.py` — the S-expression schematic generator
 - `hardware/tools/build.py` — assembles the root sheet, ties sheets together,
   assigns per-instance reference banks (U1 in bank 3 → U301), runs ERC + netlist
-- `hardware/sheets/isa_conn.py` — shared 60-pin ISA header (standard 8-bit ISA
-  pinout) used by the sidecar sheet and every standalone card
+- `hardware/sheets/isa_conn.py` — shared 50-pin (2×25) ISA expansion header
+  (project-private 8-bit ISA subset; OSC/REFRESH#/DRQ2-3/DACK0,2-3 omitted),
+  used by the sidecar sheet — and by the planned ISA backplane board
 - `hardware/tools/parts.py` — the JLCPCB/LCSC sourcing map: (lib_id, value) →
   LCSC part number, applied at build time as an `LCSC Part Num` property on
   every component (that property is what drives the JLCPCB assembly BOM)
@@ -48,8 +49,6 @@ then `kicad-cli` on PATH, then the snap install (`mxsch.kicad_cli()` /
 
 ```sh
 python3 hardware/tools/build.py                # regenerate motherboard: all sheets + root, ERC + netlist
-python3 -c 'import sys;sys.path.insert(0,"hardware/tools");import build;build.build_cards()'
-                                               # regenerate standalone dev cards -> hardware/cards/
 python3 hardware/tools/validate_sheet.py <name>  # build + ERC ONE sheet in isolation (fast loop)
 python3 hardware/tools/pins.py <Lib:Name>      # list a symbol's pins (e.g. mini-xt:V20, 74xx:74HCT573)
 python3 hardware/tools/pins.py -s <substr>     # search symbol names
@@ -82,13 +81,13 @@ Boards are fabbed and assembled at JLCPCB. Rules that shape every sheet:
   socket are gone with those parts, §RAM/RTC below; the COM UARTs are now
   soldered, not socketed.) For the V20 and the module headers the
   `LCSC Part Num` is the SOCKET.
-- **`hardware/cards/` dev cards target the buffered expansion port**: video
-  and isatest are genuine 5 V ISA cards that plug into the motherboard's
-  expansion-port header (`sidecar` sheet) and keep their own local level
-  shifters — same as any real period card. Each remains its own standalone
-  ≤100×100 mm PCB (the "one big board" decision only merged the motherboard's
-  own subsystems; card PCBs are unaffected); `build_cards()` still builds
-  them separately.
+- **External cards attach via the buffered expansion port** (`sidecar` sheet,
+  50-pin 2×25 header — swapped from 60-pin 2026-07-14; 50-way IDC ribbons are
+  much easier to source). The standalone dev cards (card_video, card_isatest)
+  and `build_cards()` were deleted the same day: the long-term plan is an
+  **ISA backplane expansion board** driven from this port, which re-creates
+  locally anything the 50-pin header dropped (OSC, REFRESH#) for real period
+  cards. Git history/tags hold the last card versions.
 - **Voltage domains matter for substitutions**: 74HCT reads 3.3 V inputs at
   5 V; plain 74HC does NOT (Vih ≈ 3.5 V) and is only used where every input
   is 5 V-driven or the part itself runs at 3.3 V. The board is now 3.3V almost
@@ -104,7 +103,7 @@ Boards are fabbed and assembled at JLCPCB. Rules that shape every sheet:
   (the clock dividers needed this — plain HC fails its 3.3V fmax spec at
   14.318 MHz). `hardware/notes/jlcpcb-sourcing.md` records all current
   substitutions, the socket policy, and the parts that must be sourced
-  elsewhere (ISA edge slot, VGA DE15, the V20 itself; the UART is back
+  elsewhere (VGA DE15, the V20 itself; the UART is back
   at JLC as the TL16C550CPFBR, C882798, but thin — verify stock).
 - **RAM is one IS62WV51216BLL-55TLI** (512K×16, 3.3V) wired 1M×8 via the
   byte-lane trick (both 8-bit halves tied to D0-7, A0 selects the lane) —
@@ -141,9 +140,10 @@ how-to. `hardware/sheets/cpu_core.py` is the worked reference example. Key rules
   log a question against, not a build-breaking violation. **Standing pattern
   (2026-07-14):** com_port/parallel/storage take `mxbus.PRIV_CS` chip selects
   from, and send `mxbus.PRIV_IRQREQ` IRQ requests to, the central
-  `addr_decode` sheet (which also owns all five per-peripheral disable jumpers
-  JP1-JP5, incl. the video `mxbus.PRIV_DIS` level; base addresses are
-  hardwired). Shared logic factored out, NOT an isolation break — the
+  `addr_decode` sheet (which also owns the 2×5
+  disable-jumper block JP1 — positions 1-5 = COM1/COM2/LPT/IDE/VID,
+  written JP1.n, one fixed 2×5 header part — incl. the video
+  `mxbus.PRIV_DIS` level; base addresses are hardwired). Shared logic factored out, NOT an isolation break — the
   nets are functionally equivalent to the gates they replaced, and a
   standalone-card wrapper simply re-adds decode + IRQ driver the same way it
   adds the edge connector (`hardware/notes/questions-addr_decode.md`). (There is no `rtc`

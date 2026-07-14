@@ -6,7 +6,7 @@ the IRQ leaves as an active-low request ~{IRQ_LPT} (mxbus.PRIV_CS /
 PRIV_IRQREQ -- shared logic factored out, not an isolation break; a
 standalone-card wrapper would re-add decode + IRQ driver alongside the bus
 headers). addr_decode's shared '125 drives IRQ7 from the request; the
-base address is hardwired 0x378 and the disable jumper is addr_decode JP3
+base address is hardwired 0x378 and the disable jumper is addr_decode JP1.3
 (enabled by default, fit the jumper to disable). U9's spare gate also hosts
 the motherboard's HLDA inversion (see the U9 comment).
 
@@ -278,9 +278,9 @@ def build(sch, lib, expose=True):
     sch.net(r, "1", "+3V3", kind="label", dx=0, dy=-2.54)
     sch.net(r, "2", "P_ERR", kind="label", dx=0, dy=2.54)
 
-    # Configuration note (all jumpers live on addr_decode now: JP1 = base
-    # 0x378/0x278, JP5 = disable -- fitted jumper disables, default enabled)
-    sch.text("Base hardwired 0x378; disable: addr_decode JP3; IRQ7 hardwired via its '125; U9.1 hosts the HLDA inverter",
+    # Configuration note (the disable lives on addr_decode's JP1 2x5 block,
+    # position 3 -- cap fitted disables, default enabled; base hardwired)
+    sch.text("Base hardwired 0x378; disable: addr_decode JP1.3; IRQ7 hardwired via its '125; U9.1 hosts the HLDA inverter",
              at=(299.72, 187.96), size=2.5)
 
     # ============================================================

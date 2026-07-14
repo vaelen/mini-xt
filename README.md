@@ -45,7 +45,6 @@ the video MCU.
 | `hardware/`                       | KiCad 9 schematics (generated — see below) + `README.md`      |
 | `hardware/sheets/*.py`            | Declarative per-sheet schematic builders (the real sources)   |
 | `hardware/tools/`                 | The Python schematic generator (`mxsch.py`), signal contract (`mxbus.py`), build harness |
-| `hardware/cards/`                 | Standalone, chainable dev PCBs (video, ISA tester)            |
 | `hardware/notes/`                 | Design decisions + open questions logged during generation    |
 
 ## The schematics
@@ -62,63 +61,42 @@ kicad hardware/mini-xt.kicad_pro          # browse: root sheet = the ISA backpla
 python3 hardware/tools/build.py           # regenerate all sheets + root, run ERC + netlist
 ```
 
-The video sheet exists in both forms — on the motherboard *and* as a standalone
-PCB in `hardware/cards/`, with two chainable 60-pin ISA headers (standard 8-bit
-ISA pinout) so it can be fabbed and daisy-chained against the ISA tester before
-the motherboard exists.
-The other peripherals (COM ×2, LPT, RTC, storage) live on the motherboard only —
-still one isolated sheet each, jumper-configured like real cards (enable, base
-address, IRQ), so any of them can still be lifted onto a separate PCB later by
-re-adding a small `card_*` wrapper.
+All peripherals live on the motherboard — one isolated sheet each,
+jumper-configured like real cards (enable, base address, IRQ), so any of them
+can still be lifted onto a separate PCB later by re-adding a small wrapper
+(decode + IRQ driver + the expansion header).
+External cards attach through the buffered **expansion port** (`sidecar`
+sheet): a 50-pin (2×25) header carrying a project-private 8-bit ISA subset —
+50-way IDC ribbons are far easier to source than the 60-way header it replaced.
+The long-term plan is an **ISA backplane expansion board** on that port, with
+real card-edge slots, that locally re-creates the few signals the 50-pin
+header drops (OSC, REFRESH#) for any period card that needs them. (The interim
+standalone dev cards — `card_video` and the `card_isatest` jig — were deleted
+2026-07-14 in favor of that plan; git history has their last versions.)
 
 See `hardware/README.md` for the sheet list and
 `hardware/tools/SHEET_AUTHORING_GUIDE.md` for how to author a sheet.
 
-## The sub-boards
+## The on-board peripherals
 
-Every sub-board obeys the same contract: it talks **only standard 8-bit ISA
-signals plus +5 V/GND**, self-decodes its own addresses, enters the bus on
-`J_IN` and passes it through unchanged to `J_OUT` (60-pin headers, standard
-8-bit ISA pinout), and fits the ≤100 × 100 mm SMD fab tier. Any card can
-therefore be developed against the `card_isatest` board alone, chained with
-the others in any order, and later lifted unchanged onto a real ISA card or
-into the combined board.
+The **motherboard** (V20 + SRAM + the two-MCU chipset + power/audio, the
+`hardware/sheets/` hierarchy) is the one node allowed private side-channels,
+since it *is* the machine the cards plug into. Its on-board peripherals keep
+the soft-card discipline (own sheet, ISA signals + power only) and are
+jumper-configured like the period cards they replace:
 
-- **`card_video`** — soft CGA/MDA/Hercules on an RP2350B (Core2350B module,
-  8 MB PSRAM variant for the future VGA aperture). Snoop-and-mirror design:
-  it owns its video RAM, captures bus writes to `0xA0000–0xBFFFF` and the
+- **Video** — soft CGA/MDA/Hercules on an RP2350B (Core2350B module, 8 MB
+  PSRAM variant for the future VGA aperture). Snoop-and-mirror design: it
+  owns its video RAM, captures bus writes to `0xA0000–0xBFFFF` and the
   CRTC/mode ports at 0 wait through a PIO FIFO, and serves the (rare) reads
   itself, wait-stated via IOCHRDY — so there is no shared-framebuffer
   arbitration and no CGA snow. Renders once to internal RAM, outputs VGA
-  (resistor-ladder DAC) or HDMI (RP2350 HSTX on GP12–19, no transmitter
-  chip); graphics scope (CGA → mode 13h → planar VGA) is purely a firmware
-  milestone. Its own 74LVC245A shifters and the module's LDO keep it a
-  self-contained 3.3 V island on the 5 V bus. Two boot-read straps stand in
-  for a period card's switches (decode is firmware, so there's no hardware
-  chip-select to jumper): JP1 open = card disabled — firmware keeps every
-  bus-facing OE off, and all its drivers are MCU-gated tri-states; JP2
-  picks the default window set, closed = CGA (0x3D4/0xB8000), open =
-  MDA/Hercules (0x3B4/0xB0000).
-
-- **`card_isatest`** — the development jig: a Raspberry Pi Pico acting as
-  the *motherboard* side of the bus (the opposite role from every other
-  card) so any card — or a real ISA card in its edge-connector slot — can
-  be exercised over USB serial with no mini-xt hardware present. Pin-count
-  arithmetic drives its design: address/control go out through split 74HC595
-  shift chains (address updates don't disturb the control byte), IRQ/DRQ/
-  IOCHCK# come back through a 74HC165 chain, and only the hot data path
-  D0–D7 gets direct GPIO. It generates the real 14.318 MHz clock tree
-  (÷2/÷3, PIO override), and the DUT's 5 V rail is switched by a
-  default-off P-FET fed from USB or a barrel jack, so a shorted
-  device-under-test can't take the tester down.
-
-The **motherboard** proper (V20 + SRAM + the two-MCU chipset + power/audio,
-the `hardware/sheets/` hierarchy) is the third board: the one node allowed
-private side-channels, since it *is* the machine the cards plug into. Its
-on-board peripherals keep the same soft-card discipline (own sheet, ISA
-signals + power only) and are jumper-configured like the period cards they
-replace:
-
+  (resistor-ladder DAC) or HDMI (RP2350 HSTX, no transmitter chip); graphics
+  scope (CGA → mode 13h → planar VGA) is purely a firmware milestone.
+  Boot-read straps stand in for a period card's switches: DIS_VID (addr_decode
+  JP5) high = disabled — firmware keeps every bus-facing OE off; JP1 picks the
+  default window set, closed = CGA (0x3D4/0xB8000), open = MDA/Hercules
+  (0x3B4/0xB0000).
 - **COM1/COM2** — one `com_port` sheet instanced twice: 16C550 (SMD PLCC-44
   socket taking new TI silicon or period NS16550AFN pulls) + MAX3241 for a
   full DB9 DTE, 1.8432 MHz crystal baud reference. Per port: J2 base address
@@ -139,8 +117,9 @@ replace:
   design (CERN-OHL-P): a bare RP2040 running **stock PicoGUS firmware**
   (AdLib/SB/GUS/MPU-401/CMS/Tandy), with the reference's ADS-muxed shared
   AD bus through CB3T FET switches, BUSOE power-up latch, APS6404L sample
-  PSRAM, PCM5102A I²S DAC, and a DMA jumper pair (jumper DMA to
-  **channel 1** — the only MCU-serviced channel). The IRQ is hardwired to
+  PSRAM, PCM5102A I²S DAC, and DMA hardwired to **channel 1** (the only
+  channel the chipset services — the reference's DMA jumper block is
+  omitted). The IRQ is hardwired to
   **IRQ5** — the free line, sole driver — with pgusinit setting the
   firmware to match. Deviations, all logged: no gameport (USB HID
   instead), no wavetable header or MIDI-out jack (build simplification —
@@ -167,20 +146,17 @@ replace:
   expansion port fills the role if networking is ever needed (its IRQ2
   arrives as EXT_IRQ2 and redirects to IRQ9 in the soft PIC).
 
-The on-board video instance carries the same straps as its standalone card
-(VID_EN + CGA/MDA window strap). Disabling an on-board port (or re-strapping
-its address/IRQ) frees the slot for the same peripheral on the sidecar chain —
-the drivers are tri-state, so an on-board port and a card can coexist as long
-as they don't claim the same address or IRQ: run the on-board XT-IDE at 0x300
-beside a real 8-bit ISA IDE card at 0x320, or on-board video as CGA beside an
-MDA-strapped `card_video`.
+Disabling an on-board port (or re-strapping its address/IRQ) frees the slot
+for the same peripheral on the expansion port — the drivers are tri-state, so
+an on-board port and a card can coexist as long as they don't claim the same
+address or IRQ: run the on-board XT-IDE at 0x300 beside a real 8-bit ISA IDE
+card at 0x320, or on-board video as CGA beside an MDA card.
 
 ## Fabrication
 
-Boards are fabricated and assembled at **JLCPCB**: SMD construction so each
-standalone dev card fits the cheap ≤100 × 100 mm tier (the merged single-board
-motherboard is larger — the tier target applies to the individually-buildable
-cards), with through-hole only for
+The board is fabricated and assembled at **JLCPCB**: SMD construction (the
+merged single-board motherboard is above the ≤100 × 100 mm tier),
+with through-hole only for
 connectors/headers and for the fab-installed **sockets** that carry the
 irreplaceable parts (the V20 and the MCU modules — the SRAM and RTC are now
 SMD, no longer socketed). Every schematic component carries an `LCSC Part Num` property —

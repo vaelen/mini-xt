@@ -196,3 +196,14 @@ mark the first column as package pins and to resolve the phantom discrepancy.
 Power rails (multiple pins named `IOVDD`) and the QSPI/RUN/TESTEN pins were left
 keyed by number — those names are non-unique or overbarred and were never part
 of the confusing map.
+
+## DMA jumper deleted -- ch1 hardwired (2026-07-14, with the ISA-card-DMA removal)
+
+User decision: the reference card's DMA jumper block (J1, trimmed to the
+DRQ/DACK pairs) offered ch1 or ch3, but the Bus MCU services ch1 ONLY, so
+the choice was dead weight. GPIO22 now drives DRQ1 directly and ~{DACK1}
+feeds the U7/U8 gates directly. R9 (the old DACK idle pull) went with it:
+~{DACK1} is Bus-MCU-driven and park-pulled on bus_mcu (RN6), so a local
+pull would only leak between 3V3_PGUS and 3V3_BUS. This retired DRQ3 /
+~{DACK3} board-wide (the jumper was their last consumer). pgusinit still
+must set firmware DMA=1 / IRQ=5.

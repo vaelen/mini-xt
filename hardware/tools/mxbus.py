@@ -44,11 +44,14 @@ ISA_CTRL = [
     "~{IOCHCK}",                                  # I/O channel check -> NMI
     "RESET_DRV",                                  # bus reset
     "CLK",                                         # 7.16 MHz system/bus clock
-    "OSC",                                         # 14.31818 MHz oscillator
     "TC",                                          # DMA terminal count
-    "DRQ1", "DRQ2", "DRQ3",                       # DMA requests
-    "~{DACK1}", "~{DACK2}", "~{DACK3}",           # DMA acknowledges
-    "~{REFRESH}",                                  # refresh strobe (pin 35, Bus MCU drives)
+    "DRQ", "~{DACK}",                              # the board's ONE DMA channel (soft-8237
+                                                   # ch1; was DRQ1/~{DACK1} -- renamed
+                                                   # 2026-07-14 when ch2/3 retired)
+    # OSC (14.318 MHz) and ~{REFRESH} RETIRED 2026-07-14 with the 50-pin
+    # header squeeze: no on-board consumer, and the planned ISA backplane
+    # board re-creates both locally for vintage cards that need them.
+    # ~{REFRESH}'s GPIO47 was reclaimed as ~{EXT_DACK}.
 ]
 
 # ----- PRIVATE motherboard-only signals (NOT part of the ISA contract) -----
@@ -110,15 +113,22 @@ PRIV_PROG = ["PGUS_USB_DP", "PGUS_USB_DM"]
 PRIV_LINK = ["LINK_B2S", "LINK_S2B"]   # Bus->Super TX, Super->Bus TX
 # Expansion-port isolation bank (sidecar <-> Bus MCU). The port's inward
 # lines land on DEDICATED nets, never the internal IRQ/DRQ nets: a floating
-# external line must not fight an internal driver. The soft-PIC/soft-8237
-# merge EXT_* with the internal lines in firmware. EXP_DDIR: Bus MCU drives
-# the port data transceiver direction (inward only for reads it knows are
-# externally decoded; default outward).
+# external line must not fight an internal driver. EXT_IRQ3/4/5/7 merge with
+# their internal equivalents through bus_mcu's '32 OR rank at the '165
+# collector (2026-07-14 consolidation); EXT_IRQ2/6 have no internal
+# counterpart and feed the '165 directly. EXP_DDIR: Bus MCU drives the port
+# data transceiver direction (inward only for reads it knows are externally
+# decoded; default outward).
 # (EXT_IRQ8 retired 2026-07-14 with internal IRQ6/IRQ8: no header pin can
-# ever drive it -- pin 15 is GND -- so its '165 lane ties low. IRQ8 events
-# are firmware-only; physical IRQ6 arrives from a sidecar card as EXT_IRQ6.)
-PRIV_EXP = ["EXP_DDIR", "EXT_DRQ1", "EXT_DRQ2", "EXT_DRQ3"] + \
-           ["EXT_IRQ%d" % i for i in range(2, 8)]
+# ever drive it. IRQ8 events are firmware-only.)
+# EXT_DRQ / ~{EXT_DACK} (2026-07-14, second pass): the port's OWN single DMA
+# channel on the 50-pin header. EXT_DRQ is inward (sidecar '244 -> bus_mcu
+# '165 lane D6); ~{EXT_DACK} is Bus-MCU-driven (GPIO47, freed by the
+# ~{REFRESH} retirement) and reaches the header through the sidecar strobe
+# '244. Deliberately SEPARATE nets from the internal ch1 DRQ/~{DACK}
+# (PicoGUS): a port card must never see the on-board channel's acknowledge.
+PRIV_EXP = (["EXP_DDIR", "~{EXT_DACK}"] +
+            ["EXT_IRQ%d" % i for i in range(2, 8)] + ["EXT_DRQ"])
 # Supervisor -> POST display + console
 PRIV_SUPER = ["POST_A", "POST_B", "POST_C", "POST_D", "POST_E", "POST_F", "POST_G",
               "POST_DP", "POST_DIG0", "POST_DIG1", "CONSOLE_TX", "CONSOLE_RX"]

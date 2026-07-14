@@ -37,7 +37,7 @@ Design doc S10. A discrete, period-correct mass-storage soft card:
     convention; the soft PIC is AT-style anyway). Poll vs interrupt is an
     XTIDE UB config choice -- the '125 only drives while INTRQ is asserted.
   * Base address hardwired 0x300 (the 0x320 strap is gone); the disable
-    jumper is addr_decode JP4 (enabled by default, fit the jumper to disable).
+    jumper is addr_decode JP1.4 (DIS_IDE; enabled by default, cap to disable).
 
 3.3V single-board redesign (spec 2026-07-14, task 7): all logic on this
 sheet moves to +3V3 (decode glue -> HC-grade, the data-path/IRQ buffers
@@ -211,7 +211,13 @@ def build(sch, lib, expose=True):
             sch.no_connect(conn.pin_xy(str(num)))
 
     # ---- 40-pin IDE header (standard ATA pinout) ----
-    IDE = sch.place("Connector_Generic:Conn_02x20_Odd_Even", "J1", at=(292.1, 127.0))
+    # Value "IDE 40-pin (boxed)" binds a SHROUDED IDC box header in parts.py
+    # (C9138) instead of the generic breakaway strip -- an IDE ribbon plug
+    # gets polarized instead of relying on silkscreen pin-1. Pin 20 (the ATA
+    # keypin) is NC below; clip it at assembly if using keyed (plugged-20)
+    # cables.
+    IDE = sch.place("Connector_Generic:Conn_02x20_Odd_Even", "J1",
+                    "IDE 40-pin (boxed)", at=(292.1, 127.0))
     ide_map = {
         1: "~{IDE_RST}", 2: "GND",  3: "ID7", 4: "ID8", 5: "ID6", 6: "ID9",
         7: "ID5", 8: "ID10", 9: "ID4", 10: "ID11", 11: "ID3", 12: "ID12",
@@ -250,7 +256,7 @@ def build(sch, lib, expose=True):
     mxbus.r_pack4(sch, "RN1", "10kx4", (228.6, 25.4),
                   [("~{IORDY}", "+3V3"), ("~{IRQ_IDE}", "+3V3"),
                    ("IDE_IRQ", "GND")])
-    # (Base hardwired 0x300; the disable is addr_decode JP4 --
+    # (Base hardwired 0x300; the disable is addr_decode JP1.4 (DIS_IDE) --
     # fitting it forces ~{IDE_CS} inactive, so /CS0, /ODD_SEL and
     # everything downstream (DEC2/DEC3, both '573 latch clocks, the '245
     # enable) are inert and IRQ14 stays quiet: the drive is never selected
@@ -262,6 +268,6 @@ def build(sch, lib, expose=True):
     sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)
 
     # =============== strapping notes ==
-    sch.text("Base hardwired 0x300; disable: addr_decode JP4 (fit to disable); IRQ14 hardwired (poll vs IRQ = XTIDE UB config).", at=(266.7, 17.78))
+    sch.text("Base hardwired 0x300; disable: addr_decode JP1.4 (cap to disable); IRQ14 hardwired (poll vs IRQ = XTIDE UB config).", at=(266.7, 17.78))
     sch.text("Populate ONE of J1 (IDE) / J2 (CF): both CSELs are grounded, so both "
              "devices ID as master on the shared cable.", at=(266.7, 12.7))

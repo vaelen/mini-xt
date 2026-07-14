@@ -12,7 +12,7 @@ The IRQ stage and the enable jumpers are central too (same sheet, same day):
 each UART exports its raw INTRPT (IRQ_COMx) and ~{OUT2} (~{COMx_IRQEN}) on
 private nets (mxbus.PRIV_IRQREQ); addr_decode's shared 74LVC125A drives
 IRQ4/IRQ3 from them (the PC convention -- OUT2 still software-gates the
-line), and its DIS_COMx jumpers (addr_decode JP1/JP2) replace the old
+line), and its DIS_COMx jumpers (addr_decode JP1.1/JP1.2) replace the old
 on-sheet enables (sense inverted: enabled by default, fit to disable). This sheet is
 just the ports now: no decode, no IRQ driver, no straps.
 

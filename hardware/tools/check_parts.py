@@ -31,7 +31,7 @@ def fp_exists(fp):
 def main():
     lib = build.load_lib()
     combos = collections.Counter()
-    for name in build.SHEETS + build.CARD_SHEETS:
+    for name in build.SHEETS:
         _, sch = build.build_subsheet(name, lib)
         for c in sch.components:
             if not c.lib_id.startswith("power:"):

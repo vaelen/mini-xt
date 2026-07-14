@@ -25,15 +25,13 @@ descend into a subsystem.
 | `sheets/supervisor`       | RP2040: USB host, setup UI, POST, console, link, battery-backed PCF8563 RTC |
 | `sheets/video`            | RP2350B soft CGA/MDA/Herc → HDMI + VGA; 4× 74LVC245A PIO time-share mux |
 | `sheets/com_port`         | 2× TL16C550CPFBR + MAX3241 + DB9 (COM1+COM2)      |
-| `sheets/addr_decode`      | central I/O decode + IRQ mapping + disable jumpers JP1-JP5 (bases hardwired) |
+| `sheets/addr_decode`      | central I/O decode + IRQ mapping + the 2×5 disable-jumper block JP1 (bases hardwired) |
 | `sheets/parallel`         | discrete 74HC/74LVC LPT @ 0x378 + DB25            |
 | `sheets/power`            | USB-C 5 V in → 3.3 V buck                         |
 | `sheets/storage`          | XT-IDE (Chuck-mod) + CompactFlash                |
 | `sheets/audio`            | PC-speaker + op-amp summer → line-out            |
-| `sheets/sidecar`          | buffered 5V-compatible ISA expansion port: 60-pin (2×30) header + ~9-package isolation bank |
+| `sheets/sidecar`          | buffered 5V-compatible ISA expansion port: 50-pin (2×25) header + ~7-package isolation bank, incl. one DMA channel (EXT_DRQ / EXT_DACK̄) |
 | `sheets/picogus`          | PicoGUS chip-down copy: RP2040 AdLib/SB/GUS/MPU  |
-| `sheets/card_video`       | Video soft-card as a standalone 5V ISA card (chainable ISA headers) |
-| `sheets/card_isatest`     | Pico ISA host/bus-master test card (standalone; ISA slot + expansion port) |
 | `mini-xt.kicad_sym`       | custom symbols (V20, MAX3241, IS62WV51216, TL16C550PT, PCF8563, flat 74xx)|
 
 There is no `sheets/rtc` any more — the RTC is emulated in the Bus MCU
@@ -42,6 +40,10 @@ There is no `sheets/rtc` any more — the RTC is emulated in the Bus MCU
 There is no `sheets/network` any more either — the RTL8019AS NE2000 NIC was
 removed 2026-07-14 (git tag `full-board-with-nic` has the last design that
 carried it); a real NE2000 card on the expansion port fills the role.
+The standalone dev cards (`sheets/card_video`, `sheets/card_isatest`) and
+`hardware/cards/` were deleted 2026-07-14 too — the long-term plan is an ISA
+backplane expansion board on the sidecar port; git history has their last
+versions.
 
 ## How these were generated
 
@@ -50,7 +52,6 @@ The `.kicad_sch` files are emitted by a small Python generator in `tools/`
 
 ```
 python3 tools/build.py                       # writes all sheets + root, runs ERC + netlist
-python3 -c 'import sys;sys.path.insert(0,"tools");import build;build.build_cards()'   # standalone dev cards -> cards/
 python3 tools/validate_sheet.py <name>       # ERC one sheet in isolation
 python3 tools/pins.py <Lib:Name>             # introspect a symbol's pins
 ```
@@ -62,9 +63,9 @@ See `tools/SHEET_AUTHORING_GUIDE.md`.
 
 Every component carries an `LCSC Part Num` property, generated at build time
 from the sourcing map in `tools/parts.py` (SMD parts; the motherboard is one
->100×100 mm board since the 2026-07-14 3.3V single-board redesign, the
-standalone `hardware/cards/` dev cards stay ≤100×100 mm; fab-installed
-sockets are down to the V20 + the Core2350B/Pico module headers). The sheets
+>100×100 mm board since the 2026-07-14 3.3V single-board redesign;
+fab-installed sockets are down to the V20 + the Core2350B/Pico module
+headers). The sheets
 stay generic; the parts map is the single place where generic symbols bind to
 purchasable parts. Decisions, verified pinouts, and stock-forced
 substitutions: `notes/jlcpcb-sourcing.md`.

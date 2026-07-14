@@ -75,46 +75,10 @@ def build_subsheet(modname, lib):
     return mod, sch
 
 
-# Standalone soft-card PCBs (each = logic + two chainable ISA headers, isa_conn).
-# COM/LPT/storage live on the motherboard only (their sheets carry enable
-# straps, plus base-addr straps on LPT/IDE; COM bases/IRQs are hardwired); RTC is no longer a motherboard sheet at all -- it's
-# emulated in the Bus MCU + a PCF8563 on the Supervisor (2026-07-14). The
-# remaining standalone cards are the ones that earn a separate PCB: video
-# (HDMI/VGA bring-up) and the isatest jig (the bus HOST -- opposite role,
-# needs its own board).
-CARD_SHEETS = ["card_video", "card_isatest"]
-
-
-def build_cards(run_checks=True):
-    """Build each soft-card dev PCB as its own standalone schematic in
-    hardware/cards/. Returns 0, or 1 if any card has structural ERC errors."""
-    lib = load_lib()
-    failures = []
-    outdir = os.path.join(HW, "cards")
-    os.makedirs(outdir, exist_ok=True)
-    open(os.path.join(outdir, "sym-lib-table"), "w").write(
-        '(sym_lib_table\n  (version 7)\n'
-        '  (lib (name "mini-xt")(type "KiCad")(uri "%s/mini-xt.kicad_sym")(options "")(descr ""))\n)\n'
-        % HW)
-    for name in CARD_SHEETS:
-        mod, sch = build_subsheet(name, lib)
-        sch.is_root = True       # each card is its own top-level PCB schematic
-        sch.proj = name          # instance blocks reference THIS card's project, not mini-xt
-        p = os.path.join(outdir, name + ".kicad_sch")
-        open(p, "w").write(sch.render())
-        open(os.path.join(outdir, name + ".kicad_pro"), "w").write(
-            '{\n  "meta": {"version": 1}\n}\n')
-        msg = "ok"
-        if run_checks:
-            r = subprocess.run([CLI, "sch", "erc", "-o", p + ".rpt", p],
-                               capture_output=True, text=True)
-            msg = (r.stdout.strip().splitlines() or ["?"])[-1]
-            bad = structural_violations(p + ".rpt")
-            if bad:
-                msg += "  STRUCTURAL: %s" % bad
-                failures.append(name)
-        print("card %-14s %2d comps  %s" % (name, len(sch.components), msg))
-    return 1 if failures else 0
+# (Standalone dev-card PCBs -- card_video, card_isatest -- and their
+# build_cards() harness were DELETED 2026-07-14: the long-term plan is an ISA
+# backplane expansion board off the sidecar port instead. Tag/history has the
+# last version.)
 
 
 def assemble(write=True, run_checks=True):

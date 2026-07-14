@@ -224,7 +224,7 @@ def build(sch, lib):
     # below +3V3, so it always wins over the ~3.0V CR2032) and from the
     # CR2032 alone when the board is off -- the standard battery-backed-RTC
     # arrangement. Same SS34 already used for OR-ing elsewhere (video.py,
-    # bus_mcu.py, card_isatest.py).
+    # bus_mcu.py).
     d1 = sch.place("Device:D_Schottky", "D1", "SS34", at=(177.8, 152.4))
     L(d1, "2", "+3V3", dx=-2.54, dy=0)          # 2 = anode
     L(d1, "1", "VDD_RTC", dx=2.54, dy=0)        # 1 = cathode

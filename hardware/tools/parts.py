@@ -66,7 +66,6 @@ NOT available at JLC (flagged, no LCSC number):
   * TL16C550CPT (LQFP-48): 0 stock at JLC (both TL16C550CPTR/PTRG4) as of
     2026-07-14 -> source TI direct/Mouser/Digi-Key, like the V20 (but NOT
     socketed -- still a soldered SMD reflow part, just not JLC-supplied)
-  * 8-bit ISA card-edge slot (card_isatest J1) -> consign / other distributor
   * VGA HD15 (DE15) connector             -> other distributor (THT)
 
 Thin stock (check before ordering): DB25 (~10), MAX3241EEAI+T (~175),
@@ -332,14 +331,26 @@ PART_MAP = {
         E("C2962036", "HYCW01-CF50-395B", "SMD",
           "mini-xt:CF_HYCW01-CF50-395B",
           "CompactFlash socket (True-IDE); real CF footprint at layout"),
+    ("Connector_Generic:Conn_02x20_Odd_Even", "IDE 40-pin (boxed)"):
+        E("C9138", "2.54-2*20P straight IDC box header", "THT",
+          "Connector_IDC:IDC-Header_2x20_P2.54mm_Vertical",
+          "shrouded/polarized for IDE ribbons; clip pin 20 for keyed cables"),
+    ("Connector_Generic:Conn_02x05_Odd_Even", "DIS block (2x5)"):
+        E("C492422", "PZ254V-12-10P", "THT",
+          PH % "2x05",
+          "addr_decode disable-jumper block: ONE fixed 2x5 male header "
+          "(pos 1-5 = COM1/COM2/LPT/IDE/VID), not a breakaway strip"),
+    ("Connector_Generic:Conn_02x25_Odd_Even", "ISA 8-bit (50p)"):
+        E("C21262364", "X6521FR-2x25-C85D32", "THT right-angle",
+          "Connector_PinSocket_2.54mm:PinSocket_2x25_P2.54mm_Horizontal",
+          "expansion port: 90-deg FEMALE socket (cards/backplane plug in "
+          "edge-on with male pins); ~350 stock -- verify before ordering"),
     ("Connector_Generic:Conn_01x15", "VGA HD15"):
         E("", "DE15 HD15 female", "THT",
           "Connector_Dsub:DSUB-15-HD_Socket_Horizontal_P2.29x2.54mm_EdgePinOffset8.35mm_Housed_MountingHolesOffset10.89mm",
           "NOT stocked at JLC -- source elsewhere or HDMI-only build"),
-    ("Connector:Bus_ISA_8bit", "ISA slot (8-bit)"):
-        E("", "8-bit ISA card-edge socket", "THT",
-          "mini-xt:ISA_Slot_8bit_EdgeSocket",
-          "NOT stocked at JLC -- consign (e.g. EDAC 305/CONNFLY 3.96mm); custom fp"),
+    # (Bus_ISA_8bit card-edge socket entry deleted 2026-07-14 with the
+    # card_isatest dev card, its only user.)
 }
 
 # Fallbacks by lib_id alone (any value). Headers/jumpers are cut-to-length
@@ -352,7 +363,9 @@ LIBID_MAP = {
     "Connector_Generic:Conn_01x10": E("C2337", "1x40 2.54mm header (break to 10)", "THT", PH % "1x10"),
     "Connector_Generic:Conn_02x04_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x4)", "THT", PH % "2x04"),
     "Connector_Generic:Conn_02x20_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x20)", "THT", PH % "2x20"),
-    "Connector_Generic:Conn_02x30_Odd_Even": E("C2333", "2x40 2.54mm header (break to 2x30)", "THT", PH % "2x30"),
+    # (No Conn_02x25 fallback: both 2x25 users are tuple-bound above -- the CF
+    # socket by its default value, the expansion port by "ISA 8-bit (50p)".
+    # The 2x30 entry retired with the 60-pin header, 2026-07-14.)
     "Switch:SW_Push": E("C318884", "TS-1187A-B-A-B", "SMD 5.1x5.1",
                         "mini-xt:SW_TS-1187A_5.1x5.1mm",
                         "BOOTSEL buttons; custom fp -- import EasyEDA at layout"),
