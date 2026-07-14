@@ -44,7 +44,7 @@ Rows still live in the current (3.3V, single-board) design:
 | TCM809        | TCM809TENB713          | C47195   | same family/SOT-23 pinout, **-T grade, 3.08 V threshold** — correct for the 3.3V rail it now monitors (was wrongly bound to the 4.375V -450I/TT grade; fixed Task 10, see Q9 in questions-cpu_core.md) |
 | 2N3904        | MMBT3904               | C20526   | SMD version of the same die |
 | TL072→MCP6002 | (already swapped, H6)  | C7377    | RRIO, pin-identical |
-| 1.8432 MHz XO | crystal on the UART's XIN/XOUT | C47345430 | canned XOs at this frequency are 3.3 V-only; now drives the TL16C550CPT's crystal pins instead of the old 16C550's |
+| 1.8432 MHz XO | crystal on the UART's XIN/XOUT | C47345430 | canned XOs at this frequency are 3.3 V-only; now drives the TL16C550CPFBR's crystal pins instead of the old 16C550's |
 
 **Dead as of the 3.3V redesign (rows removed):**
 - **74HCT374 → 74HCT574** (C6001): the LPT data latch (parallel.py) moved
@@ -91,7 +91,7 @@ query time; **thin** flags anything to re-check before ordering.
 | Dual open-drain (sidecar IOCHRDY/IOCHCK̄) | 74LVC2G07GW,125 (2G06 body, value override) | C24478 | SOT-363-6 | 6,631 |
 | ÷2 clock divider (cpu_core U8, was 74HCT74) | 74LVC74APW,118 | C6100 | TSSOP-14 | 7,807 |
 | ÷3 clock divider (cpu_core U9, was 74HC161) | 74LVC161PW,118 | C548136 | TSSOP-16 | 100 **thin** |
-| UART ×2 (replaces socketed 16C550)   | TL16C550CPTR           | C181382   | LQFP-48    | **0 — sourced elsewhere** |
+| UART ×2 (replaces socketed 16C550)   | TL16C550CPFBR          | C882798   | TQFP-48    | 5 **thin — verify**       |
 | I2C RTC (Supervisor, battery-backed) | PCF8563T/5,518         | C7440     | SO-8       | 166,556 |
 | CR2032 holder (Supervisor)           | CR2032-BS-6            | C22363833 | SMD        | 13,541 |
 
@@ -109,8 +109,8 @@ Notes:
 AS6C4008 SRAM sockets are gone with that chip (→ IS62WV51216BLL SMD TSOP-44,
 no socket) and the DS12C887 socket is gone with that chip (→ RTC emulated
 + SMD PCF8563). The COM UARTs also dropped their PLCC-44 socket: the
-TL16C550CPT is a soldered LQFP-48 reflow part (§ Not available at JLCPCB —
-zero JLC stock, sourced elsewhere, but still not socketed).
+TL16C550CPFBR is a soldered TQFP-48 reflow part (thin JLC stock, C882798;
+still not socketed).
 
 | Component            | Socket (= its LCSC Part Num) | Chip source        |
 |----------------------|------------------------------|--------------------|
@@ -150,8 +150,8 @@ here only as history; beware many catalog DIP-24/32 sockets are the NARROW
 board no longer sockets its UARTs. The original rationale (swappable UART for
 ~$0.39 + ~2 cm² per port, one footprint taking new TI silicon / NOS tubes /
 vintage pulls) applied to a PLCC-44 16C550; the 3.3V redesign moved both COM
-ports to a soldered TL16C550CPT (LQFP-48) instead — see "Not available at
-JLCPCB" below (zero JLC stock either way, sourced elsewhere).
+ports to a soldered 48-pin QFP instead (TL16C550CPFBR, C882798, since later
+that day — thin JLC stock, see the thin-stock list below).
 
 ## Not available at JLCPCB (source elsewhere / consign)
 
@@ -159,16 +159,14 @@ JLCPCB" below (zero JLC stock either way, sourced elsewhere).
   consign or CONNFLY/EDAC from another distributor.
 - **VGA HD15 (DE15) connector** (video card) — THT part from another
   distributor, or build the video card HDMI-only initially.
-- **TL16C550CPT (LQFP-48), COM1/COM2** — 2026-07-14: both TL16C550CPTR
-  (C181382) and TL16C550CPTRG4 (C2653207) show **0 units** at JLC as of
-  2026-07-14 (`jlc_stock_check`, live). Source TI direct / Mouser / Digi-Key,
-  same treatment as the V20 — but note it is a **soldered SMD reflow part,
-  not socketed** (unlike the V20's machined DIP-40 socket). The TL16C550C/D
-  family overall is healthy in the channel (LQFP/PLCC/TQFP variants combined
-  ~1800+ units at Mouser), so this is a distributor-availability gap at JLC
-  specifically, not a part-obsolescence risk. A socketed PLCC-44 fallback
-  (TL16C550CIFNR, C2653193, 10 in stock at JLC) exists if a future revision
-  wants sockets back, but the current design solders LQFP-48 directly.
+- **16C550 UART — RESOLVED (2026-07-14, later), moved to the thin-stock
+  list.** The LQFP-48 PT revisions (TL16C550CPTR C181382, PTRG4 C2653207)
+  remain at **0 units**, but the active **TL16C550CPFBR** (TQFP-48,
+  **C882798**, 5 in stock, extended part) is pin-identical — verified
+  against EasyEDA/`jlc_get_pinout` for C882798, all 48 pins including the 8
+  NCs — and is now bound in `parts.py`. Still a **soldered SMD reflow part,
+  not socketed**. A socketed PLCC-44 fallback (TL16C550CIFNR, C2653193)
+  exists if a future revision wants sockets back.
 
 ## Network card (2026-07-12)
 
@@ -190,13 +188,13 @@ RTL8019AS NE2000 NIC soft-card sourcing pass (schematic from Tasks 1-3):
 
 ## Thin stock — re-verify with jlc_stock_check before ordering
 
-- **16550 → TL16C550CPT (2026-07-14 update): 0 stock at JLC, not just thin —
-  sourced elsewhere** (see "Not available at JLCPCB" above). Avoid
-  eBay/AliExpress "16550" pulls for function if buying used pulls as a
-  fallback — widely remarked/fake. LQFP-48 pin numbers differ from the old
-  PLCC/DIP-style KiCad symbol assumption — the `mini-xt:TL16C550PT` symbol
-  uses TI's own NO.PT column (SLLS177I Table 4-1), verified against
-  `jlc_get_pinout` for C181382.
+- **TL16C550CPFBR (C882798): 5 units — genuinely thin**, extended part;
+  re-verify with `jlc_stock_check` before every order (fallback: TI
+  direct/Mouser, where the PFB channel is healthy). Avoid eBay/AliExpress
+  "16550" pulls — widely remarked/fake. 48-QFP pin numbers differ from the
+  old PLCC/DIP-style symbol assumption — the `mini-xt:TL16C550PT` symbol
+  uses TI's NO.PT column (SLLS177I Table 4-1), re-verified pin-for-pin
+  against `jlc_get_pinout` for C882798 (PT and PFB share the pinout).
 - DB25 male (C5400534): ~10 pcs — likely needs a substitute.
 - MAX3241EEAI+T (C406859): ~175.
 - TPS563200DDCR (C97253): down to **4 pcs** as of the 2026-07-11 review (was

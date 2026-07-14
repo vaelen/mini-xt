@@ -116,3 +116,16 @@ Whole sheet moves to +3V3 except one deliberate exception:
 - pwr()/decouple()/pullup() helper defaults changed from +5V to +3V3 (every
   call site on this sheet needed the new rail; no call overrode the old
   default). The card-bulk cap (C12) moved to +3V3 to match.
+
+---
+**2026-07-14: block decode moved to the central `addr_decode` sheet** --
+~{IDE_CS} replaces the on-card 74HC08 qualifier (U2 deleted) and U1's
+A5/A6/A7 inverters (spares now); the 0x300/0x320 strap is JP2 there. DEC1
+still splits A0/A4 inside the window. One PRIV net (~{IDE_CS}) now crosses
+this soft card -- logged liftability trade, see questions-addr_decode.md.
+
+---
+**2026-07-14 (later still): IRQ driver + enable centralized.** U5 ('125)
+and JP2/R5 moved to `addr_decode` (disable = JP6 there, fit to disable,
+enabled by default); Q1's 2N7002 + R4 now generate ~{IRQ_IDE}
+(mxbus.PRIV_IRQREQ) and the central '125 drives IRQ14. DEC1 ~E1 ties to GND.

@@ -47,7 +47,7 @@ and `hardware/notes/3v3-verification.md`.
 | Input | **USB-A HID host** on the **Supervisor** MCU (keyboard; mouse via user's hub) |
 | Mouse | Emulated **virtual COM3 serial mouse** (default) or **PS/2 on IRQ12** (option) |
 | Storage | Discrete **XT-IDE** (8-bit, Chuck-mod) + CompactFlash; XTIDE Universal BIOS. Floppy = **all-firmware emulation** (§10.1, no FDC hardware) |
-| Serial | **2× TL16C550CPT** (LQFP-48, soldered, 3.3V — no JLC stock, sourced elsewhere) + **MAX3241** (full DB9); TTL console header on COM1 |
+| Serial | **2× TL16C550CPFBR** (TQFP-48, soldered, 3.3V — thin JLC stock, C882798) + **MAX3241** (full DB9); TTL console header on COM1 |
 | Parallel | Discrete **74HC/74LVC** LPT @ 0x378 (jumpers: 0x278 alt, enable; IRQ7 hardwired) |
 | RTC | **Emulated in the Bus MCU** (ports 0x70/0x71, like PIC/PIT); battery-backed timekeeping via a **PCF8563 I2C RTC + CR2032 coin cell on the Supervisor**, synced over the UART link at boot |
 | Config | **Pre-BIOS setup menu** (Supervisor MCU), shown on **video + MCU console**, entered by keypress |
@@ -96,7 +96,7 @@ Three classes of node:
 2. **Soft cards** — the **video** card (RP2350B) and **PicoGUS** (RP2040). Pure ISA
    peripherals on the bus, GPIOs tied directly to the 3.3V bus (video keeps a 4×
    74LVC245A PIO-driven time-share mux for GPIO budget, not for level shifting).
-3. **Real period-style chips** — V20, one IS62WV51216BLL SRAM, 2× TL16C550CPT UART,
+3. **Real period-style chips** — V20, one IS62WV51216BLL SRAM, 2× TL16C550CPFBR UART,
    RTL8019AS NIC (a 5V island, isolated behind its own buffer/decode), plus discrete
    74HC/74HCT/74LVC glue for the bus, LPT, and XT-IDE.
 
@@ -113,6 +113,22 @@ Bus MCU bus-masters via `HOLD/HLDA`, sequences reset, and owns motherboard-only 
 (the SRAM-decode Y5 strobe, the speed-select latch, the external address counter), and the
 Supervisor never sits on the bus at all. Class-3 parts are fixed motherboard hardware and
 out of scope for the rule.
+
+**Central I/O decode + IRQ map (2026-07-14).** The discrete peripherals no longer carry
+their own bus-interface plumbing. One **`addr_decode` sheet** (74HC138 windowing on A6-A8
+with A9/AEN enables, a 74HC00 building the shared A3·A4·A5 fine term, two 74HC32 ranks)
+hands **~COM1_CS / ~COM2_CS / ~LPT_CS / ~IDE_CS** (`mxbus.PRIV_CS`) to the COM/LPT/XT-IDE
+sheets, and its shared **74LVC125A** drives the real IRQ lines (COM1→IRQ4, COM2→IRQ3,
+LPT→IRQ7, IDE→IRQ14) from the peripherals' private requests (`mxbus.PRIV_IRQREQ`; the COM
+channels stay ~OUT2-gated per the PC convention). The base straps (JP1 LPT 0x378/0x278,
+JP2 IDE 0x300/0x320 — pulled-high commons, so an unjumpered strap parks that peripheral
+off instead of floating its decode) and the per-peripheral **disable jumpers JP3–JP6**
+(enabled by default; fit a jumper to disable) live here too. These private nets are
+shared logic factored out, not an isolation break: each is functionally equivalent to
+the gate chips it replaced, and a block broken out to a standalone card gets decode + IRQ
+driver back in its wrapper schematic exactly as it gets the bus edge connector
+(`questions-addr_decode.md`). The NIC is NOT centralized — its '138 double-duties as the
+JP-disable isolation gate — and video/PicoGUS/Bus-MCU decode in firmware.
 
 ### Block diagram
 
@@ -669,7 +685,7 @@ collector line and redirect path the rest of the 8-bit IRQs use).
 - **JP1 (disable)**: open tri-states the IRQ2 line through a spare **74HCT125** gate and
   forces the chip's **AEN input high**, so a disabled NIC ignores every I/O cycle and
   frees IRQ2 for the sidecar — the same self-isolating pattern as the other on-board
-  cards' enable jumpers (LPT JP2, COM JP3/JP4, XT-IDE JP2).
+  cards' central disable jumpers (addr_decode JP3–JP6).
 
 ---
 
@@ -677,8 +693,9 @@ collector line and redirect path the rest of the 8-bit IRQs use).
 
 Discrete and period-correct (uses 74HCT on hand):
 - **XT-IDE rev 2 / "Chuck-mod"** 8-bit interface: a **74HCT573/652 high-byte latch** makes
-  the 16-bit IDE data register two 8-bit transfers. **I/O base 0x300**, jumpered: **JP1**
-  re-straps to **0x320** (they differ only in A5; XTIDE UB supports both) and **JP2**
+  the 16-bit IDE data register two 8-bit transfers. **I/O base 0x300**, jumpered: **JP2 on the
+  `addr_decode` sheet** re-straps to **0x320** (they differ only in A5; XTIDE UB supports
+  both — the block match arrives as ~IDE_CS) and the card's own **JP2**
   disables the port outright (lifts the decode '138's enable — every select, latch clock
   and buffer goes inert, the IRQ stays released), so an external XT-IDE on the sidecar
   chain can coexist or take over. **The IRQ is hardwired to IRQ14** (the AT primary-IDE
@@ -732,18 +749,19 @@ space if a physical drive or Gotek must plug in; nothing else requires it.)*
 ## 11. Serial / parallel / RTC / input
 
 ### 11.1 Serial (2× COM)
-- **2× TL16C550CPT** (LQFP-48, soldered directly at 3.3V — 2026-07-14 update: replaces the
-  socketed PLCC-44 16C550; zero JLC stock at either device revision, so this part is
-  **sourced elsewhere**, see `hardware/notes/jlcpcb-sourcing.md`) (ONE `com_port` sheet
-  carrying both ports — merged 2026-07-14 from the instanced-×2 layout so the ports share
-  glue: one 74HC04 + two 74HC08 decode both addresses off a common A3–A7,A9,~AEN term, and
-  one 74LVC125A gates both IRQs — 4 glue chips instead of 8): **COM1 0x3F8/IRQ4**,
+- **2× TL16C550CPFBR** (TQFP-48, soldered directly at 3.3V — 2026-07-14 update: replaces the
+  socketed PLCC-44 16C550; the LQFP PT revisions are dead at JLC, the active PFB is
+  **thin stock, C882798**, see `hardware/notes/jlcpcb-sourcing.md`) (ONE `com_port` sheet
+  carrying both ports — merged 2026-07-14 from the instanced-×2 layout; both chip selects
+  now arrive from the **central `addr_decode` sheet** (below), so the only shared glue left
+  on the COM sheet is one 74LVC125A gating both IRQs): **COM1 0x3F8/IRQ4**,
   **COM2 0x2F8/IRQ3** — base addresses and IRQs are **hardwired** (the PC convention; no
   strap to misconfigure — the old J2 base strap existed only because one generic sheet was
-  instanced at both addresses). On-board only — no standalone COM card — remaining jumpers:
-  **JP3/JP4** per-port enable (open parks the UART's spare active-high CS1, so the port
-  never decodes; the IRQ driver is tri-state and MCR resets to 0, so a disabled port is
-  silent on every line — disabling a port is how you free its IRQ).
+  instanced at both addresses). On-board only — no standalone COM card — the per-port
+  disable jumpers are **addr_decode JP3/JP4** (enabled by default; a fitted jumper forces
+  the port's ~CS inactive so it never decodes, MCR stays 0, and the central IRQ driver
+  stays tri-state — a disabled port is silent on every line, which is how you free its
+  IRQ).
 - **MAX3241** per port (3.3V — Task-10 moved it onto the 3.3V rail so its receiver
   outputs no longer swing 5V into U1's non-5V-tolerant inputs; caps resized to the
   datasheet 3.0–3.6V column) — 3 drivers + 5 receivers = a **full DB9**
@@ -755,15 +773,15 @@ space if a physical drive or Gotek must plug in; nothing else requires it.)*
   header pin at all — the RTC that once justified it is now firmware-emulated off-bus,
   §11.3), so an expansion COM4 cannot use IRQ10+ — and the bus IRQ2 line is now hardwired to
   the on-board NE2000 NIC (§9.1): **an expansion COM4 (0x2E8) needs a freed line — disable
-  COM2 (JP4) for IRQ3, or the NIC (JP1) to reclaim IRQ2→9** — still avoiding the ISA
+  COM2 (addr_decode JP4) for IRQ3, or the NIC (JP1) to reclaim IRQ2→9** — still avoiding the ISA
   edge-triggered IRQ-sharing problem. The virtual COM3 mouse keeps
   **IRQ4** (the convention mouse drivers expect), so it *does* share IRQ4 with COM1; in
   practice you use one or the other (most mouse use implies COM1 is free).
 
 ### 11.2 Parallel (LPT)
 Discrete **74HC/74LVC** ('574 data/control latches + '244/'245 status & read-back, now
-3.3V-powered) — on-board only, jumper-configured: **JP1** base address (**0x378/0x278** —
-they differ only in A8; a spare NAND inverts it), **JP2** enable (open lifts the
+3.3V-powered) — on-board only, jumper-configured: base address **0x378/0x278** via **JP1 on the
+`addr_decode` sheet** (the block match arrives as ~LPT_CS), **JP2** enable (open lifts the
 register-select '138's enable: no register can be read, written or latched —
 and frees the line). **IRQ7 is hardwired** (LPT1 convention). The IRQ driver
 is tri-state (asserted only for an enabled ACK̄ pulse), so the line stays
@@ -851,7 +869,7 @@ Xi 8088's CMOS setup the same as before — only the hardware backing it changed
 | 0x080–0x083 | DMA page regs; **0x080 POST latch** (snooped → hex display) |
 | 0x201 | (unused — no gameport; HID via the Supervisor, §11.4) |
 | 0x220.../0x240.../0x330/0x388 | PicoGUS (SB / GUS / MPU / OPL) |
-| 0x2F8 / 0x3F8 | COM2 / COM1 (TL16C550CPT) |
+| 0x2F8 / 0x3F8 | COM2 / COM1 (TL16C550CPFBR) |
 | 0x3E8 | **COM3 — emulated serial mouse** (Bus MCU, IRQ4) |
 | 0x3F0–0x3F7 | (reserved) **firmware floppy** tier-2 registers, §10.1 (Bus MCU) |
 | 0x2E8 | COM4 (expansion port; needs a freed IRQ — see §11.1) |
@@ -886,7 +904,7 @@ Xi 8088's CMOS setup the same as before — only the hardware backing it changed
 > `hardware/tools/parts.py` (applied to the schematics as `LCSC Part Num`
 > properties); sourcing decisions and stock-forced substitutions are in
 > `hardware/notes/jlcpcb-sourcing.md`. **2026-07-14 update:** the board's internal
-> bus moved to 3.3V (below); TL16C550CPT has zero JLC stock and is sourced elsewhere.
+> bus moved to 3.3V (below); the TL16C550CPFBR UART (C882798) is thin JLC stock — verify.
 
 | Function | Period part | This build |
 |---|---|---|
@@ -907,7 +925,7 @@ Xi 8088's CMOS setup the same as before — only the hardware backing it changed
 | FM / digital audio | AdLib / Sound Blaster | **on-board PicoGUS (RP2040, stock fw)** |
 | Network | (none, period) | **on-board RTL8019AS NE2000 NIC** — 5V island, isolated behind gated 74LVC245 + 74HC138 |
 | Game port | discrete 558 | **(none — USB HID on the Supervisor)** |
-| UART | 8250 | **2× TL16C550CPT** (LQFP-48, 3.3V, soldered — sourced elsewhere, no JLC stock) |
+| UART | 8250 | **2× TL16C550CPFBR** (TQFP-48, 3.3V, soldered — thin JLC stock, C882798) |
 | RS-232 | 1488/1489 | **MAX3241 (full DB9, 3.3V)** |
 | LPT | discrete TTL | 74HC/74LVC '574 + '244 (3.3V) |
 | RTC | MC146818 | **Emulated in the Bus MCU** (ports 0x70/71) + **PCF8563 I2C RTC + CR2032** on the Supervisor for battery-backed time |

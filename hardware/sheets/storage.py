@@ -16,23 +16,28 @@ Design doc S10. A discrete, period-correct mass-storage soft card:
       0x306, altstatus/devctl 0x307, error/feat 0x308, sector 0x30A, cyl-hi
       0x30C, status/cmd 0x30E, drive-addr 0x30F.  Drive DA0 = bus A3 (!),
       DA1 = A1, DA2 = A2.
+      - Block match (A9/A8/~A7/~A6/A5-strap, AEN low) arrives ready-made as
+        ~{IDE_CS} from the central addr_decode sheet (2026-07-14 chip-count
+        reduction; the old on-card 74HC08 qualifier + A5/A6/A7 inverters and
+        the 0x300/0x320 strap live there now -- mxbus.PRIV_CS, so lifting
+        this to a standalone card means re-adding that decode).
       - 74HC138 (DEC1) splits the window on A0/A4: ~Y0 = /CS0 (even offsets =
         command block), ~Y1 = /ODD_SEL (odd offsets: latch + control block).
       - 74HC138 (DEC2) decodes A1,A2,A3 inside ODD: ~Y0 = high-byte latch
         (0x301); ~Y3/~Y7 (0x307/0x30F) AND together (U3) into /CS1, so the
         latch address never asserts a drive CS or the low-byte buffer.
       - 74HC138 (DEC3/U11) decodes A1,A2,A3 inside CS0: ~Y0 = data reg 0x300.
-      - glue: 74HC08 (block qualifier + buffer enable + CS1 combine), 74HC32
-        (strobe combiners), 74HC04 (inverters + IDE -RESET).
+      - glue: 74HC08 (buffer enable + CS1 combine), 74HC32 (strobe
+        combiners), 74HC04 (latch strobes + IDE -RESET).
   * 40-pin IDE header (Conn_02x20) and a CompactFlash True-IDE socket
     (Conn_02x25, 50-pin -- no CF symbol in lib, see questions-storage.md) wired
     in parallel.
-  * Drive INTRQ -> 2N7002-gated 74LVC125A -> IRQ14, hardwired (AT primary-IDE
+  * Drive INTRQ -> 2N7002 inverter -> ~{IRQ_IDE} request (mxbus.PRIV_IRQREQ)
+    -> addr_decode's shared 74LVC125A -> IRQ14, hardwired (AT primary-IDE
     convention; the soft PIC is AT-style anyway). Poll vs interrupt is an
-    XTIDE UB config choice -- the line can stay wired either way, since the
-    '125 only drives while INTRQ is asserted.
-  * JP1: base-address strap (0x300 vs 0x320; differ only in A5).
-  * JP2: enable/disable jumper; open kills the card, closed enables it.
+    XTIDE UB config choice -- the '125 only drives while INTRQ is asserted.
+  * All jumpers live on addr_decode: JP2 there = 0x300/0x320 base strap,
+    JP6 there = disable (enabled by default, fit the jumper to disable).
 
 3.3V single-board redesign (spec 2026-07-14, task 7): all logic on this
 sheet moves to +3V3 (decode glue -> HC-grade, the data-path/IRQ buffers
@@ -53,10 +58,12 @@ NAME = "storage"
 TITLE = "Storage -- XT-IDE (Chuck-mod) + CompactFlash @ 0x300"
 
 PINS = (
-    [pin(s, "input") for s in mxbus.ADDR[:10]] +          # A0..A9
+    [pin(s, "input") for s in mxbus.ADDR[:5]] +           # A0..A4 (in-window decode + drive DA lines)
     [pin(s, "bidirectional") for s in mxbus.DATA] +       # D0..D7
-    [pin(s, "input") for s in ["~{IOR}", "~{IOW}", "AEN", "RESET_DRV"]] +
-    [pin("IRQ14", "output")]   # hardwired (AT primary-IDE); poll vs IRQ = XTIDE UB config
+    [pin(s, "input") for s in ["~{IOR}", "~{IOW}", "RESET_DRV",
+                               "~{IDE_CS}"]] +   # central block decode (addr_decode)
+    [pin("~{IRQ_IDE}", "output")]  # active-low IRQ request -> addr_decode's
+                                   # '125 drives IRQ14 (AT primary-IDE convention)
 )
 
 
@@ -89,21 +96,15 @@ def build(sch, lib, expose=True):
     pwr(INV, "VCC", "GND")
     L(INV, "P1", "HBW_N", dx=-2.54);  L(INV, "P2", "LE_W")     # write-latch Load
     L(INV, "P3", "DR_N",  dx=-2.54);  L(INV, "P4", "LE_RD")    # read-latch  Load
-    L(INV, "P5", "A5",    dx=-2.54);  L(INV, "P6", "nA5")
-    L(INV, "P9", "A6",    dx=-2.54);  L(INV, "P8", "nA6")
-    L(INV, "P11", "A7",   dx=-2.54);  L(INV, "P10", "nA7")
+    # (the A5/A6/A7 inverters moved to the central addr_decode sheet with the
+    # block qualifier; three spare gates)
+    for ip in ("P5", "P9", "P11"):
+        L(INV, ip, "GND", dx=-2.54)
+    for op in ("P6", "P8", "P10"):
+        sch.no_connect(INV.pin_xy(op))
     L(INV, "P13", "RESET_DRV", dx=-2.54); L(INV, "P12", "~{IDE_RST}")
 
-    # ---- 74HC08 #1: block-address qualifier (A9&A8&~A5&~A6&~A7) -> HI_MATCH ----
-    # 74HC08 value override (same rationale as U1).
-    AND1 = sch.place("mini-xt:74HCT08", "U2", "74HC08", at=(38.1, 142.24))
-    pwr(AND1, "VCC", "GND")
-    L(AND1, "P1", "A9", dx=-2.54); L(AND1, "P2", "A8", dx=-2.54); L(AND1, "P3", "M1")
-    L(AND1, "P4", "A5_SEL", dx=-2.54); L(AND1, "P5", "nA6", dx=-2.54); L(AND1, "P6", "M2")
-    L(AND1, "P9", "M1", dx=-2.54); L(AND1, "P10", "M2", dx=-2.54); L(AND1, "P8", "M3")
-    L(AND1, "P12", "M3", dx=-2.54); L(AND1, "P13", "nA7", dx=-2.54); L(AND1, "P11", "HI_MATCH")
-
-    # ---- 74HC08 #2: low-byte buffer enable + CS1 combine ----
+    # ---- 74HC08: low-byte buffer enable + CS1 combine ----
     AND2 = sch.place("mini-xt:74HCT08", "U3", "74HC08", at=(38.1, 205.74))
     pwr(AND2, "VCC", "GND")
     L(AND2, "P1", "~{IDE_CS0}", dx=-2.54); L(AND2, "P2", "~{IDE_CS1}", dx=-2.54)
@@ -125,25 +126,14 @@ def build(sch, lib, expose=True):
     L(OR, "P9", "~{HB_SEL}", dx=-2.54);  L(OR, "P10", "~{IOR}", dx=-2.54); L(OR, "P8", "~{HBRD_N}")  # HB read
     L(OR, "P12", "~{HB_SEL}", dx=-2.54); L(OR, "P13", "~{IOW}", dx=-2.54); L(OR, "P11", "HBW_N")      # HB write
 
-    # ---- 74LVC125A: INTRQ -> IRQ14 (hardwired), tri-state (drive-high-else-release) ----
-    # 74LVC125A value override on the HCT125 body (spec 2026-07-14): tri-state
-    # buffer driving a shared IRQ line -- LVC grade for 3.3V operation, same
-    # convention as com_port's U6 and the LPT card's IRQ7 stage.
-    # Q1 (2N7002) inverts INTRQ into the '125 ~OE: INTRQ=1 -> ~OE=0 -> buffer
-    # drives IRQ14 high (input strapped high); INTRQ=0 -> ~OE=1 (R4) -> Z, so the
-    # line stays shareable -- same convention as the LPT card's IRQ7 stage.
-    IRQ = sch.place("mini-xt:74HCT125", "U5", "74LVC125A", at=(38.1, 256.54))
-    pwr(IRQ, "VCC", "GND")
-    L(IRQ, "P1", "~{IRQ_OE}", dx=-2.54); L(IRQ, "P2", "+3V3", dx=-2.54); L(IRQ, "P3", "IRQ14")
-    for oe in ("P4", "P10", "P13"):
-        L(IRQ, oe, "+3V3", dx=-2.54)
-    for ip in ("P5", "P9", "P12"):
-        L(IRQ, ip, "GND", dx=-2.54)
-    for u in ("P6", "P8", "P11"):
-        sch.no_connect(IRQ.pin_xy(u))
+    # ---- IRQ request: Q1 (2N7002) inverts INTRQ into ~{IRQ_IDE} ----
+    # INTRQ=1 -> ~{IRQ_IDE}=0 -> addr_decode's shared '125 drives IRQ14 high
+    # (its input straps high there); INTRQ=0 -> R4 parks the request high ->
+    # Z, so the line stays shareable. (The '125 itself moved to addr_decode
+    # with the rest of the IRQ mapping, 2026-07-14.)
     Q1 = sch.place("Device:Q_NMOS", "Q1", "2N7002", at=(76.2, 256.54))
     L(Q1, "G", "IDE_IRQ", dx=-2.54)
-    L(Q1, "D", "~{IRQ_OE}", dx=0, dy=-2.54)
+    L(Q1, "D", "~{IRQ_IDE}", dx=0, dy=-2.54)
     L(Q1, "S", "GND", dx=0, dy=2.54)
 
     # ============================================================== decode ====
@@ -154,7 +144,9 @@ def build(sch, lib, expose=True):
     DEC1 = sch.place("mini-xt:74HCT138", "U6", "74HC138", at=(114.3, 63.5))
     pwr(DEC1, "VCC", "GND")
     L(DEC1, "A0", "A0", dx=-2.54); L(DEC1, "A1", "A4", dx=-2.54); L(DEC1, "A2", "GND", dx=-2.54)
-    L(DEC1, "~{E0}", "AEN", dx=-2.54); L(DEC1, "~{E1}", "~{STOR_EN}", dx=-2.54); L(DEC1, "E2", "HI_MATCH", dx=-2.54)
+    L(DEC1, "~{E0}", "~{IDE_CS}", dx=-2.54)   # central block match (AEN-gated there;
+    L(DEC1, "~{E1}", "GND", dx=-2.54)         #  its DIS_IDE jumper is the disable)
+    L(DEC1, "E2", "+3V3", dx=-2.54)
     L(DEC1, "~{Y0}", "~{IDE_CS0}")     # even offsets 0x300..0x30E: command block
     L(DEC1, "~{Y1}", "~{ODD_SEL}")     # odd offsets 0x301..0x30F: latch + ctrl
     for y in ("~{Y2}", "~{Y3}", "~{Y4}", "~{Y5}", "~{Y6}", "~{Y7}"):
@@ -260,28 +252,19 @@ def build(sch, lib, expose=True):
     r2 = sch.place("Device:R", "R2", "10k", at=(243.84, 25.4))
     sch.net(r2, "1", "IDE_IRQ", kind="label", dx=0, dy=-2.54)
     sch.net(r2, "2", "GND", kind="label", dx=0, dy=2.54)
-    pullup("R4", "~{IRQ_OE}", (91.44, 243.84))  # buffer released (Z) when INTRQ low
-    # JP1: base address -- 1-2 = 0x300 (A5 must be 0), 2-3 = 0x320 (A5 must be 1).
-    # 0x300/0x320 differ only in A5; the U1 inverter already provides nA5.
-    JP1 = sch.place("Connector_Generic:Conn_01x03", "JP1", "BASE 300/320", at=(274.32, 25.4))
-    L(JP1, "Pin_1", "nA5")
-    L(JP1, "Pin_2", "A5_SEL")
-    L(JP1, "Pin_3", "A5")
-    # JP2: enable -- closed grounds ~{STOR_EN} (enabled); open = R5 parks it
-    # high and DEC1 never selects, so /CS0, /ODD_SEL and everything downstream
-    # (DEC2/DEC3, both '573 latch clocks, the '245 enable) are inert. IRQ14
-    # stays quiet: the drive is never selected and R2 holds INTRQ low.
-    JP2 = sch.place("Connector_Generic:Conn_01x02", "JP2", "STOR_EN", at=(289.56, 25.4))
-    L(JP2, "Pin_1", "~{STOR_EN}")
-    L(JP2, "Pin_2", "GND")
-    pullup("R5", "~{STOR_EN}", (320.04, 25.4))
-    for i, x in enumerate(range(30, 250, 20)):
+    pullup("R4", "~{IRQ_IDE}", (91.44, 243.84))  # request parks high (Z) when INTRQ low
+    # (All jumpers moved to addr_decode: base strap = JP2 there, disable =
+    # JP6 there -- fitting it forces ~{IDE_CS} inactive, so /CS0, /ODD_SEL and
+    # everything downstream (DEC2/DEC3, both '573 latch clocks, the '245
+    # enable) are inert and IRQ14 stays quiet: the drive is never selected
+    # and R2 holds INTRQ low.)
+    for i, x in enumerate(range(30, 210, 20)):
         decouple("C%d" % (1 + i), (float(x), 276.86))
     cb = sch.place("Device:C", "C12", "10uF", at=(256.54, 276.86))   # card bulk (+3V3: sheet's logic domain)
     sch.net(cb, "1", "+3V3", kind="label", dx=0, dy=-2.54)
     sch.net(cb, "2", "GND", kind="label", dx=0, dy=2.54)
 
     # =============== strapping notes ==
-    sch.text("JP1 base 0x300/0x320 (XTIDE UB); JP2 open = card disabled; IRQ14 hardwired (poll vs IRQ = XTIDE UB config).", at=(266.7, 17.78))
+    sch.text("Base strap + disable jumper: addr_decode JP2/JP6 (fit JP6 to disable); IRQ14 hardwired (poll vs IRQ = XTIDE UB config).", at=(266.7, 17.78))
     sch.text("Populate ONE of J1 (IDE) / J2 (CF): both CSELs are grounded, so both "
              "devices ID as master on the shared cable.", at=(266.7, 12.7))

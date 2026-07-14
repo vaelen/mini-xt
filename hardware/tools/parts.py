@@ -184,11 +184,12 @@ PART_MAP = {
     # ---- new ICs (3.3V single-board redesign) ----
     ("mini-xt:IS62WV51216", "IS62WV51216BLL"): E("C11315", "IS62WV51216BLL-55TLI",
         "TSOP-II-44", "Package_SO:TSOP-II-44_10.16x18.41mm_P0.8mm"),
-    ("mini-xt:TL16C550PT", "TL16C550C"): E("", "TL16C550CPTR", "LQFP-48(7x7mm)",
-        "Package_QFP:LQFP-48_7x7mm_P0.5mm",
-        "0 JLC stock 2026-07-14 (LQFP-48 TL16C550CPTR/PTRG4 both 0) -- source "
-        "TI direct/Mouser/Digi-Key like the V20; reflows in the normal SMD pass "
-        "once procured (not socketed -- decision is soldered LQFP-48)"),
+    ("mini-xt:TL16C550PT", "TL16C550C"): E("C882798", "TL16C550CPFBR", "TQFP-48(7x7)",
+        "Package_QFP:TQFP-48_7x7mm_P0.5mm",
+        "active PFB (TQFP-48) revision of the dead PTR -- pinout verified "
+        "identical to the mini-xt:TL16C550PT symbol against EasyEDA C882798 "
+        "(all 48 pins incl. the 8 NCs, same 7x7 P0.5 land pattern); THIN "
+        "extended-part stock (5 @ 2026-07-14), confirm before ordering"),
     ("mini-xt:PCF8563", "PCF8563T"): E("C7440", "PCF8563T/5,518", "SO-8", SOIC8,
         "I2C RTC; Bus MCU emulates ports 0x70/71, time synced over the "
         "existing UART link at boot"),

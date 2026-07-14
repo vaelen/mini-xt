@@ -142,3 +142,18 @@ card_com's own JP2 was deleted (the sheet's strap comes along for free).
     (push-pull), so it needs no selector and no idle pull-up.
   - Port enables are now JP3 (COM1) / JP4 (COM2); interface pins IRQ4/IRQ3
     replace the per-instance COM_IRQ remap. Sheet is A2 (two ports outgrow A3).
+
+---
+**2026-07-14 (later): decode moved OFF this sheet entirely** -- ~{COM1_CS}/
+~{COM2_CS} now arrive from the central `addr_decode` sheet (the merge-era
+74HC04 + 2x 74HC08 shrank to a share of its '138+'00+'32). See
+questions-addr_decode.md; supersedes the decode part of the merge note above.
+
+---
+**2026-07-14 (later still): IRQ stage + enables centralized; UART part swap.**
+The shared 74LVC125A (U8) and the JP3/JP4 enables moved to `addr_decode`
+(JP3/JP4 there, sense inverted: enabled by default, fit to disable); the
+UARTs export raw INTRPT + ~{OUT2} as IRQ_COM1/2 + ~{COMx_IRQEN}
+(mxbus.PRIV_IRQREQ), CS1 ties high. The bound part is now **TL16C550CPFBR**
+(TQFP-48, LCSC C882798, thin stock) -- the LQFP PTR is dead at JLC; pinout
+verified identical to the mini-xt:TL16C550PT symbol via jlc_get_pinout.

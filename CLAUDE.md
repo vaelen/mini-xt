@@ -103,13 +103,13 @@ Boards are fabbed and assembled at JLCPCB. Rules that shape every sheet:
   (the clock dividers needed this — plain HC fails its 3.3V fmax spec at
   14.318 MHz). `hardware/notes/jlcpcb-sourcing.md` records all current
   substitutions, the socket policy, and the parts that must be sourced
-  elsewhere (ISA edge slot, VGA DE15, the V20 itself, and now the
-  TL16C550CPT — zero JLC stock).
+  elsewhere (ISA edge slot, VGA DE15, the V20 itself; the UART is back
+  at JLC as the TL16C550CPFBR, C882798, but thin — verify stock).
 - **RAM is one IS62WV51216BLL-55TLI** (512K×16, 3.3V) wired 1M×8 via the
   byte-lane trick (both 8-bit halves tied to D0-7, A0 selects the lane) —
   not two discrete 8-bit SRAMs.
-- **COM ports are TL16C550CPT** (LQFP-48, 3.3V, soldered directly — no
-  socket, no JLC stock, sourced elsewhere).
+- **COM ports are TL16C550CPFBR** (TQFP-48, 3.3V, soldered directly — no
+  socket; thin JLC stock, C882798 — verify before ordering).
 - **RTC is emulated in the Bus MCU** (ports 0x70/0x71, like PIC/PIT); there
   is no on-board `rtc` ISA sheet. Battery-backed timekeeping is a PCF8563
   I2C RTC + CR2032 coin cell on the Supervisor, synced over the UART link.
@@ -137,7 +137,14 @@ how-to. `hardware/sheets/cpu_core.py` is the worked reference example. Key rules
   liftable to a standalone ISA card. Private nets (`PRIV_*` in mxbus: HOLD/HLDA,
   UART link, counter strobes, SPEED_SEL, Y5) remain motherboard-only by
   convention — avoid leaking one into a soft card, but this is a guideline to
-  log a question against, not a build-breaking violation. (There is no `rtc`
+  log a question against, not a build-breaking violation. **Standing pattern
+  (2026-07-14):** com_port/parallel/storage take `mxbus.PRIV_CS` chip selects
+  from, and send `mxbus.PRIV_IRQREQ` IRQ requests to, the central
+  `addr_decode` sheet (which also owns the base straps and the per-peripheral
+  disable jumpers). Shared logic factored out, NOT an isolation break — the
+  nets are functionally equivalent to the gates they replaced, and a
+  standalone-card wrapper simply re-adds decode + IRQ driver the same way it
+  adds the edge connector (`hardware/notes/questions-addr_decode.md`). (There is no `rtc`
   sheet any more — the RTC is emulated in the Bus MCU + Supervisor, see above.)
 - Place on the 2.54 mm grid; ~40–60 mm part spacing; one net = one name.
 - When the design under-specifies something, do **not** stop: make a

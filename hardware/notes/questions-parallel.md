@@ -128,3 +128,16 @@ external boundary; connector-facing parts go LVC, decode glue goes HC"):
   +5V: 3.3V is a fully valid logic-high for the (now 5V-tolerant-input)
   buffers reading these lines, and there's no reason to overdrive the idle
   level above the board's own rail.
+
+---
+**2026-07-14: block decode moved to the central `addr_decode` sheet** --
+~{LPT_CS} replaces the on-card 2x 74HC08 AND tree (U7/U8 deleted); the
+0x378/0x278 strap is JP1 there; U9's ~A7 and U12's ~A8 gates are spares now.
+One PRIV net (~{LPT_CS}) now crosses this soft card -- logged liftability
+trade, see questions-addr_decode.md.
+
+---
+**2026-07-14 (later still): IRQ driver + enable centralized.** U13 ('125)
+and JP2/R6 moved to `addr_decode` (disable = JP5 there, fit to disable,
+enabled by default); U12's NAND now exports ~{IRQ_LPT} (mxbus.PRIV_IRQREQ)
+and the central '125 drives IRQ7. U6 '138 ~E1 ties to GND.

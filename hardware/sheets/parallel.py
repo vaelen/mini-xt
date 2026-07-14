@@ -1,11 +1,13 @@
 """parallel -- discrete 74HC parallel printer port (LPT1) @ I/O 0x378/0x278 + DB25.
 
-Design doc S11.2. A *soft* card: it speaks ONLY the standard 8-bit XT/ISA bus
-(A0-A9, D0-D7, ~{IOR}/~{IOW}, AEN) plus power and exports IRQ7 (hardwired,
-the LPT1 convention). No private motherboard nets cross this sheet.
-
-Straps: JP1 base address (A8 = 0x378 vs 0x278), JP2 enable/disable (open
-also frees IRQ7 for something else -- the tri-state driver never fires).
+Design doc S11.2. The bus-interface plumbing is central (2026-07-14
+chip-count reduction): the block decode arrives ready-made as ~{LPT_CS} and
+the IRQ leaves as an active-low request ~{IRQ_LPT} (mxbus.PRIV_CS /
+PRIV_IRQREQ -- shared logic factored out, not an isolation break; a
+standalone-card wrapper would re-add decode + IRQ driver alongside the bus
+headers). addr_decode's shared '125 drives IRQ7 from the request; the
+0x378/0x278 base strap and the disable jumper live there too (JP1/JP5 --
+NOTE: enabled by default now, fit the jumper to disable).
 
 Three classic registers in the 0x378 block (Centronics/SPP):
   * 0x378  Data    (R/W)  -- 74LVC574A output latch -> DB25 pins 2-9
@@ -14,8 +16,8 @@ Three classic registers in the 0x378 block (Centronics/SPP):
   * 0x37A  Control (R/W)  -- 74LVC574A output latch (Strobe/AutoFd/Init/SlctIn
                              + IRQ-enable); read-back via 74LVC244A
 
-Address decode: 74HC138 selects the three registers (A0-A2) once a 74HC08
-chain matches A3-A9 == 0x378>>3 (0b1111011) and AEN is low. 74HC32 ORs the
+Address decode: 74HC138 selects the three registers (A0-A2) inside the
+~{LPT_CS} block match from addr_decode. 74HC32 ORs the
 register selects with ~{IOR}/~{IOW} to make the read enables and the rising-edge
 write clocks for the '574s. IRQ7 is the (gated) ~Ack edge -- normally polled.
 
@@ -37,14 +39,16 @@ from mxbus import pin
 NAME = "parallel"
 TITLE = "Parallel port (LPT1) -- 74HCT574/244/245 @ 0x378 + DB25"
 
-# Soft card: ISA signals + power only.  DB25 is a LOCAL connector (not a hier pin).
+# ISA signals + power + the central ~{LPT_CS} / ~{IRQ_LPT}.  DB25 is LOCAL.
 PINS = (
-    [pin(s, "input") for s in mxbus.ADDR[:10]] +          # A0..A9 (I/O decode)
+    [pin(s, "input") for s in mxbus.ADDR[:3]] +           # A0..A2 (register select)
     [pin(s, "bidirectional") for s in mxbus.DATA] +       # D0..D7
     [pin("~{IOR}", "input"), pin("~{IOW}", "input"),
-     pin("AEN", "input")] +      # no RESET_DRV: the '574s have no reset pin;
-                                 # BIOS initializes 0x378/0x37A at POST
-    [pin("IRQ7", "output")]        # hardwired (LPT1 convention); JP2 disables the port
+     pin("~{LPT_CS}", "input")] +  # central block decode (addr_decode sheet);
+                                   # no RESET_DRV: the '574s have no reset pin --
+                                   # BIOS initializes 0x378/0x37A at POST
+    [pin("~{IRQ_LPT}", "output")]  # active-low IRQ request -> addr_decode's
+                                   # '125 drives IRQ7 (LPT1 convention)
 )
 
 
@@ -66,30 +70,11 @@ def build(sch, lib, expose=True):
         sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
 
     # ============================================================
-    # Address decode -- match A3..A9 == 0b1111011 (0x378 block), AEN low
-    #   A3=1 A4=1 A5=1 A6=1 A7=0 A8=1 A9=1   (A0..A2 -> register offset)
+    # Address decode -- the 0x378/0x278 block match arrives ready-made as
+    # ~{LPT_CS} from the central addr_decode sheet (2026-07-14 chip-count
+    # reduction; the old on-card 2x 74HC08 AND tree lives there now).
+    # A0..A2 -> register offset via U6 below.
     # ============================================================
-    # 74HC08 value override (spec 2026-07-14, not in task-7 brief's swap table
-    # -- added per the same rule: this AND tree is purely internal address
-    # decode, no DB25 exposure, so plain HC-grade is correct; see
-    # questions-parallel.md).
-    U7 = sch.place("mini-xt:74HCT08", "U7", "74HC08", at=(76.2, 76.2))    # AND tree (1/2)
-    pwr(U7)
-    L(U7, "P1", "A3", dx=-2.54); L(U7, "P2", "A4", dx=-2.54); L(U7, "P3", "AM_A")
-    L(U7, "P4", "A5", dx=-2.54); L(U7, "P5", "A6", dx=-2.54); L(U7, "P6", "AM_B")
-    L(U7, "P9", "A8_SEL", dx=-2.54); L(U7, "P10", "A9", dx=-2.54); L(U7, "P8", "AM_C")
-    L(U7, "P12", "AM_A", dx=-2.54); L(U7, "P13", "AM_B", dx=-2.54); L(U7, "P11", "AM1")
-
-    U8 = sch.place("mini-xt:74HCT08", "U8", "74HC08", at=(76.2, 127.0))   # AND tree (2/2) + IRQ
-    pwr(U8)
-    L(U8, "P1", "AM1", dx=-2.54); L(U8, "P2", "AM_C", dx=-2.54); L(U8, "P3", "AM2")
-    L(U8, "P4", "AM2", dx=-2.54); L(U8, "P5", "NA7", dx=-2.54); L(U8, "P6", "ADDR_MATCH")
-    # (IRQ7 drive moved to a tri-state buffer, U12/U13 below -- a push-pull
-    # gate here would block any other card from ever sharing the IRQ7 line.)
-    L(U8, "P9", "GND", dx=-2.54); L(U8, "P10", "GND", dx=-2.54)   # spare gate inputs
-    L(U8, "P12", "GND", dx=-2.54); L(U8, "P13", "GND", dx=-2.54)
-    sch.no_connect(U8.pin_xy("P8")); sch.no_connect(U8.pin_xy("P11"))
-
     # 74AHC14 value override on the HCT04 body (spec 2026-07-14, not in the
     # task-7 brief's swap table -- added because this gate is directly wired
     # to the DB25 boundary on BOTH sides: P_ACK/P_BUSY are raw connector
@@ -101,55 +86,41 @@ def build(sch, lib, expose=True):
     # here rather than adding a new (lib_id, value) entry for a bare LVC04A.
     U9 = sch.place("mini-xt:74HCT04", "U9", "74AHC14", at=(76.2, 177.8))   # inverters
     pwr(U9)
-    L(U9, "P1", "A7", dx=-2.54); L(U9, "P2", "NA7")               # ~A7 for decode
+    L(U9, "P1", "GND", dx=-2.54)                                  # spare (was ~A7,
+    sch.no_connect(U9.pin_xy("P2"))                               #  decode now central)
     L(U9, "P3", "P_ACK", dx=-2.54); L(U9, "P4", "ACK_POS")        # ~Ack -> +pulse
     L(U9, "P5", "CTRL0", dx=-2.54); L(U9, "P6", "P_STROBE")       # Strobe (inv)
     L(U9, "P9", "CTRL1", dx=-2.54); L(U9, "P8", "P_AUTOFD")       # AutoFeed (inv)
     L(U9, "P11", "CTRL3", dx=-2.54); L(U9, "P10", "P_SLIN")       # SelectIn (inv)
     L(U9, "P13", "P_BUSY", dx=-2.54); L(U9, "P12", "BUSY_N")      # Busy -> ~Busy (status bit 7)
 
-    # IRQ drive: tri-state, like a real LPT card -- asserted high only for
-    # the ~Ack pulse while IRQ_EN (control bit 4) is set, released (Z)
-    # otherwise so the line stays shareable.  U12 NAND gate 1 makes the
-    # active-low enable for the U13 '125 buffer (input strapped high); gate 2
-    # makes ~A8 for the base-address strap (JP1). Output drives IRQ7 directly
-    # (hardwired LPT1 convention; disable the port via JP2 to free the line).
+    # IRQ request: U12 NAND gate 1 makes ~{IRQ_LPT}, the active-low
+    # assert-IRQ7 request -- low only for the ~Ack pulse while IRQ_EN
+    # (control bit 4) is set, idle high otherwise. The tri-state line driver
+    # itself is addr_decode's shared '125 (this request is its channel ~OE,
+    # input strapped high there), so IRQ7 stays shareable exactly as before.
     # NOTE the ISA ~Ack pulse is 1-12 us and is NOT latched here (real SPP
     # behaviour): the Bus MCU's '165 IRQ poll loop must run faster than the
     # shortest pulse, or sample IRQ7 via PIO.
     # 74HC00 value override (spec 2026-07-14): ACK_POS is one hop downstream
-    # of U9's buffering (not a raw DB25 tie), and A8 is an internal bus
-    # signal, so plain HC-grade is correct here.
+    # of U9's buffering (not a raw DB25 tie), so plain HC-grade is correct.
     U12 = sch.place("mini-xt:74HCT00", "U12", "74HC00", at=(266.7, 76.2))
     pwr(U12)
     L(U12, "P1", "ACK_POS", dx=-2.54); L(U12, "P2", "IRQ_EN", dx=-2.54)
-    L(U12, "P3", "~{IRQ7_OE}")
-    L(U12, "P4", "A8", dx=-2.54); L(U12, "P5", "A8", dx=-2.54); L(U12, "P6", "NA8")   # spare NAND as ~A8 inverter (base strap)
-    for ip in ("P9", "P10", "P12", "P13"):
-        L(U12, ip, "GND", dx=-2.54)
-    sch.no_connect(U12.pin_xy("P8")); sch.no_connect(U12.pin_xy("P11"))
-    # 74LVC125A value override on the HCT125 body (spec 2026-07-14): tri-state
-    # buffer driving the shared IRQ7 line -- LVC grade for 3.3V operation,
-    # same convention as com_port's U6 and storage's U5.
-    U13 = sch.place("mini-xt:74HCT125", "U13", "74LVC125A", at=(266.7, 127.0))
-    pwr(U13)
-    L(U13, "P1", "~{IRQ7_OE}", dx=-2.54); L(U13, "P2", "+3V3", dx=-2.54)
-    L(U13, "P3", "IRQ7")           # hardwired; tri-state until IRQ_EN & ~Ack
-    for oe in ("P4", "P10", "P13"):
-        L(U13, oe, "+3V3", dx=-2.54)        # disable spare buffers
-    for ip in ("P5", "P9", "P12"):
-        L(U13, ip, "GND", dx=-2.54)
+    L(U12, "P3", "~{IRQ_LPT}")
+    for ip in ("P4", "P5", "P9", "P10", "P12", "P13"):   # spares (the ~A8 gate
+        L(U12, ip, "GND", dx=-2.54)                      #  left with the strap)
     for op in ("P6", "P8", "P11"):
-        sch.no_connect(U13.pin_xy(op))
+        sch.no_connect(U12.pin_xy(op))
 
     # 74HC138 value override (spec 2026-07-14): purely internal address
     # decode (A0-2, AEN, ~{LPT_EN}, ADDR_MATCH), no DB25 exposure.
     U6 = sch.place("mini-xt:74HCT138", "U6", "74HC138", at=(139.7, 177.8))  # register select
     pwr(U6)
     L(U6, "A0", "A0", dx=-2.54); L(U6, "A1", "A1", dx=-2.54); L(U6, "A2", "A2", dx=-2.54)
-    L(U6, "~{E0}", "AEN", dx=-2.54)      # enabled only when AEN low (CPU owns bus)
-    L(U6, "~{E1}", "~{LPT_EN}", dx=-2.54)
-    L(U6, "E2", "ADDR_MATCH", dx=-2.54)  # active-high block match
+    L(U6, "~{E0}", "~{LPT_CS}", dx=-2.54)  # central block match (AEN-gated there;
+    L(U6, "~{E1}", "GND", dx=-2.54)        #  its DIS_LPT jumper is the disable)
+    L(U6, "E2", "+3V3", dx=-2.54)
     L(U6, "~{Y0}", "~{SEL_DATA}")        # 0x378
     L(U6, "~{Y1}", "~{SEL_STAT}")        # 0x379
     L(U6, "~{Y2}", "~{SEL_CTRL}")        # 0x37A
@@ -294,34 +265,15 @@ def build(sch, lib, expose=True):
         sch.net(r, "1", "+3V3", kind="label", dx=0, dy=-2.54)
         sch.net(r, "2", net, kind="label", dx=0, dy=2.54)
 
-    # ============================================================
-    # Configuration straps
-    # ============================================================
-    # JP1: base address -- A8=1 -> 0x378 (LPT1), A8=0 -> 0x278 (LPT2)
-    JP1 = sch.place("Connector_Generic:Conn_01x03", "JP1", "BASE 378/278", at=(299.72, 195.58))
-    L(JP1, "Pin_1", "A8", dx=2.54)
-    L(JP1, "Pin_2", "A8_SEL", dx=2.54)
-    L(JP1, "Pin_3", "NA8", dx=2.54)
-
-    # JP2: port enable -- closed = ~{LPT_EN} grounded = enabled; open = R6 parks
-    # it high, the '138 never selects, so no register read/write/latch clock can
-    # fire. IRQ7 stays silent too: the DB25 pull-ups idle ~Ack high -> ACK_POS
-    # low -> U13 released.
-    JP2 = sch.place("Connector_Generic:Conn_01x02", "JP2", "LPT_EN", at=(314.96, 195.58))
-    L(JP2, "Pin_1", "~{LPT_EN}", dx=2.54)
-    L(JP2, "Pin_2", "GND", dx=2.54)
-    r6 = sch.place("Device:R", "R6", "10k", at=(345.44, 195.58))
-    sch.net(r6, "1", "+3V3", kind="label", dx=0, dy=-2.54)
-    sch.net(r6, "2", "~{LPT_EN}", kind="label", dx=0, dy=2.54)
-
-    # Configuration note
-    sch.text("JP1: base 0x378/0x278; JP2: open=port disabled (frees IRQ7); IRQ7 hardwired",
+    # Configuration note (all jumpers live on addr_decode now: JP1 = base
+    # 0x378/0x278, JP5 = disable -- fitted jumper disables, default enabled)
+    sch.text("Base strap + disable jumper: addr_decode JP1/JP5; IRQ7 hardwired via its '125",
              at=(299.72, 187.96), size=2.5)
 
     # ============================================================
     # decoupling
     # ============================================================
-    for i, x in enumerate([30.48, 60.96, 91.44, 121.92, 152.4, 182.88, 213.36, 243.84, 274.32, 304.8, 335.28, 365.76, 396.24]):
+    for i, x in enumerate([30.48, 60.96, 91.44, 121.92, 152.4, 182.88, 213.36, 243.84, 274.32, 304.8]):
         decouple("C%d" % (i + 1), (x, 264.16))
 
     cb = sch.place("Device:C", "C14", "10uF", at=(30.48, 238.76))

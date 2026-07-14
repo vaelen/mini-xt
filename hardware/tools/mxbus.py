@@ -68,6 +68,21 @@ PRIV_COUNTER = ["CNT_CLK", "CNT_LD0", "CNT_LD1", "CNT_LD2"]
 # strobe never leaves cpu_core (net Y5_INT there, feeds only the SRAM#2 NAND);
 # no sheet may declare it as an interface pin (video must NOT see it).
 PRIV_DECODE = []
+# Central I/O chip selects (addr_decode sheet -> com_port/parallel/storage,
+# 2026-07-14 chip-count reduction). Shared logic factored out of the sheets,
+# not an isolation break: the signal is functionally equivalent to the gate
+# chips it replaced, and breaking a block out to a standalone card just means
+# the card's wrapper schematic re-adds the decode alongside the bus headers
+# (questions-addr_decode.md).
+PRIV_CS = ["~{COM1_CS}", "~{COM2_CS}", "~{LPT_CS}", "~{IDE_CS}"]
+# Peripheral IRQ requests (com_port/parallel/storage -> addr_decode, which
+# owns the IRQ mapping + per-peripheral disable jumpers and drives the real
+# ISA IRQ lines through one shared 74LVC125A). IRQ_COMx = raw 16550 INTRPT
+# (push-pull); ~{COMx_IRQEN} = its ~{OUT2} (the PC convention's software IRQ
+# gate, still honored -- it is the '125 channel's ~OE); ~{IRQ_LPT}/~{IRQ_IDE}
+# = active-low assert-IRQ-high requests (the '125 inputs strap high).
+PRIV_IRQREQ = ["IRQ_COM1", "IRQ_COM2", "~{COM1_IRQEN}", "~{COM2_IRQEN}",
+               "~{IRQ_LPT}", "~{IRQ_IDE}"]
 # speed select (Bus MCU -> clock mux), set while it holds the V20 in reset
 PRIV_SPEED = ["SPEED_SEL"]
 # PC-speaker PWM: Bus MCU (soft-PIT ch2 / port-61h gate) -> audio sheet
