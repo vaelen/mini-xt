@@ -135,11 +135,10 @@ def build(sch, lib, expose=True):
     bulk = sch.place("Device:C", "C3", "10uF", at=(95.25, 274.32))
     sch.net(bulk, "1", "3V3_VID", kind="label", dx=0, dy=-2.54)
     sch.net(bulk, "2", "GND", kind="label", dx=0, dy=2.54)
-    # More 3V3_VID decoupling for the 6 video output shifters
+    # More 3V3_VID decoupling: one cap per surviving shifter (U2-U5 = 4 caps
+    # total with C1/C2; C6/C7 removed with the deleted U6/U7 shifters)
     decouple("C4", (127.0, 274.32))
     decouple("C5", (152.4, 274.32))
-    decouple("C6", (177.8, 274.32))
-    decouple("C7", (203.2, 274.32))
 
     # MCU-Hi-Z parking (BOOTSEL flashing / reset-to-init window): every
     # bus-facing '245 enable defaults OFF and the data direction defaults to

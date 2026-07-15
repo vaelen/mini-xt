@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "/home/andrew/repos/mini-xt/hardware/mini-xt.kicad_sch")
-		(date "2026-07-15T08:01:44")
+		(date "2026-07-15T08:20:12")
 		(tool "Eeschema 10.0.4")
 		(sheet
 			(number "1")
@@ -1635,7 +1635,7 @@
 				(names "/CPU_CORE/")
 				(tstamps "/36a61212-e622-5b01-8e81-aba0acbc9887/")
 			)
-			(tstamps "bd755ca9-db16-5c6b-9ebe-1f5ac03b1e70")
+			(tstamps "b154dc9d-9223-54ac-8bfe-91d800f4b8ac")
 			(units
 				(unit
 					(name "A")
@@ -1695,7 +1695,67 @@
 				(names "/CPU_CORE/")
 				(tstamps "/36a61212-e622-5b01-8e81-aba0acbc9887/")
 			)
-			(tstamps "b154dc9d-9223-54ac-8bfe-91d800f4b8ac")
+			(tstamps "9c4830b7-d0fc-5aaa-8af1-2c03c24ed18f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C128")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "LCSC Part Num") "C14663")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "LCSC Part Num")
+				(value "C14663")
+			)
+			(property
+				(name "Sheetname")
+				(value "CPU_CORE")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/cpu_core.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/CPU_CORE/")
+				(tstamps "/36a61212-e622-5b01-8e81-aba0acbc9887/")
+			)
+			(tstamps "bd755ca9-db16-5c6b-9ebe-1f5ac03b1e70")
 			(units
 				(unit
 					(name "A")
@@ -9319,126 +9379,6 @@
 			)
 		)
 		(comp
-			(ref "C406")
-			(value "100nF")
-			(footprint "Capacitor_SMD:C_0603_1608Metric")
-			(fields
-				(field
-					(name "LCSC Part Num") "C14663")
-				(field
-					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description")
-				)
-			)
-			(libsource
-				(lib "Device")
-				(part "C")
-				(description "Unpolarized capacitor")
-			)
-			(property
-				(name "LCSC Part Num")
-				(value "C14663")
-			)
-			(property
-				(name "Sheetname")
-				(value "VIDEO")
-			)
-			(property
-				(name "Sheetfile")
-				(value "sheets/video.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "cap capacitor")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "C_*")
-			)
-			(sheetpath
-				(names "/VIDEO/")
-				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
-			)
-			(tstamps "f63dca16-fe22-5241-a540-d6360b6f1809")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-						(pin
-							(num "2")
-						)
-					)
-				)
-			)
-		)
-		(comp
-			(ref "C407")
-			(value "100nF")
-			(footprint "Capacitor_SMD:C_0603_1608Metric")
-			(fields
-				(field
-					(name "LCSC Part Num") "C14663")
-				(field
-					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
-				(field
-					(name "Datasheet")
-				)
-				(field
-					(name "Description")
-				)
-			)
-			(libsource
-				(lib "Device")
-				(part "C")
-				(description "Unpolarized capacitor")
-			)
-			(property
-				(name "LCSC Part Num")
-				(value "C14663")
-			)
-			(property
-				(name "Sheetname")
-				(value "VIDEO")
-			)
-			(property
-				(name "Sheetfile")
-				(value "sheets/video.kicad_sch")
-			)
-			(property
-				(name "ki_keywords")
-				(value "cap capacitor")
-			)
-			(property
-				(name "ki_fp_filters")
-				(value "C_*")
-			)
-			(sheetpath
-				(names "/VIDEO/")
-				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
-			)
-			(tstamps "007238ae-018c-5514-9b3f-f67f4c5de2c1")
-			(units
-				(unit
-					(name "A")
-					(pins
-						(pin
-							(num "1")
-						)
-						(pin
-							(num "2")
-						)
-					)
-				)
-			)
-		)
-		(comp
 			(ref "D401")
 			(value "SS34")
 			(footprint "Diode_SMD:D_SMA")
@@ -9543,7 +9483,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "72e25229-47a3-51c5-8389-dcdbe5ca8fbf")
+			(tstamps "71dca881-1945-504b-aa6a-dcc3a9e1606e")
 			(units
 				(unit
 					(name "A")
@@ -9603,7 +9543,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "3f7d31cb-f556-5849-896a-dcdfcf5e604d")
+			(tstamps "317232a1-f5cf-5efe-b823-7673fb0087ca")
 			(units
 				(unit
 					(name "A")
@@ -9711,7 +9651,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "b9b94d2c-8aba-57d8-b753-576f2529c393")
+			(tstamps "d09e7333-0b3b-5e6d-9966-006f7d3f5d53")
 			(units
 				(unit
 					(name "A")
@@ -9810,7 +9750,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "de40ffd6-e4cc-5c7a-91b4-bede57715008")
+			(tstamps "f7b9f58e-438e-5b23-bd2b-76efcd7cb2c4")
 			(units
 				(unit
 					(name "A")
@@ -10096,7 +10036,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "ce3d238d-cbec-5430-b4e3-f5b7256a8a39")
+			(tstamps "49c1c0e0-df23-50b1-94e7-521cc94d890d")
 			(units
 				(unit
 					(name "A")
@@ -10156,7 +10096,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "500992e8-727e-5d6e-a14d-9cd55d8b58f9")
+			(tstamps "38f99de3-8096-5f21-948b-c412ddcbae56")
 			(units
 				(unit
 					(name "A")
@@ -10216,7 +10156,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "248047c9-2a1e-55f5-b223-e09584bdb330")
+			(tstamps "7ec433dc-1f66-5f01-87a8-e40f8fd61f5b")
 			(units
 				(unit
 					(name "A")
@@ -10276,7 +10216,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "541d306e-dd1d-548d-a6e5-edc6ffa888cf")
+			(tstamps "f9ae35c8-33f4-5dd4-bc08-9fc95eed2b57")
 			(units
 				(unit
 					(name "A")
@@ -10336,7 +10276,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "102b8742-6185-577a-8c16-bbf3fa4458e5")
+			(tstamps "e5f32d74-37c5-5585-a21d-07159798ccd4")
 			(units
 				(unit
 					(name "A")
@@ -10396,7 +10336,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "8dfa383c-af94-5d8a-9201-c8461d294b7a")
+			(tstamps "ec272be8-3400-563e-b949-13ea2800991b")
 			(units
 				(unit
 					(name "A")
@@ -10456,7 +10396,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "753b98d3-f00f-5e35-b0d0-704de40ad4ac")
+			(tstamps "19ad6f25-0131-5369-84da-5121f10bc34c")
 			(units
 				(unit
 					(name "A")
@@ -10516,7 +10456,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "5e772555-27bf-5ff7-a9a2-00afae1fda1e")
+			(tstamps "6f75c92f-5bef-52f8-8e96-17b1a54e49d0")
 			(units
 				(unit
 					(name "A")
@@ -10576,7 +10516,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "62409ee2-9319-5a8a-b638-178edd1238cd")
+			(tstamps "ab27183b-dfaa-55d4-a414-8fb31ccfb289")
 			(units
 				(unit
 					(name "A")
@@ -10636,7 +10576,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "c5c5600a-efc2-5458-9f2d-097c74942818")
+			(tstamps "b8d85a76-5190-5ea9-af38-1a65ef6dd2c8")
 			(units
 				(unit
 					(name "A")
@@ -10696,7 +10636,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "22f64351-a704-55df-9f14-858730ca4ca1")
+			(tstamps "62409ee2-9319-5a8a-b638-178edd1238cd")
 			(units
 				(unit
 					(name "A")
@@ -10756,7 +10696,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "84da5252-5e0d-5c1c-a9de-de915c4aaccd")
+			(tstamps "c5c5600a-efc2-5458-9f2d-097c74942818")
 			(units
 				(unit
 					(name "A")
@@ -10816,7 +10756,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "209e2476-257b-501f-86ee-0b975fa67e8a")
+			(tstamps "22f64351-a704-55df-9f14-858730ca4ca1")
 			(units
 				(unit
 					(name "A")
@@ -10876,7 +10816,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "c9a2efa8-56e9-5087-92fb-115652734426")
+			(tstamps "84da5252-5e0d-5c1c-a9de-de915c4aaccd")
 			(units
 				(unit
 					(name "A")
@@ -10936,7 +10876,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "a167ad93-9312-58ec-a47b-cc3593a06a57")
+			(tstamps "209e2476-257b-501f-86ee-0b975fa67e8a")
 			(units
 				(unit
 					(name "A")
@@ -10996,7 +10936,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "0ea3d2b8-bbc2-5ec1-a4f1-16612fc46a20")
+			(tstamps "c9a2efa8-56e9-5087-92fb-115652734426")
 			(units
 				(unit
 					(name "A")
@@ -11056,7 +10996,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "d09e7333-0b3b-5e6d-9966-006f7d3f5d53")
+			(tstamps "a167ad93-9312-58ec-a47b-cc3593a06a57")
 			(units
 				(unit
 					(name "A")
@@ -11116,7 +11056,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "e9eced31-7efa-5ba8-a205-9a454fdcd896")
+			(tstamps "0ea3d2b8-bbc2-5ec1-a4f1-16612fc46a20")
 			(units
 				(unit
 					(name "A")
@@ -11176,7 +11116,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "58b3314a-6f98-56fc-99e7-8e425d1ac216")
+			(tstamps "f63dca16-fe22-5241-a540-d6360b6f1809")
 			(units
 				(unit
 					(name "A")
@@ -11254,7 +11194,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "c3777333-833a-5480-b2dd-59ec917900f7")
+			(tstamps "93d85f39-11a1-5187-8190-476d06c5f693")
 			(units
 				(unit
 					(name "A")
@@ -11324,7 +11264,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "f333010f-a96a-523e-8d12-19ddcd2389ea")
+			(tstamps "0a7a4cd0-e83e-58f6-85d4-b870f085d9b4")
 			(units
 				(unit
 					(name "A")
@@ -11430,7 +11370,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "8d51c0b3-e9e7-5507-8402-f8f472ff349f")
+			(tstamps "90c4bc91-698d-529f-b116-e8233058ae13")
 			(units
 				(unit
 					(name "A")
@@ -11536,7 +11476,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "67a60068-bfaf-5861-a1f7-a0f11fa2fd47")
+			(tstamps "ed033c94-4cac-5a9c-b458-736617bb2c1b")
 			(units
 				(unit
 					(name "A")
@@ -11642,7 +11582,7 @@
 				(names "/VIDEO/")
 				(tstamps "/3f5f8bf1-0374-5032-82b0-b1b8b2670099/")
 			)
-			(tstamps "04a83203-abd9-5c75-83f2-168c5d463e14")
+			(tstamps "d40568f0-3942-5a42-ac74-6c8000cbd878")
 			(units
 				(unit
 					(name "A")
@@ -20382,7 +20322,7 @@
 				(names "/SIDECAR/")
 				(tstamps "/7671f498-bdc4-553f-a893-16189a437ba7/")
 			)
-			(tstamps "dfb4c709-56a4-59bd-94a9-50f22675abc3")
+			(tstamps "bb39a1a5-2dab-5ce3-b30c-79bf64fa3059")
 			(units
 				(unit
 					(name "A")
@@ -20442,7 +20382,7 @@
 				(names "/SIDECAR/")
 				(tstamps "/7671f498-bdc4-553f-a893-16189a437ba7/")
 			)
-			(tstamps "b4293128-15a2-5d02-b179-f5ab276cd849")
+			(tstamps "46c48aaf-72fa-57af-a1f9-6d3d49c6064e")
 			(units
 				(unit
 					(name "A")
@@ -20502,7 +20442,7 @@
 				(names "/SIDECAR/")
 				(tstamps "/7671f498-bdc4-553f-a893-16189a437ba7/")
 			)
-			(tstamps "5f483db9-4daa-5b26-80d6-58b769ebd120")
+			(tstamps "3c17f023-df73-52f7-964f-349e5dad4ff9")
 			(units
 				(unit
 					(name "A")
@@ -20758,6 +20698,246 @@
 			)
 		)
 		(comp
+			(ref "C1008")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "LCSC Part Num") "C14663")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "LCSC Part Num")
+				(value "C14663")
+			)
+			(property
+				(name "Sheetname")
+				(value "SIDECAR")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/sidecar.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/SIDECAR/")
+				(tstamps "/7671f498-bdc4-553f-a893-16189a437ba7/")
+			)
+			(tstamps "1c466700-ed7b-5c17-b67f-ee2d71ec9337")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C1009")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "LCSC Part Num") "C14663")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "LCSC Part Num")
+				(value "C14663")
+			)
+			(property
+				(name "Sheetname")
+				(value "SIDECAR")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/sidecar.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/SIDECAR/")
+				(tstamps "/7671f498-bdc4-553f-a893-16189a437ba7/")
+			)
+			(tstamps "a42b5ea5-5cfc-5f08-a157-bcda867b54e2")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C1010")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "LCSC Part Num") "C14663")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "LCSC Part Num")
+				(value "C14663")
+			)
+			(property
+				(name "Sheetname")
+				(value "SIDECAR")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/sidecar.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/SIDECAR/")
+				(tstamps "/7671f498-bdc4-553f-a893-16189a437ba7/")
+			)
+			(tstamps "5fcf228d-efbf-5ed2-a4cf-5964dd4c9fad")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C1011")
+			(value "100nF")
+			(footprint "Capacitor_SMD:C_0603_1608Metric")
+			(fields
+				(field
+					(name "LCSC Part Num") "C14663")
+				(field
+					(name "Footprint") "Capacitor_SMD:C_0603_1608Metric")
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description")
+				)
+			)
+			(libsource
+				(lib "Device")
+				(part "C")
+				(description "Unpolarized capacitor")
+			)
+			(property
+				(name "LCSC Part Num")
+				(value "C14663")
+			)
+			(property
+				(name "Sheetname")
+				(value "SIDECAR")
+			)
+			(property
+				(name "Sheetfile")
+				(value "sheets/sidecar.kicad_sch")
+			)
+			(property
+				(name "ki_keywords")
+				(value "cap capacitor")
+			)
+			(property
+				(name "ki_fp_filters")
+				(value "C_*")
+			)
+			(sheetpath
+				(names "/SIDECAR/")
+				(tstamps "/7671f498-bdc4-553f-a893-16189a437ba7/")
+			)
+			(tstamps "e8d3e439-0af9-53ff-a2d8-30c214a0d3a3")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
 			(ref "D1001")
 			(value "SMBJ5.0A")
 			(footprint "Diode_SMD:D_SMB")
@@ -20802,7 +20982,7 @@
 				(names "/SIDECAR/")
 				(tstamps "/7671f498-bdc4-553f-a893-16189a437ba7/")
 			)
-			(tstamps "283f974c-d1a0-53fb-b749-c9e3a190b9ba")
+			(tstamps "11a967dc-d63f-5ff2-b401-127cb689ad28")
 			(units
 				(unit
 					(name "A")
@@ -20862,7 +21042,7 @@
 				(names "/SIDECAR/")
 				(tstamps "/7671f498-bdc4-553f-a893-16189a437ba7/")
 			)
-			(tstamps "20a02463-61b4-564e-b6fe-b819530783da")
+			(tstamps "b4293128-15a2-5d02-b179-f5ab276cd849")
 			(units
 				(unit
 					(name "A")
@@ -20922,7 +21102,7 @@
 				(names "/SIDECAR/")
 				(tstamps "/7671f498-bdc4-553f-a893-16189a437ba7/")
 			)
-			(tstamps "1c466700-ed7b-5c17-b67f-ee2d71ec9337")
+			(tstamps "e39c52a1-d54a-5acf-b1f1-ffed39c66015")
 			(units
 				(unit
 					(name "A")
@@ -32938,6 +33118,26 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "C1008")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C1009")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C1010")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C1011")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
 				(ref "C110")
 				(pin "1")
 				(pintype "passive")
@@ -34010,6 +34210,11 @@
 			)
 			(node
 				(ref "C127")
+				(pin "1")
+				(pintype "passive")
+			)
+			(node
+				(ref "C128")
 				(pin "1")
 				(pintype "passive")
 			)
@@ -36341,23 +36546,6 @@
 		)
 		(net
 			(code "73")
-			(name "/BUS_MCU/CNT_LD01")
-			(class "Default")
-			(node
-				(ref "U218")
-				(pin "3")
-				(pinfunction "P3_3")
-				(pintype "output")
-			)
-			(node
-				(ref "U218")
-				(pin "4")
-				(pinfunction "P4_4")
-				(pintype "input")
-			)
-		)
-		(net
-			(code "74")
 			(name "/BUS_MCU/CNT_LD1")
 			(class "Default")
 			(node
@@ -36382,6 +36570,23 @@
 				(ref "U218")
 				(pin "2")
 				(pinfunction "P2_2")
+				(pintype "input")
+			)
+		)
+		(net
+			(code "74")
+			(name "/BUS_MCU/CNT_LD01")
+			(class "Default")
+			(node
+				(ref "U218")
+				(pin "3")
+				(pinfunction "P3_3")
+				(pintype "output")
+			)
+			(node
+				(ref "U218")
+				(pin "4")
+				(pinfunction "P4_4")
 				(pintype "input")
 			)
 		)
@@ -44998,16 +45203,6 @@
 				(pintype "passive")
 			)
 			(node
-				(ref "C406")
-				(pin "1")
-				(pintype "passive")
-			)
-			(node
-				(ref "C407")
-				(pin "1")
-				(pintype "passive")
-			)
-			(node
 				(ref "M401")
 				(pin "50")
 				(pinfunction "3V3_50")
@@ -46696,6 +46891,26 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "C1008")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C1009")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C1010")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C1011")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
 				(ref "C110")
 				(pin "2")
 				(pintype "passive")
@@ -46921,6 +47136,11 @@
 				(pintype "passive")
 			)
 			(node
+				(ref "C128")
+				(pin "2")
+				(pintype "passive")
+			)
+			(node
 				(ref "C201")
 				(pin "2")
 				(pintype "passive")
@@ -47082,16 +47302,6 @@
 			)
 			(node
 				(ref "C405")
-				(pin "2")
-				(pintype "passive")
-			)
-			(node
-				(ref "C406")
-				(pin "2")
-				(pintype "passive")
-			)
-			(node
-				(ref "C407")
 				(pin "2")
 				(pintype "passive")
 			)

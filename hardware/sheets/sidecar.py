@@ -183,10 +183,15 @@ def build(sch, lib, expose=True):
                   [("EXP_DDIR", "+3V3"), ("X_IOCHRDY", "+3V3"),
                    ("X_~{IOCHCK}", "+3V3")])
 
+    # one 100nF per buffer IC (U1-U4, U6-U9)
     decouple("C4", (48.26, 20.32))
     decouple("C5", (99.06, 20.32))
     decouple("C6", (48.26, 147.32))
     decouple("C7", (99.06, 147.32))
+    decouple("C8", (48.26, 83.82))
+    decouple("C9", (99.06, 83.82))
+    decouple("C10", (48.26, 210.82))
+    decouple("C11", (99.06, 210.82))
 
     # -- Header: standard ISA pinout, bus nets -> X_ port-local nets ------------
     # remap EVERY signal -> "X_"+name (built from ISA_PINS); keep +5V->+5V_ISA,

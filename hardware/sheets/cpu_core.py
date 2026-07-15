@@ -387,9 +387,10 @@ def build(sch, lib):
     # vs the old 2-SRAM layout (removed the second SRAM's decoupling, step 4).
     for i, x in enumerate(range(20, 300, 20)):     # C10..C23 on +3V3
         decouple("C%d" % (10 + i), (float(x), 270.0))
-    # surviving 5V parts (V20, U10 '32, U13 '04) keep +5V decoupling
+    # surviving 5V parts (V20, U10 '32, U13 '04) keep +5V decoupling, 1 each
     decouple("C24", (300.0, 270.0), rail="+5V")
     decouple("C25", (320.0, 270.0), rail="+5V")
+    decouple("C28", (360.0, 270.0), rail="+5V")
     c = sch.place("Device:C", "C26", "100nF", at=(55.88, 20.32))   # OSC1 3V3 decouple
     sch.net(c, "1", "+3V3", kind="label", dx=0, dy=-2.54)
     sch.net(c, "2", "GND", kind="label", dx=0, dy=2.54)
