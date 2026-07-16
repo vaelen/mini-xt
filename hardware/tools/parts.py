@@ -68,7 +68,7 @@ NOT available at JLC (flagged, no LCSC number):
     socketed -- still a soldered SMD reflow part, just not JLC-supplied)
   * VGA HD15 (DE15) connector             -> other distributor (THT)
 
-Thin stock (check before ordering): DB25 (~10), MAX3241EEAI+T (~175),
+Thin stock (check before ordering): MAX3241EEAI+T (0 on 2026-07-15!),
 TPS563200DDCR (4!! -- re-verify before ordering or switch to a TPS5632xx
 sibling), 74LVC574AT20-13 (~88), 74LVC161PW,118 (~100).
 
@@ -102,6 +102,7 @@ TSSOP20 = "Package_SO:TSSOP-20_4.4x6.5mm_P0.65mm"
 SOT23 = "Package_TO_SOT_SMD:SOT-23"
 SOT236 = "Package_TO_SOT_SMD:SOT-23-6"
 R0603 = "Resistor_SMD:R_0603_1608Metric"
+R0805 = "Resistor_SMD:R_0805_2012Metric"
 C0603 = "Capacitor_SMD:C_0603_1608Metric"
 C0805 = "Capacitor_SMD:C_0805_2012Metric"
 C1206 = "Capacitor_SMD:C_1206_3216Metric"
@@ -253,15 +254,17 @@ PART_MAP = {
     ("Device:R_Pack04", "10kx4"): E("C29718", "4D03WGJ0103T5E", "0603x4",
         "Resistor_SMD:R_Array_Convex_4x0603",
         "basic 4x isolated 10k array (2026-07-14 pull consolidation; ±5% is "
-        "fine for pulls). Also de-risks the single-source discrete 10k line "
-        "C25804, which was at 0 stock when audited."),
+        "fine for pulls). Also de-risks the discrete 10k line, which moved "
+        "to 0805 C17414 when 0603 C25804 hit 0 stock (2026-07-15)."),
     ("Device:R_Pack04", "4.7kx4"): E("C1980", "4D03WGJ0472T5E", "0603x4",
         "Resistor_SMD:R_Array_Convex_4x0603",
         "basic 4x isolated 4.7k array (LPT printer-status pulls)"),
     ("Device:R", "27"):    E("C25190", "0603WAF270JT5E", "0603", R0603, "RP2040 USB series termination"),
     ("Device:R", "100"):   E("C22775", "0603WAF1000T5E", "0603", R0603),
     ("Device:R", "15k"):   E("C22809", "0603WAF1502T5E", "0603", R0603),
-    ("Device:R", "10k"):   E("C25804", "0603WAF1002T5E", "0603", R0603),
+    ("Device:R", "10k"):   E("C17414", "0805W8F1002T5E", "0805", R0805,
+        "0805, not 0603: the only in-stock BASIC 10k lines are 0805/1206 "
+        "(0603 C25804 hit 0 stock 2026-07-15; 11.9M stock on this one)"),
     ("Device:R", "1k"):    E("C21190", "0603WAF1001T5E", "0603", R0603),
     ("Device:R", "270"):   E("C22966", "0603WAF2700T5E", "0603", R0603),
     ("Device:R", "2k"):    E("C22975", "0603WAF2001T5E", "0603", R0603),
@@ -321,9 +324,14 @@ PART_MAP = {
     ("Connector:DE9_Pins", "DE9_Pins"): E("C141880", "D-DMR009PM-D002",
                                         "DB9 male right-angle THT",
                                         "Connector_Dsub:DSUB-9_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset9.90mm_Housed_MountingHolesOffset11.32mm"),
-    ("Connector:DB25_Pins", "DB25_Pins"): E("C5400534", "DB25S564CTLF", "THT",
-                                        "Connector_Dsub:DSUB-25_Pins_Horizontal_P2.77x2.84mm_EdgePinOffset9.90mm_Housed_MountingHolesOffset11.32mm",
-                                        "thin stock (~10) -- verify or substitute"),
+    ("Connector:DB25_Pins", "DB25_Pins"): E("C190083", "D-DMR025PF-D002",
+                                        "DB25 female right-angle THT",
+                                        "Connector_Dsub:DSUB-25_Socket_Horizontal_P2.77x2.84mm_EdgePinOffset9.90mm_Housed_MountingHolesOffset11.32mm",
+                                        "Ckmtw, same D-DMR series as the DE9; swapped from Amphenol "
+                                        "DB25S564CTLF (C5400534, stock ~10) 2026-07-16. FEMALE, so the "
+                                        "footprint is the _Socket_ variant (the old binding wrongly used "
+                                        "_Pins_/male, which mirrors the pinout). Drawing: 2.77x2.84 pitch, "
+                                        "3.18mm holes 1.42mm off the pin row -- verify edge offset at layout"),
     ("Connector:HDMI_A", "HDMI_A"):   E("C2858275", "HDMI 19PIN 043", "SMD",
                                         "mini-xt:HDMI_A_SHOUHAN_043",
                                         "custom fp -- import EasyEDA at layout"),

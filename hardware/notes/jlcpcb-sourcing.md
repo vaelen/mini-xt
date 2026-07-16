@@ -101,7 +101,7 @@ Notes:
   (smaller-name fabs — MDD/Toshiba — since Nexperia-branded parts are thin/unstocked at
   those values); see `parts.py` for the exact entries, unchanged pinouts throughout.
 - 74LVC161 and 74LVC574A are both thin (100/88 units) — re-check immediately before BOM
-  lock, same as the existing TL16C550/DB25/MAX3241/TPS563200 thin-stock flags below.
+  lock, same as the existing TL16C550/MAX3241/TPS563200 thin-stock flags below.
 
 ## Socket policy (fab installs the socket, chip goes in by hand)
 
@@ -200,10 +200,13 @@ element k = pins k/9-k). Isolated elements, so packs mix rails; +-5%
 tolerance is fine for pulls. Kept discrete: RC/divider/series roles, the
 supervisor I2C pair + RUN, and singletons.
 
-- **10k 0603 discrete (C25804): 0 stock at audit time and it is the ONLY
-  basic 10k 0603** -- basics restock, but verify before ordering (only ~5
-  discrete 10k remain on the board after the array conversion; the arrays
-  themselves are 2.8M-deep).
+- **10k discrete moved to 0805 (C17414, 0805W8F1002T5E)** 2026-07-16: the
+  0603 line (C25804) hit 0 stock and was the ONLY basic 10k 0603; still dry
+  at recheck, and no other basic 10k 0603 exists at any tolerance. C17414 is
+  basic, +-1%, 11.9M stock. The board's one deliberate 0805-resistor
+  deviation from the 0603-passives rule (the ~10 remaining discrete 10k are
+  pulls/dividers/RC -- footprint size is irrelevant there). Swap back to a
+  0603 line in parts.py if one returns to the basic library.
 
 ## Thin stock — re-verify with jlc_stock_check before ordering
 
@@ -214,8 +217,13 @@ supervisor I2C pair + RUN, and singletons.
   old PLCC/DIP-style symbol assumption — the `mini-xt:TL16C550PT` symbol
   uses TI's NO.PT column (SLLS177I Table 4-1), re-verified pin-for-pin
   against `jlc_get_pinout` for C882798 (PT and PFB share the pinout).
-- DB25 male (C5400534): ~10 pcs — likely needs a substitute.
-- MAX3241EEAI+T (C406859): ~175.
+- DB25 female: swapped 2026-07-16 to Ckmtw D-DMR025PF-D002 (C190083, ~6.8k
+  stock, $0.85) from Amphenol DB25S564CTLF (C5400534, ~10 pcs). Same D-DMR
+  series as the DE9. Footprint corrected to the DSUB-25 **_Socket_**
+  (female) variant — the old binding used _Pins_ (male), which mirrors the
+  pin positions on a female shell.
+- MAX3241EEAI+T (C406859): **0 stock as of 2026-07-15** — needs an alt or a
+  wait; price also halved to ~$1.47 when it restocks.
 - TPS563200DDCR (C97253): down to **4 pcs** as of the 2026-07-11 review (was
   ~256 on 2026-07-03) — re-verify before any order; TPS563201DDCR (D-CAP2,
   different feedback network) or another 3A 5→3.3V buck is the fallback.
