@@ -11,7 +11,7 @@ VBUS enters through a 3A-hold 1812 polyfuse (F1) with an SMBJ5.0A TVS clamp on
 the +5V rail for input protection. The CH224K local decoupling (C6) and power-good
 (PG, open-drain pulled to +3V3) is routed to the Supervisor as PD_PG.
 
-A TPS563200 synchronous buck (3 A, 0.768 V ref) steps 5 V down to +3V3 for the
+A TPS563201 synchronous buck (3 A, 0.768 V ref) steps 5 V down to +3V3 for the
 four MCUs + USB logic, with its inductor, bootstrap cap, input/output caps and
 feedback divider (33k/10k -> 3.30 V). PWR_FLAG markers tell ERC that +5V and +3V3
 are driven sources; a GND reference symbol anchors ground.
@@ -103,8 +103,10 @@ def build(sch, lib):
     C2 = sch.place("Device:C", "C2", "100nF", at=(215.9, 177.8))
     L(C2, "1", "+5V", dx=0, dy=-2.54); L(C2, "2", "GND", dx=0, dy=2.54)
 
-    # ---------------- 5V -> 3.3V buck (TPS563200, 3 A) ----------------
-    U2 = sch.place("Regulator_Switching:TPS563200", "U2", at=(228.6, 152.4))
+    # ---------------- 5V -> 3.3V buck (TPS563201, 3 A) ----------------
+    # (was TPS563200 until 2026-07-19: same DDC pinout, same D-CAP2 topology,
+    # same 0.768V VFB ref -- swapped for stock/price, divider unchanged)
+    U2 = sch.place("Regulator_Switching:TPS563201", "U2", at=(228.6, 152.4))
     L(U2, "VIN", "+5V", dx=-2.54)
     L(U2, "EN", "+5V", dx=-2.54)        # enable tied high (always on)
     L(U2, "GND", "GND", dx=0, dy=2.54)
@@ -128,7 +130,7 @@ def build(sch, lib):
     C4 = sch.place("Device:C", "C4", "100nF", at=(304.8, 165.1))
     L(C4, "1", "+3V3", dx=0, dy=-2.54); L(C4, "2", "GND", dx=0, dy=2.54)
 
-    # Buck capacitors (per TPS563200 datasheet)
+    # Buck capacitors (per TPS563201 datasheet)
     C7 = sch.place("Device:C_Polarized", "C7", "22uF", at=(317.5, 165.1))   # 2nd output cap (datasheet 2x22uF)
     L(C7, "1", "+3V3", dx=0, dy=-2.54); L(C7, "2", "GND", dx=0, dy=2.54)
     C8 = sch.place("Device:C", "C8", "10uF", at=(215.9, 127.0))             # VIN local cap

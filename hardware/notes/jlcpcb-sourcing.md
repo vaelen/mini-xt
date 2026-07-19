@@ -224,9 +224,14 @@ supervisor I2C pair + RUN, and singletons.
   pin positions on a female shell.
 - MAX3241EEAI+T (C406859): **0 stock as of 2026-07-15** — needs an alt or a
   wait; price also halved to ~$1.47 when it restocks.
-- TPS563200DDCR (C97253): down to **4 pcs** as of the 2026-07-11 review (was
-  ~256 on 2026-07-03) — re-verify before any order; TPS563201DDCR (D-CAP2,
-  different feedback network) or another 3A 5→3.3V buck is the fallback.
+- TPS563200DDCR (C97253) → **swapped to TPS563201DDCR (C116592) 2026-07-19**.
+  The '3200 kept dipping to unorderable levels (4 pcs on 2026-07-11; it later
+  restocked to ~2.5k, but the '3201 sits at ~90k and ~$0.07). Verified against
+  both datasheets: same DDC (TSOT-23-6) pinout, same D-CAP2 topology, same
+  0.768 V VFB reference — the 33k/10k divider and cap set carry over unchanged.
+  (An earlier version of this note guessed "different feedback network" — not
+  so; 580 kHz vs 650 kHz switching is the only functional delta, plus Eco-mode
+  light-load behavior matching the '3200's.)
 - **74LVC161PW,118** (C548136, ÷3 clock divider): ~100 pcs. **74LVC574AT20-13**
   (C842658, LPT data latch): ~88 pcs. Both new 2026-07-14 picks — re-verify
   before BOM lock.
@@ -263,10 +268,9 @@ Protection + best-practice parts added by the 2026-07-11 review:
 | 330nF 0603                 | C1615     | MAX3241 C2-C4 (5V values)                    |
 | 100uF alu SMD 16V          | C2887276  | supervisor USB host VBUS bulk                |
 
-STOCK ALERT: TPS563200DDCR is down to 4 pcs at JLC (was ~256 on 2026-07-03).
-Re-verify before any order; TPS563201DDCR (D-CAP2, different feedback network)
-or another 3A 5->3.3V buck is the fallback -- re-check the divider/compensation
-against whichever datasheet applies.
+STOCK ALERT (resolved 2026-07-19): TPS563200DDCR hit 4 pcs at JLC on
+2026-07-11; the board now uses TPS563201DDCR (C116592, ~90k stock) instead —
+same pinout/topology/0.768V ref, divider unchanged. See the entry above.
 
 No JLC-stocked/KiCad-symboled TMDS ESD array was picked for the video card's
 HDMI pairs (TPD4E05U06-class, <=0.15pF/line) -- choose at layout time.

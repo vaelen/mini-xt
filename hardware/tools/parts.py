@@ -68,8 +68,8 @@ NOT available at JLC (flagged, no LCSC number):
   * VGA HD15 (DE15) connector             -> other distributor (THT)
 
 Thin stock (check before ordering): MAX3241EEAI+T (0 on 2026-07-15!),
-TPS563200DDCR (4!! -- re-verify before ordering or switch to a TPS5632xx
-sibling), 74LVC574AT20-13 (~88), 74LVC161PW,118 (~100).
+74LVC574AT20-13 (~88), 74LVC161PW,118 (~100). (The TPS563200 buck was
+swapped to the 90k-deep TPS563201 sibling 2026-07-19 -- no longer a risk.)
 
 Known part/footprint caveats (all deliberate, resolve at layout):
   * C2897411 female headers are 2x10 strips: right for the Core2350B's
@@ -206,8 +206,11 @@ PART_MAP = {
     ("Power_Supervisor:TCM809", "TCM809"): E("C47195", "TCM809TENB713", "SOT-23", SOT23,
                                              "3.08 V threshold, push-pull ~RST -- 3.3V-rail grade "
                                              "(was wrongly the 4.375V -450I/TT, see Q9)"),
-    ("Regulator_Switching:TPS563200", "TPS563200"): E("C97253", "TPS563200DDCR", "TSOT-23-6",
-        "Package_TO_SOT_SMD:TSOT-23-6"),
+    ("Regulator_Switching:TPS563201", "TPS563201"): E("C116592", "TPS563201DDCR", "TSOT-23-6",
+        "Package_TO_SOT_SMD:TSOT-23-6",
+        "swapped from TPS563200DDCR C97253 2026-07-19 (chronic thin stock; "
+        "C116592 is ~90k deep and ~15x cheaper). Same DDC pinout, D-CAP2, "
+        "0.768V VFB ref -- divider/caps unchanged"),
     ("Interface_USB:CH224K", "CH224K"): E("C970725", "CH224K", "ESSOP-10-150mil-1mm",
         "mini-xt:ESSOP-10_150mil_P1.0mm", "no stock KiCad ESSOP-10; import EasyEDA fp at layout"),
     ("Device:D_Schottky", "SS34"):    E("C8678", "SS34", "SMA", "Diode_SMD:D_SMA"),
