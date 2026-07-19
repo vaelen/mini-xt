@@ -59,7 +59,7 @@ def load_lib():
     lib = SymbolLib()
     for name in STD_LIBS:
         p = os.path.join(SYMDIR, name + ".kicad_sym")
-        if os.path.exists(p):
+        if mxsch.lib_source(p):
             lib.load(p, name)
     lib.load(os.path.join(HW, "mini-xt.kicad_sym"), "mini-xt")
     return lib

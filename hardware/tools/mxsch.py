@@ -1,5 +1,5 @@
 """
-mxsch -- a tiny KiCad 9 schematic generator for the mini-xt project.
+mxsch -- a tiny KiCad 9/10 schematic generator for the mini-xt project.
 
 Why this exists: hand-authoring electrically-valid KiCad S-expressions across
 ~11 hierarchical sheets is error-prone. This module centralizes the format so
@@ -43,7 +43,9 @@ def kicad_cli():
 def kicad_symdir():
     """KiCad symbol-library dir: $KICAD_SYMBOL_DIR, else the snap's `current`
     revision (never a hardcoded revision number -- those change on refresh),
-    else the newest snap revision, else the system install."""
+    else the newest snap revision, else the newest per-user data dir (where
+    the KiCad 10 AppImage setup keeps its extracted libraries), else the
+    system install."""
     p = os.environ.get("KICAD_SYMBOL_DIR")
     if p:
         return p
@@ -56,7 +58,26 @@ def kicad_symdir():
             part = h.split("/")[3]
             return int(part) if part.isdigit() else -1
         return max(hits, key=_rev)
+    hits = [h for h in glob.glob(os.path.expanduser("~/.local/share/kicad/*/symbols"))
+            if os.listdir(h)]
+    if hits:
+        def _ver(h):
+            part = h.split("/")[-2]
+            return float(part) if part.replace(".", "").isdigit() else -1
+        return max(hits, key=_ver)
     return "/usr/share/kicad/symbols"
+
+
+def lib_source(sym_path):
+    """Resolve a monolithic <Lib>.kicad_sym path to what is actually on disk:
+    the file itself (KiCad <=9 / project libs), or the KiCad 10 sharded
+    <Lib>.kicad_symdir directory of per-symbol files. None if neither exists."""
+    if os.path.exists(sym_path):
+        return sym_path
+    d = re.sub(r"\.kicad_sym$", ".kicad_symdir", sym_path)
+    if os.path.isdir(d):
+        return d
+    return None
 
 
 # --------------------------------------------------------------------------
@@ -248,6 +269,21 @@ class SymbolLib:
         self._libname = {}  # path -> short lib name
 
     def load(self, path, libname):
+        src = lib_source(path) or path
+        if os.path.isdir(src):
+            # KiCad 10 sharded library: one one-symbol .kicad_sym per file
+            files = sorted(glob.glob(os.path.join(src, "*.kicad_sym")))
+        else:
+            files = [src]
+        for f in files:
+            self._load_file(f, libname)
+        # resolve (extends ...) inheritance within this library so embedded
+        # symbols are standalone (KiCad flattens extends when embedding).
+        # In sharded libs base and derived symbols live in different files,
+        # so this must run after ALL files are loaded.
+        self._resolve_extends(libname)
+
+    def _load_file(self, path, libname):
         text = open(path).read()
         root = parse_sexp_typed(text)
         # root = (kicad_symbol_lib ... (symbol "Name" ...) ...)
@@ -259,9 +295,6 @@ class SymbolLib:
                 sd = SymbolDef(name, node)
                 self._collect_pins(sd, node)
                 self.defs["%s:%s" % (libname, name)] = sd
-        # resolve (extends ...) inheritance within this library so embedded
-        # symbols are standalone (KiCad flattens extends when embedding).
-        self._resolve_extends(libname)
 
     def _resolve_extends(self, libname):
         for key, sd in list(self.defs.items()):

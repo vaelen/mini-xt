@@ -277,7 +277,7 @@ def build(sch, lib):
     J6 = sch.place("Connector:USB_C_Receptacle", "J6", "USB_PROG", at=(38.1, 43.18))
     L(J6, "A6", "PROG_DP"); L(J6, "B6", "PROG_DP")
     L(J6, "A7", "PROG_DM"); L(J6, "B7", "PROG_DM")
-    L(J6, "A1", "GND", dx=0, dy=2.54); L(J6, "S1", "GND", dx=0, dy=2.54)
+    L(J6, "A1", "GND", dx=0, dy=2.54); L(J6, "SH", "GND", dx=0, dy=2.54)
     rcc1 = sch.place("Device:R", "R6", "5.1k", at=(88.9, 43.18))
     L(rcc1, "1", "PROG_CC1", dx=0, dy=-2.54); L(rcc1, "2", "GND", dx=0, dy=2.54)
     rcc2 = sch.place("Device:R", "R7", "5.1k", at=(101.6, 43.18))

@@ -17,6 +17,7 @@ see docs/superpowers/specs/2026-07-14-3v3-single-board-design.md) -- removed
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+import mxsch
 from mxsch import dump, Sym, parse_sexp_typed
 
 SYMDIR = __import__("mxsch").kicad_symdir()
@@ -98,6 +99,10 @@ def make_ic(name, left, right, top=None, bottom=None, ref="U",
 
 
 def copy_symbol(srcpath, srcname, newname, value=None, description=None):
+    src = mxsch.lib_source(srcpath)
+    if src and os.path.isdir(src):
+        # KiCad 10 sharded lib: the wanted symbol is its own one-symbol file
+        srcpath = os.path.join(src, srcname + ".kicad_sym")
     root = parse_sexp_typed(open(srcpath).read())
     for node in root[1:]:
         if isinstance(node, list) and node[0] == Sym("symbol") and node[1] == srcname:

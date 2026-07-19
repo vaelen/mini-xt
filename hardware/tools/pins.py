@@ -6,7 +6,7 @@ Usage:
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
-from mxsch import SymbolLib
+from mxsch import SymbolLib, lib_source
 
 SYMDIR = __import__("mxsch").kicad_symdir()
 HW = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -21,7 +21,7 @@ def load():
     lib = SymbolLib()
     for n in LIBS:
         p = os.path.join(SYMDIR, n + ".kicad_sym")
-        if os.path.exists(p):
+        if lib_source(p):
             lib.load(p, n)
     p = os.path.join(HW, "mini-xt.kicad_sym")
     if os.path.exists(p):

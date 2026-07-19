@@ -41,7 +41,7 @@ def build(sch, lib):
     J1 = sch.place("Connector:USB_C_Receptacle", "J1", at=(50.8, 165.1))
     L(J1, "A4", "VBUS_IN")        # VBUS -> fuse -> +5V
     L(J1, "A1", "GND", dx=0, dy=2.54)   # GND (A1/A12/B1/B12 stacked)
-    L(J1, "S1", "GND", dx=0, dy=2.54)   # shield -> GND
+    L(J1, "SH", "GND", dx=0, dy=2.54)   # shield -> GND (pin S1 pre-KiCad 10)
     L(J1, "A5", "CC1")           # CC1 -> Rd / CH224K
     L(J1, "B5", "CC2")           # CC2 -> Rd / CH224K
     L(J1, "A7", "USB_DM"); L(J1, "B7", "USB_DM")   # D- (both pads tied)

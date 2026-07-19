@@ -43,9 +43,14 @@ counter), so a rebuild from unchanged sources is byte-identical — a large
 
 ## Commands
 
-Requires KiCad 9. The tools find it via `$KICAD_CLI` / `$KICAD_SYMBOL_DIR`,
-then `kicad-cli` on PATH, then the snap install (`mxsch.kicad_cli()` /
-`kicad_symdir()`).
+Requires KiCad 9 or 10. The tools find `kicad-cli` via `$KICAD_CLI`, then
+PATH, then the snap install (`mxsch.kicad_cli()`); symbol libraries via
+`$KICAD_SYMBOL_DIR`, then snap, then `~/.local/share/kicad/<ver>/symbols`
+(where the KiCad 10 AppImage setup keeps them), then the system install
+(`mxsch.kicad_symdir()`). Both monolithic `<Lib>.kicad_sym` files (KiCad ≤9,
+and the project's own `mini-xt.kicad_sym`) and KiCad 10's sharded
+`<Lib>.kicad_symdir/` per-symbol directories are supported
+(`mxsch.lib_source()`).
 
 ```sh
 python3 hardware/tools/build.py                # regenerate motherboard: all sheets + root, ERC + netlist

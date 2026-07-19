@@ -9,8 +9,12 @@
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
 		(property "Reference" "U"
 			(at -12.7 43.18 0)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19,6 +23,8 @@
 		)
 		(property "Value" "V20"
 			(at 10.16 43.18 0)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -27,48 +33,58 @@
 		)
 		(property "Footprint" "Package_DIP:DIP-40_W15.24mm"
 			(at 1.27 2.54 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
 			(effects
 				(font
 					(size 1.27 1.27)
 					(italic yes)
 				)
-				(hide yes)
 			)
 		)
 		(property "Datasheet" "http://datasheets.chipdb.org/Intel/x86/808x/datashts/8088/231456-006.pdf"
 			(at 0 1.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(property "Description" "NEC uPD70108 (V20), 8088-compatible CPU, min mode"
 			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(property "ki_keywords" "MPRO"
 			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(property "ki_fp_filters" "DIP*W15.24mm*"
 			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(symbol "V20_0_1"
@@ -85,17 +101,17 @@
 			)
 		)
 		(symbol "V20_1_1"
-			(pin input clock
-				(at -17.78 38.1 0)
+			(pin power_in line
+				(at 0 -45.72 90)
 				(length 3.81)
-				(name "CLK"
+				(name "GND"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "19"
+				(number "1"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -103,17 +119,17 @@
 					)
 				)
 			)
-			(pin input line
-				(at -17.78 33.02 0)
+			(pin output line
+				(at 17.78 -10.16 180)
 				(length 3.81)
-				(name "READY"
+				(name "A14"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "22"
+				(number "2"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -121,17 +137,251 @@
 					)
 				)
 			)
-			(pin input line
-				(at -17.78 27.94 0)
+			(pin output line
+				(at 17.78 -7.62 180)
 				(length 3.81)
-				(name "RESET"
+				(name "A13"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "21"
+				(number "3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 -5.08 180)
+				(length 3.81)
+				(name "A12"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 -2.54 180)
+				(length 3.81)
+				(name "A11"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 0 180)
+				(length 3.81)
+				(name "A10"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 2.54 180)
+				(length 3.81)
+				(name "A9"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 5.08 180)
+				(length 3.81)
+				(name "A8"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "8"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin bidirectional line
+				(at 17.78 10.16 180)
+				(length 3.81)
+				(name "AD7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "9"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin bidirectional line
+				(at 17.78 12.7 180)
+				(length 3.81)
+				(name "AD6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "10"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin bidirectional line
+				(at 17.78 15.24 180)
+				(length 3.81)
+				(name "AD5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "11"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin bidirectional line
+				(at 17.78 17.78 180)
+				(length 3.81)
+				(name "AD4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "12"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin bidirectional line
+				(at 17.78 20.32 180)
+				(length 3.81)
+				(name "AD3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "13"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin bidirectional line
+				(at 17.78 22.86 180)
+				(length 3.81)
+				(name "AD2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "14"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin bidirectional line
+				(at 17.78 25.4 180)
+				(length 3.81)
+				(name "AD1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "15"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin bidirectional line
+				(at 17.78 27.94 180)
+				(length 3.81)
+				(name "AD0"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "16"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -175,143 +425,17 @@
 					)
 				)
 			)
-			(pin output line
-				(at -17.78 12.7 0)
+			(pin input clock
+				(at -17.78 38.1 0)
 				(length 3.81)
-				(name "~{INTA}"
+				(name "CLK"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "24"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at -17.78 7.62 0)
-				(length 3.81)
-				(name "HLDA"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "30"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -17.78 2.54 0)
-				(length 3.81)
-				(name "HOLD"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "31"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at -17.78 -2.54 0)
-				(length 3.81)
-				(name "~{SSO}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "34"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -17.78 -7.62 0)
-				(length 3.81)
-				(name "~{TEST}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "23"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -17.78 -12.7 0)
-				(length 3.81)
-				(name "MN/~{MX}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "33"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin power_in line
-				(at 0 45.72 270)
-				(length 3.81)
-				(name "VCC"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "40"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin power_in line
-				(at 0 -45.72 90)
-				(length 3.81)
-				(name "GND"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "1"
+				(number "19"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -338,17 +462,89 @@
 					)
 				)
 			)
-			(pin output line
-				(at 17.78 38.1 180)
+			(pin input line
+				(at -17.78 27.94 0)
 				(length 3.81)
-				(name "DT/~{R}"
+				(name "RESET"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "27"
+				(number "21"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -17.78 33.02 0)
+				(length 3.81)
+				(name "READY"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "22"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -17.78 -7.62 0)
+				(length 3.81)
+				(name "~{TEST}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "23"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at -17.78 12.7 0)
+				(length 3.81)
+				(name "~{INTA}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "24"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 33.02 180)
+				(length 3.81)
+				(name "ALE"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "25"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -375,376 +571,16 @@
 				)
 			)
 			(pin output line
-				(at 17.78 33.02 180)
+				(at 17.78 38.1 180)
 				(length 3.81)
-				(name "ALE"
+				(name "DT/~{R}"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "25"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin bidirectional line
-				(at 17.78 27.94 180)
-				(length 3.81)
-				(name "AD0"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "16"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin bidirectional line
-				(at 17.78 25.4 180)
-				(length 3.81)
-				(name "AD1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "15"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin bidirectional line
-				(at 17.78 22.86 180)
-				(length 3.81)
-				(name "AD2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "14"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin bidirectional line
-				(at 17.78 20.32 180)
-				(length 3.81)
-				(name "AD3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "13"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin bidirectional line
-				(at 17.78 17.78 180)
-				(length 3.81)
-				(name "AD4"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "12"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin bidirectional line
-				(at 17.78 15.24 180)
-				(length 3.81)
-				(name "AD5"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "11"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin bidirectional line
-				(at 17.78 12.7 180)
-				(length 3.81)
-				(name "AD6"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "10"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin bidirectional line
-				(at 17.78 10.16 180)
-				(length 3.81)
-				(name "AD7"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "9"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 5.08 180)
-				(length 3.81)
-				(name "A8"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "8"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 2.54 180)
-				(length 3.81)
-				(name "A9"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "7"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 0 180)
-				(length 3.81)
-				(name "A10"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "6"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 -2.54 180)
-				(length 3.81)
-				(name "A11"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "5"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 -5.08 180)
-				(length 3.81)
-				(name "A12"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "4"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 -7.62 180)
-				(length 3.81)
-				(name "A13"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 -10.16 180)
-				(length 3.81)
-				(name "A14"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 -12.7 180)
-				(length 3.81)
-				(name "A15"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "39"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 -17.78 180)
-				(length 3.81)
-				(name "A16/S3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "38"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 -20.32 180)
-				(length 3.81)
-				(name "A17/S4"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "37"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 -22.86 180)
-				(length 3.81)
-				(name "A18/S5"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "36"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 17.78 -25.4 180)
-				(length 3.81)
-				(name "A19/S6"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "35"
+				(number "27"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -788,6 +624,42 @@
 					)
 				)
 			)
+			(pin output line
+				(at -17.78 7.62 0)
+				(length 3.81)
+				(name "HLDA"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "30"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -17.78 2.54 0)
+				(length 3.81)
+				(name "HOLD"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "31"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
 			(pin output output_low
 				(at 17.78 -35.56 180)
 				(length 3.81)
@@ -799,6 +671,150 @@
 					)
 				)
 				(number "32"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -17.78 -12.7 0)
+				(length 3.81)
+				(name "MN/~{MX}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "33"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at -17.78 -2.54 0)
+				(length 3.81)
+				(name "~{SSO}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "34"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 -25.4 180)
+				(length 3.81)
+				(name "A19/S6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "35"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 -22.86 180)
+				(length 3.81)
+				(name "A18/S5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "36"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 -20.32 180)
+				(length 3.81)
+				(name "A17/S4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "37"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 -17.78 180)
+				(length 3.81)
+				(name "A16/S3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "38"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 17.78 -12.7 180)
+				(length 3.81)
+				(name "A15"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "39"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin power_in line
+				(at 0 45.72 270)
+				(length 3.81)
+				(name "VCC"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "40"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -7080,6 +7096,24 @@
 			(pin input line
 				(at -13.97 11.43 0)
 				(length 3.81)
+				(name "OE"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 8.89 0)
+				(length 3.81)
 				(name "D0"
 					(effects
 						(font
@@ -7096,7 +7130,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 8.89 0)
+				(at -13.97 6.35 0)
 				(length 3.81)
 				(name "D1"
 					(effects
@@ -7114,7 +7148,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 6.35 0)
+				(at -13.97 3.81 0)
 				(length 3.81)
 				(name "D2"
 					(effects
@@ -7132,7 +7166,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 3.81 0)
+				(at -13.97 1.27 0)
 				(length 3.81)
 				(name "D3"
 					(effects
@@ -7150,7 +7184,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 1.27 0)
+				(at -13.97 -1.27 0)
 				(length 3.81)
 				(name "D4"
 					(effects
@@ -7168,7 +7202,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -1.27 0)
+				(at -13.97 -3.81 0)
 				(length 3.81)
 				(name "D5"
 					(effects
@@ -7186,7 +7220,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -3.81 0)
+				(at -13.97 -6.35 0)
 				(length 3.81)
 				(name "D6"
 					(effects
@@ -7204,7 +7238,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -6.35 0)
+				(at -13.97 -8.89 0)
 				(length 3.81)
 				(name "D7"
 					(effects
@@ -7222,7 +7256,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -8.89 0)
+				(at -13.97 -11.43 0)
 				(length 3.81)
 				(name "Load"
 					(effects
@@ -7239,35 +7273,17 @@
 					)
 				)
 			)
-			(pin input line
-				(at -13.97 -11.43 0)
-				(length 3.81)
-				(name "OE"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
 			(pin tri_state line
 				(at 13.97 11.43 180)
 				(length 3.81)
-				(name "Q0"
+				(name "Q7"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "19"
+				(number "12"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -7277,96 +7293,6 @@
 			)
 			(pin tri_state line
 				(at 13.97 8.89 180)
-				(length 3.81)
-				(name "Q1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "18"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 6.35 180)
-				(length 3.81)
-				(name "Q2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "17"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 3.81 180)
-				(length 3.81)
-				(name "Q3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "16"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 1.27 180)
-				(length 3.81)
-				(name "Q4"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "15"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 -1.27 180)
-				(length 3.81)
-				(name "Q5"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "14"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 -3.81 180)
 				(length 3.81)
 				(name "Q6"
 					(effects
@@ -7384,16 +7310,106 @@
 				)
 			)
 			(pin tri_state line
-				(at 13.97 -6.35 180)
+				(at 13.97 6.35 180)
 				(length 3.81)
-				(name "Q7"
+				(name "Q5"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "12"
+				(number "14"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 3.81 180)
+				(length 3.81)
+				(name "Q4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "15"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 1.27 180)
+				(length 3.81)
+				(name "Q3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "16"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -1.27 180)
+				(length 3.81)
+				(name "Q2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "17"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -3.81 180)
+				(length 3.81)
+				(name "Q1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "18"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -6.35 180)
+				(length 3.81)
+				(name "Q0"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "19"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -7597,14 +7613,14 @@
 			(pin tri_state line
 				(at -13.97 -2.54 0)
 				(length 3.81)
-				(name "B0"
+				(name "B7"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "18"
+				(number "11"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -7615,14 +7631,14 @@
 			(pin tri_state line
 				(at -13.97 -5.08 0)
 				(length 3.81)
-				(name "B2"
+				(name "B5"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "16"
+				(number "13"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -7633,14 +7649,14 @@
 			(pin tri_state line
 				(at -13.97 -7.62 0)
 				(length 3.81)
-				(name "B4"
+				(name "B3"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "14"
+				(number "15"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -7651,14 +7667,14 @@
 			(pin tri_state line
 				(at -13.97 -10.16 0)
 				(length 3.81)
-				(name "B6"
+				(name "B1"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "12"
+				(number "17"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -7759,14 +7775,14 @@
 			(pin tri_state line
 				(at 13.97 -2.54 180)
 				(length 3.81)
-				(name "B1"
+				(name "B6"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "17"
+				(number "12"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -7777,14 +7793,14 @@
 			(pin tri_state line
 				(at 13.97 -5.08 180)
 				(length 3.81)
-				(name "B3"
+				(name "B4"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "15"
+				(number "14"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -7795,14 +7811,14 @@
 			(pin tri_state line
 				(at 13.97 -7.62 180)
 				(length 3.81)
-				(name "B5"
+				(name "B2"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "13"
+				(number "16"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -7813,14 +7829,14 @@
 			(pin tri_state line
 				(at 13.97 -10.16 180)
 				(length 3.81)
-				(name "B7"
+				(name "B0"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "11"
+				(number "18"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -8024,14 +8040,14 @@
 			(pin tri_state line
 				(at -13.97 -2.54 0)
 				(length 3.81)
-				(name "B0"
+				(name "B7"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "18"
+				(number "11"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -8042,14 +8058,14 @@
 			(pin tri_state line
 				(at -13.97 -5.08 0)
 				(length 3.81)
-				(name "B2"
+				(name "B5"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "16"
+				(number "13"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -8060,14 +8076,14 @@
 			(pin tri_state line
 				(at -13.97 -7.62 0)
 				(length 3.81)
-				(name "B4"
+				(name "B3"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "14"
+				(number "15"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -8078,14 +8094,14 @@
 			(pin tri_state line
 				(at -13.97 -10.16 0)
 				(length 3.81)
-				(name "B6"
+				(name "B1"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "12"
+				(number "17"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -8186,14 +8202,14 @@
 			(pin tri_state line
 				(at 13.97 -2.54 180)
 				(length 3.81)
-				(name "B1"
+				(name "B6"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "17"
+				(number "12"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -8204,14 +8220,14 @@
 			(pin tri_state line
 				(at 13.97 -5.08 180)
 				(length 3.81)
-				(name "B3"
+				(name "B4"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "15"
+				(number "14"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -8222,14 +8238,14 @@
 			(pin tri_state line
 				(at 13.97 -7.62 180)
 				(length 3.81)
-				(name "B5"
+				(name "B2"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "13"
+				(number "16"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -8240,14 +8256,14 @@
 			(pin tri_state line
 				(at 13.97 -10.16 180)
 				(length 3.81)
-				(name "B7"
+				(name "B0"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "11"
+				(number "18"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -8469,14 +8485,14 @@
 			(pin output line
 				(at 13.97 8.89 180)
 				(length 3.81)
-				(name "~{Y0}"
+				(name "~{Y7}"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "15"
+				(number "7"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -8486,96 +8502,6 @@
 			)
 			(pin output line
 				(at 13.97 6.35 180)
-				(length 3.81)
-				(name "~{Y1}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "14"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 3.81 180)
-				(length 3.81)
-				(name "~{Y2}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "13"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 1.27 180)
-				(length 3.81)
-				(name "~{Y3}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "12"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 -1.27 180)
-				(length 3.81)
-				(name "~{Y4}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "11"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 -3.81 180)
-				(length 3.81)
-				(name "~{Y5}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "10"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 -6.35 180)
 				(length 3.81)
 				(name "~{Y6}"
 					(effects
@@ -8593,16 +8519,106 @@
 				)
 			)
 			(pin output line
-				(at 13.97 -8.89 180)
+				(at 13.97 3.81 180)
 				(length 3.81)
-				(name "~{Y7}"
+				(name "~{Y5}"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "7"
+				(number "10"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 13.97 1.27 180)
+				(length 3.81)
+				(name "~{Y4}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "11"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 13.97 -1.27 180)
+				(length 3.81)
+				(name "~{Y3}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "12"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 13.97 -3.81 180)
+				(length 3.81)
+				(name "~{Y2}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "13"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 13.97 -6.35 180)
+				(length 3.81)
+				(name "~{Y1}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "14"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 13.97 -8.89 180)
+				(length 3.81)
+				(name "~{Y0}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "15"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -9035,6 +9051,24 @@
 			(pin input line
 				(at -13.97 8.89 0)
 				(length 3.81)
+				(name "~{R}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 6.35 0)
+				(length 3.81)
 				(name "D"
 					(effects
 						(font
@@ -9051,7 +9085,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 6.35 0)
+				(at -13.97 3.81 0)
 				(length 3.81)
 				(name "C"
 					(effects
@@ -9069,7 +9103,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 3.81 0)
+				(at -13.97 1.27 0)
 				(length 3.81)
 				(name "~{S}"
 					(effects
@@ -9087,34 +9121,16 @@
 				)
 			)
 			(pin input line
-				(at -13.97 1.27 0)
-				(length 3.81)
-				(name "~{R}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
 				(at -13.97 -1.27 0)
 				(length 3.81)
-				(name "D"
+				(name "~{S}"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "12"
+				(number "10"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -9143,14 +9159,14 @@
 			(pin input line
 				(at -13.97 -6.35 0)
 				(length 3.81)
-				(name "~{S}"
+				(name "D"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "10"
+				(number "12"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -9215,14 +9231,14 @@
 			(pin output line
 				(at 13.97 3.81 180)
 				(length 3.81)
-				(name "Q"
+				(name "~{Q}"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "9"
+				(number "8"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -9233,14 +9249,14 @@
 			(pin output line
 				(at 13.97 1.27 180)
 				(length 3.81)
-				(name "~{Q}"
+				(name "Q"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "8"
+				(number "9"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -9354,6 +9370,24 @@
 			(pin input line
 				(at -13.97 11.43 0)
 				(length 3.81)
+				(name "S"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 8.89 0)
+				(length 3.81)
 				(name "I0a"
 					(effects
 						(font
@@ -9370,7 +9404,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 8.89 0)
+				(at -13.97 6.35 0)
 				(length 3.81)
 				(name "I1a"
 					(effects
@@ -9388,7 +9422,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 6.35 0)
+				(at -13.97 3.81 0)
 				(length 3.81)
 				(name "I0b"
 					(effects
@@ -9406,7 +9440,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 3.81 0)
+				(at -13.97 1.27 0)
 				(length 3.81)
 				(name "I1b"
 					(effects
@@ -9416,24 +9450,6 @@
 					)
 				)
 				(number "6"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 1.27 0)
-				(length 3.81)
-				(name "I0c"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "11"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -9462,14 +9478,14 @@
 			(pin input line
 				(at -13.97 -3.81 0)
 				(length 3.81)
-				(name "I0d"
+				(name "I0c"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "14"
+				(number "11"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -9498,14 +9514,14 @@
 			(pin input line
 				(at -13.97 -8.89 0)
 				(length 3.81)
-				(name "S"
+				(name "I0d"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "1"
+				(number "14"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -10028,6 +10044,24 @@
 			(pin input line
 				(at -13.97 11.43 0)
 				(length 3.81)
+				(name "OE"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 8.89 0)
+				(length 3.81)
 				(name "D0"
 					(effects
 						(font
@@ -10044,7 +10078,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 8.89 0)
+				(at -13.97 6.35 0)
 				(length 3.81)
 				(name "D1"
 					(effects
@@ -10062,7 +10096,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 6.35 0)
+				(at -13.97 3.81 0)
 				(length 3.81)
 				(name "D2"
 					(effects
@@ -10080,7 +10114,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 3.81 0)
+				(at -13.97 1.27 0)
 				(length 3.81)
 				(name "D3"
 					(effects
@@ -10098,79 +10132,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 1.27 0)
-				(length 3.81)
-				(name "D4"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "13"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
 				(at -13.97 -1.27 0)
-				(length 3.81)
-				(name "D5"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "14"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 -3.81 0)
-				(length 3.81)
-				(name "D6"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "17"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 -6.35 0)
-				(length 3.81)
-				(name "D7"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "18"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 -8.89 0)
 				(length 3.81)
 				(name "Cp"
 					(effects
@@ -10188,16 +10150,70 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -11.43 0)
+				(at -13.97 -3.81 0)
 				(length 3.81)
-				(name "OE"
+				(name "D4"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "1"
+				(number "13"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 -6.35 0)
+				(length 3.81)
+				(name "D5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "14"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 -8.89 0)
+				(length 3.81)
+				(name "D6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "17"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 -11.43 0)
+				(length 3.81)
+				(name "D7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "18"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -10455,6 +10471,24 @@
 			(pin input line
 				(at -13.97 11.43 0)
 				(length 3.81)
+				(name "OE"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 8.89 0)
+				(length 3.81)
 				(name "D0"
 					(effects
 						(font
@@ -10471,7 +10505,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 8.89 0)
+				(at -13.97 6.35 0)
 				(length 3.81)
 				(name "D1"
 					(effects
@@ -10489,7 +10523,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 6.35 0)
+				(at -13.97 3.81 0)
 				(length 3.81)
 				(name "D2"
 					(effects
@@ -10507,7 +10541,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 3.81 0)
+				(at -13.97 1.27 0)
 				(length 3.81)
 				(name "D3"
 					(effects
@@ -10525,7 +10559,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 1.27 0)
+				(at -13.97 -1.27 0)
 				(length 3.81)
 				(name "D4"
 					(effects
@@ -10543,7 +10577,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -1.27 0)
+				(at -13.97 -3.81 0)
 				(length 3.81)
 				(name "D5"
 					(effects
@@ -10561,7 +10595,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -3.81 0)
+				(at -13.97 -6.35 0)
 				(length 3.81)
 				(name "D6"
 					(effects
@@ -10579,7 +10613,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -6.35 0)
+				(at -13.97 -8.89 0)
 				(length 3.81)
 				(name "D7"
 					(effects
@@ -10597,7 +10631,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -8.89 0)
+				(at -13.97 -11.43 0)
 				(length 3.81)
 				(name "Cp"
 					(effects
@@ -10614,35 +10648,17 @@
 					)
 				)
 			)
-			(pin input line
-				(at -13.97 -11.43 0)
-				(length 3.81)
-				(name "OE"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
 			(pin tri_state line
 				(at 13.97 11.43 180)
 				(length 3.81)
-				(name "Q0"
+				(name "Q7"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "19"
+				(number "12"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -10652,96 +10668,6 @@
 			)
 			(pin tri_state line
 				(at 13.97 8.89 180)
-				(length 3.81)
-				(name "Q1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "18"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 6.35 180)
-				(length 3.81)
-				(name "Q2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "17"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 3.81 180)
-				(length 3.81)
-				(name "Q3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "16"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 1.27 180)
-				(length 3.81)
-				(name "Q4"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "15"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 -1.27 180)
-				(length 3.81)
-				(name "Q5"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "14"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 -3.81 180)
 				(length 3.81)
 				(name "Q6"
 					(effects
@@ -10759,16 +10685,106 @@
 				)
 			)
 			(pin tri_state line
-				(at 13.97 -6.35 180)
+				(at 13.97 6.35 180)
 				(length 3.81)
-				(name "Q7"
+				(name "Q5"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "12"
+				(number "14"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 3.81 180)
+				(length 3.81)
+				(name "Q4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "15"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 1.27 180)
+				(length 3.81)
+				(name "Q3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "16"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -1.27 180)
+				(length 3.81)
+				(name "Q2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "17"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -3.81 180)
+				(length 3.81)
+				(name "Q1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "18"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -6.35 180)
+				(length 3.81)
+				(name "Q0"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "19"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -10882,6 +10898,24 @@
 			(pin input line
 				(at -13.97 11.43 0)
 				(length 3.81)
+				(name "1OE"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 8.89 0)
+				(length 3.81)
 				(name "1A0"
 					(effects
 						(font
@@ -10898,7 +10932,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 8.89 0)
+				(at -13.97 6.35 0)
 				(length 3.81)
 				(name "1A1"
 					(effects
@@ -10916,7 +10950,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 6.35 0)
+				(at -13.97 3.81 0)
 				(length 3.81)
 				(name "1A2"
 					(effects
@@ -10934,7 +10968,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 3.81 0)
+				(at -13.97 1.27 0)
 				(length 3.81)
 				(name "1A3"
 					(effects
@@ -10952,34 +10986,16 @@
 				)
 			)
 			(pin input line
-				(at -13.97 1.27 0)
-				(length 3.81)
-				(name "2A0"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "17"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
 				(at -13.97 -1.27 0)
 				(length 3.81)
-				(name "2A1"
+				(name "2A3"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "15"
+				(number "11"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11008,14 +11024,14 @@
 			(pin input line
 				(at -13.97 -6.35 0)
 				(length 3.81)
-				(name "2A3"
+				(name "2A1"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "11"
+				(number "15"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11026,14 +11042,14 @@
 			(pin input line
 				(at -13.97 -8.89 0)
 				(length 3.81)
-				(name "1OE"
+				(name "2A0"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "1"
+				(number "17"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11062,78 +11078,6 @@
 			(pin tri_state line
 				(at 13.97 11.43 180)
 				(length 3.81)
-				(name "1Y0"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "18"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 8.89 180)
-				(length 3.81)
-				(name "1Y1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "16"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 6.35 180)
-				(length 3.81)
-				(name "1Y2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "14"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 3.81 180)
-				(length 3.81)
-				(name "1Y3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "12"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin tri_state line
-				(at 13.97 1.27 180)
-				(length 3.81)
 				(name "2Y0"
 					(effects
 						(font
@@ -11150,7 +11094,7 @@
 				)
 			)
 			(pin tri_state line
-				(at 13.97 -1.27 180)
+				(at 13.97 8.89 180)
 				(length 3.81)
 				(name "2Y1"
 					(effects
@@ -11168,7 +11112,7 @@
 				)
 			)
 			(pin tri_state line
-				(at 13.97 -3.81 180)
+				(at 13.97 6.35 180)
 				(length 3.81)
 				(name "2Y2"
 					(effects
@@ -11186,7 +11130,7 @@
 				)
 			)
 			(pin tri_state line
-				(at 13.97 -6.35 180)
+				(at 13.97 3.81 180)
 				(length 3.81)
 				(name "2Y3"
 					(effects
@@ -11196,6 +11140,78 @@
 					)
 				)
 				(number "9"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 1.27 180)
+				(length 3.81)
+				(name "1Y3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "12"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -1.27 180)
+				(length 3.81)
+				(name "1Y2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "14"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -3.81 180)
+				(length 3.81)
+				(name "1Y1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "16"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin tri_state line
+				(at 13.97 -6.35 180)
+				(length 3.81)
+				(name "1Y0"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "18"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11309,14 +11325,14 @@
 			(pin input line
 				(at -13.97 13.97 0)
 				(length 3.81)
-				(name "DS"
+				(name "~{PL}"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "10"
+				(number "1"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11327,14 +11343,14 @@
 			(pin input line
 				(at -13.97 11.43 0)
 				(length 3.81)
-				(name "D0"
+				(name "CP"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "11"
+				(number "2"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11344,60 +11360,6 @@
 			)
 			(pin input line
 				(at -13.97 8.89 0)
-				(length 3.81)
-				(name "D1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "12"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 6.35 0)
-				(length 3.81)
-				(name "D2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "13"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 3.81 0)
-				(length 3.81)
-				(name "D3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "14"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 1.27 0)
 				(length 3.81)
 				(name "D4"
 					(effects
@@ -11415,7 +11377,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -1.27 0)
+				(at -13.97 6.35 0)
 				(length 3.81)
 				(name "D5"
 					(effects
@@ -11433,7 +11395,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -3.81 0)
+				(at -13.97 3.81 0)
 				(length 3.81)
 				(name "D6"
 					(effects
@@ -11451,7 +11413,7 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -6.35 0)
+				(at -13.97 1.27 0)
 				(length 3.81)
 				(name "D7"
 					(effects
@@ -11469,16 +11431,70 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -8.89 0)
+				(at -13.97 -1.27 0)
 				(length 3.81)
-				(name "~{PL}"
+				(name "DS"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "1"
+				(number "10"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 -3.81 0)
+				(length 3.81)
+				(name "D0"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "11"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 -6.35 0)
+				(length 3.81)
+				(name "D1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "12"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 -8.89 0)
+				(length 3.81)
+				(name "D2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "13"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11489,14 +11505,14 @@
 			(pin input line
 				(at -13.97 -11.43 0)
 				(length 3.81)
-				(name "CP"
+				(name "D3"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "2"
+				(number "14"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11525,14 +11541,14 @@
 			(pin output line
 				(at 13.97 13.97 180)
 				(length 3.81)
-				(name "Q7"
+				(name "~{Q7}"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "9"
+				(number "7"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11543,14 +11559,14 @@
 			(pin output line
 				(at 13.97 11.43 180)
 				(length 3.81)
-				(name "~{Q7}"
+				(name "Q7"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "7"
+				(number "9"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11664,14 +11680,14 @@
 			(pin input line
 				(at -13.97 10.16 0)
 				(length 3.81)
-				(name "D0"
+				(name "~{MR}"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "3"
+				(number "1"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11681,114 +11697,6 @@
 			)
 			(pin input line
 				(at -13.97 7.62 0)
-				(length 3.81)
-				(name "D1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "4"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 5.08 0)
-				(length 3.81)
-				(name "D2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "5"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 2.54 0)
-				(length 3.81)
-				(name "D3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "6"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 0 0)
-				(length 3.81)
-				(name "~{PE}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "9"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 -2.54 0)
-				(length 3.81)
-				(name "CEP"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "7"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 -5.08 0)
-				(length 3.81)
-				(name "CET"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "10"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 -7.62 0)
 				(length 3.81)
 				(name "CP"
 					(effects
@@ -11806,16 +11714,124 @@
 				)
 			)
 			(pin input line
-				(at -13.97 -10.16 0)
+				(at -13.97 5.08 0)
 				(length 3.81)
-				(name "~{MR}"
+				(name "D0"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "1"
+				(number "3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 2.54 0)
+				(length 3.81)
+				(name "D1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 0 0)
+				(length 3.81)
+				(name "D2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 -2.54 0)
+				(length 3.81)
+				(name "D3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 -5.08 0)
+				(length 3.81)
+				(name "CEP"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 -7.62 0)
+				(length 3.81)
+				(name "~{PE}"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "9"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 -10.16 0)
+				(length 3.81)
+				(name "CET"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "10"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11826,14 +11842,14 @@
 			(pin output line
 				(at 13.97 10.16 180)
 				(length 3.81)
-				(name "Q0"
+				(name "Q3"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "14"
+				(number "11"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -11843,24 +11859,6 @@
 			)
 			(pin output line
 				(at 13.97 7.62 180)
-				(length 3.81)
-				(name "Q1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "13"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin output line
-				(at 13.97 5.08 180)
 				(length 3.81)
 				(name "Q2"
 					(effects
@@ -11878,16 +11876,34 @@
 				)
 			)
 			(pin output line
-				(at 13.97 2.54 180)
+				(at 13.97 5.08 180)
 				(length 3.81)
-				(name "Q3"
+				(name "Q1"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "11"
+				(number "13"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin output line
+				(at 13.97 2.54 180)
+				(length 3.81)
+				(name "Q0"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "14"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -12976,24 +12992,6 @@
 			(pin input line
 				(at -13.97 8.89 0)
 				(length 3.81)
-				(name "P2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -13.97 6.35 0)
-				(length 3.81)
 				(name "P1"
 					(effects
 						(font
@@ -13010,16 +13008,34 @@
 				)
 			)
 			(pin input line
-				(at -13.97 3.81 0)
+				(at -13.97 6.35 0)
 				(length 3.81)
-				(name "P5"
+				(name "P2"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "5"
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin input line
+				(at -13.97 3.81 0)
+				(length 3.81)
+				(name "P4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "4"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -13030,14 +13046,14 @@
 			(pin input line
 				(at -13.97 1.27 0)
 				(length 3.81)
-				(name "P4"
+				(name "P5"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "4"
+				(number "5"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -13295,14 +13311,14 @@
 			(pin input line
 				(at -13.97 3.81 0)
 				(length 3.81)
-				(name "+"
+				(name "-"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "3"
+				(number "2"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -13313,14 +13329,14 @@
 			(pin input line
 				(at -13.97 1.27 0)
 				(length 3.81)
-				(name "-"
+				(name "+"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "2"
+				(number "3"
 					(effects
 						(font
 							(size 1.27 1.27)

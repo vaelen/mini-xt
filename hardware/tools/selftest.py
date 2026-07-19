@@ -43,13 +43,15 @@ print(r.stderr[-2000:])
 
 if os.path.exists(os.path.join(OUT, "selftest.net")):
     net = open(os.path.join(OUT, "selftest.net")).read()
-    # check the MID net has both R1-2 and R2-1
+    # check the MID net has both R1-2 and R2-1 (whitespace-tolerant: KiCad 10's
+    # CLI emits the netlist multiline, KiCad 9's emitted it single-line)
     import re
+    blocks = re.split(r"\(net\b", net)[1:]
     for netname in ["MID", "+5V", "GND"]:
-        m = re.search(r'\(net \(code "\d+"\) \(name "[^"]*%s[^"]*"\)(.*?)\n\s*\)' % re.escape(netname),
-                      net, re.S)
-        if m:
-            refs = re.findall(r'\(node \(ref "([^"]+)"\) \(pin "([^"]+)"', m.group(1))
+        blk = next((b for b in blocks
+                    if re.search(r'\(name "[^"]*%s[^"]*"\)' % re.escape(netname), b)), None)
+        if blk:
+            refs = re.findall(r'\(ref "([^"]+)"\)\s*\n?\s*\(pin "([^"]+)"', blk)
             print("NET %-6s ->" % netname, refs)
         else:
             print("NET %-6s -> NOT FOUND" % netname)
