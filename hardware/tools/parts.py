@@ -35,7 +35,6 @@ Substitutions forced by JLC stock (all verified same-pinout):
   * TCM809   -> TCM809TENB713 (SOT-23, 3.08 V threshold -- 3.3V-rail grade;
     the -450I/TT (4.375 V) pick was wrong, chosen back when this part
     monitored +5V; see notes/questions-cpu_core.md Q9)
-  * 2N3904   -> MMBT3904 (SOT-23)
   * TL072    -> MCP6002 (RRIO; pin-identical dual op-amp)
   * 1.8432 MHz canned osc -> crystal on the 16C550's XIN/XOUT
   * 14.31818 MHz osc: only 3.3 V parts stocked -> powered from 3V3. The clock
@@ -211,10 +210,9 @@ PART_MAP = {
         "Package_TO_SOT_SMD:TSOT-23-6"),
     ("Interface_USB:CH224K", "CH224K"): E("C970725", "CH224K", "ESSOP-10-150mil-1mm",
         "mini-xt:ESSOP-10_150mil_P1.0mm", "no stock KiCad ESSOP-10; import EasyEDA fp at layout"),
-    ("Transistor_BJT:2N3904", "2N3904"): E("C20526", "MMBT3904", "SOT-23", SOT23),
-    ("Device:Q_PMOS", "Q_PMOS"):      E("C15127", "AO3401A", "SOT-23", SOT23),
-    ("Device:D_Schottky", "D_Schottky"): E("C8678", "SS34", "SMA", "Diode_SMD:D_SMA"),
     ("Device:D_Schottky", "SS34"):    E("C8678", "SS34", "SMA", "Diode_SMD:D_SMA"),
+    # (2N3904/MMBT3904 + Q_PMOS/AO3401A entries removed 2026-07-19: their only
+    # user was card_isatest's DUT power switch, deleted with the dev cards.)
     # ---- protection (design review 2026-07-11) ----
     ("Device:Polyfuse", "2A"):    E("C883156", "BSMD1812-200-16V", "1812",
                                     "Fuse:Fuse_1812_4532Metric", "ISA sidecar +5V feed"),
