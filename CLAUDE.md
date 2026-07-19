@@ -100,7 +100,8 @@ Boards are fabbed and assembled at JLCPCB. Rules that shape every sheet:
   (74HCT32 strobe combiner, reads the raw 5 V V20 strobes); `cpu_core` **U13**
   (74HCT04 — V20 CLK buffer, and now also the READY/HOLD 5 V re-buffers);
   the fused **+5V_ISA** expansion-port feed; and the **audio MCP6002**
-  op-amp (analog +5 V). The MAX3241 RS-232 transceivers are now genuinely 3.3 V.
+  op-amp (analog +5 V). The RS-232 transceivers (SP3243E since 2026-07-19,
+  on the MAX3241 symbol body) are genuinely 3.3 V.
   (The RTL8019AS NIC island was removed 2026-07-14 — tag `full-board-with-nic`.)
   When JLC
   stock forces an HC-grade part into a 3.3 V-driven position, buffer the

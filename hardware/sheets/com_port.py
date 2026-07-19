@@ -1,4 +1,4 @@
-"""COM1 + COM2 -- 2x 16C550 UART + MAX3241 + DB9, shared IRQ glue.
+"""COM1 + COM2 -- 2x 16C550 UART + SP3243E + DB9, shared IRQ glue.
 
 Design doc S11.1. BOTH serial ports on one sheet (merged 2026-07-14; was one
 generic sheet instanced twice). Address decode is CENTRAL since the
@@ -18,15 +18,17 @@ just the ports now: no decode, no IRQ driver, no straps.
 
 Structure (per port, suffix 1/2 on local nets):
   * U1/U3  16C550 UART (mini-xt:TL16C550PT, TQFP-48, soldered, +3V3)
-  * U2/U4  MAX3241 single-supply RS-232 transceiver (3 drivers + 5 receivers),
+  * U2/U4  SP3243E single-supply RS-232 transceiver (3 drivers + 5 receivers),
            +3V3: rated 3.0-5.5V, makes valid RS-232 from 3.3V; caps sized to
            the datasheet 3.0-3.6V column. This sheet has no +5V rail.
+           (Value override on the mini-xt:MAX3241 body since 2026-07-19 --
+           pin-compatible as wired; MAX3241EEAI+T C406859 is the alternate.)
   * J1/J2  DE9 male, full DTE port (TXD/RTS/DTR out; RXD/CTS/DSR/DCD/RI in)
   * Y1/Y2  1.8432 MHz baud crystal on XIN/XOUT; ~{BAUDOUT} -> RCLK
 COM1 only:
-  * J3     TTL console header tapped ahead of the MAX3241
-  * JP1    UART RX source select (DB9 vs console; MAX R1OUT is push-pull)
-COM2's RX is wired straight from its MAX3241 (no console -> no selector).
+  * J3     TTL console header tapped ahead of the transceiver
+  * JP1    UART RX source select (DB9 vs console; R1OUT is push-pull)
+COM2's RX is wired straight from its transceiver (no console -> no selector).
 
 3.3V single-board redesign (spec 2026-07-14): soldered 3.3V TQFP-48 UART
 (TL16C550CPFBR since later that day -- the PTR is dead/stockless; parts.py
@@ -36,7 +38,7 @@ import mxbus
 from mxbus import pin
 
 NAME = "com_port"
-TITLE = "COM1+COM2 -- 2x 16C550 UART + MAX3241 + DB9"
+TITLE = "COM1+COM2 -- 2x 16C550 UART + SP3243E + DB9"
 PAPER = "A2"      # two full ports outgrow A3
 
 PINS = (
@@ -69,10 +71,10 @@ def build(sch, lib, expose=True):
         mxbus.emit_interface(sch, PINS, at=(25.4, 25.4))
 
     def com_port(sfx, dy, uref, mref, jref, yref, cb, rxout_net):
-        """One complete port: UART + crystal + MAX3241 + DE9 + decoupling.
+        """One complete port: UART + crystal + SP3243E + DE9 + decoupling.
 
         sfx: net-name suffix ("1"/"2"); dy: vertical block offset; cb: first
-        cap ref number (uses C<cb>..C<cb+7>); rxout_net: where the MAX3241's
+        cap ref number (uses C<cb>..C<cb+7>); rxout_net: where the SP3243E's
         push-pull R1OUT goes (COM1: to the JP1 selector; COM2: straight to SIN).
         """
         C = lambda i: "C%d" % (cb + i)
@@ -108,7 +110,7 @@ def build(sch, lib, expose=True):
         L(U, "XOUT", "BAUD_XO" + sfx, dx=2.54)
         L(U, "RCLK", "BAUDOUT%s_N" % sfx, dx=-2.54)
         L(U, "~{BAUDOUT}", "BAUDOUT%s_N" % sfx, dx=2.54)
-        # modem control / status -> TTL side of MAX3241 (both at +3V3)
+        # modem control / status -> TTL side of SP3243E (both at +3V3)
         L(U, "SOUT", "UART_TXD" + sfx); L(U, "SIN", "UART_RXD" + sfx)
         L(U, "~{RTS}", "UART_RTS" + sfx); L(U, "~{DTR}", "UART_DTR" + sfx)
         L(U, "~{CTS}", "UART_CTS" + sfx); L(U, "~{DSR}", "UART_DSR" + sfx)
@@ -130,10 +132,13 @@ def build(sch, lib, expose=True):
         cap(C(6), "22pF", (50.8, 154.94 + dy), "BAUD_XI" + sfx, "GND")
         cap(C(7), "22pF", (71.12, 154.94 + dy), "BAUD_XO" + sfx, "GND")
 
-        # ---- MAX3241 transceiver ----
+        # ---- SP3243E transceiver (value override on the mini-xt:MAX3241
+        # body: MaxLinear's 3243 is pin-for-pin the MAX3241 as this sheet
+        # wires it -- see the control-pin note below; swapped 2026-07-19 for
+        # stock/price, the Maxim part kept going to zero at JLC) ----
         # +3V3 (Task-10 fix): rated 3.0-5.5V, valid RS-232 swings from 3.3V via
         # its charge pumps; matches the UART's 3.3V TTL side.
-        M = sch.place("mini-xt:MAX3241", mref, at=(228.6, 101.6 + dy))
+        M = sch.place("mini-xt:MAX3241", mref, "SP3243E", at=(228.6, 101.6 + dy))
         L(M, "VCC", "+3V3", dx=0, dy=-2.54); L(M, "GND", "GND", dx=0, dy=2.54)
         # TTL side <-> UART
         L(M, "T1IN", "UART_TXD" + sfx, dx=-2.54)
@@ -153,9 +158,13 @@ def build(sch, lib, expose=True):
         L(M, "R3IN", "RS_DSR" + sfx, dx=2.54)
         L(M, "R4IN", "RS_DCD" + sfx, dx=2.54)
         L(M, "R5IN", "RS_RI" + sfx, dx=2.54)
-        # enable / status (real MAX3241 control set, verified vs LCSC C406859:
-        # SHDN# high = running; EN# low = receiver outputs enabled;
-        # R1OUTB/R2OUTB are the always-active wake-up outputs, unused)
+        # enable / status. Symbol pin names are the MAX3241 body's; on the
+        # SP3243E (pinout verified vs LCSC C916165) the same pins/straps read:
+        #   22 SHDN#=SHUTDOWN#  -> +3V3 = running (both)
+        #   23 EN#=ONLINE#      -> GND: EN# low = RX outputs enabled (3241);
+        #                          ONLINE# low = forced always-on, auto-
+        #                          powerdown bypassed (3243) -- same behavior
+        #   21/20 R1OUTB/R2OUTB = STATUS#/R2OUT# -- outputs, unused on both
         L(M, "~{SHDN}", "+3V3", dx=-2.54)
         L(M, "~{EN}", "GND", dx=-2.54)
         sch.no_connect(M.pin_xy("R1OUTB"))
@@ -184,15 +193,15 @@ def build(sch, lib, expose=True):
 
         # ---- decoupling ----
         decouple(C(0), (109.22, 50.8 + dy))    # UART
-        decouple(C(1), (210.82, 50.8 + dy))    # MAX3241
+        decouple(C(1), (210.82, 50.8 + dy))    # SP3243E
 
     # ================ port 1 (COM1, 0x3F8, IRQ4) ================
     com_port("1", 0, "U1", "U2", "J1", "Y1", 1, "RXD_RS232")
     # ================ port 2 (COM2, 0x2F8, IRQ3) ================
-    # No console header on COM2, so its MAX3241 R1OUT drives SIN directly.
+    # No console header on COM2, so its SP3243E R1OUT drives SIN directly.
     com_port("2", 152.4, "U3", "U4", "J2", "Y2", 9, "UART_RXD2")
 
-    # ---------------- J3: TTL console header (COM1 only, ahead of MAX3241) ----------------
+    # ---------------- J3: TTL console header (COM1 only, ahead of the SP3243E) ----------------
     # 3.3V TTL levels -- a 5V-only USB-serial adapter may not read these
     # reliably; most 3.3V dongles are the correct match. Pin 4 supplies +3V3
     # for a self-powered adapter only.
@@ -203,20 +212,20 @@ def build(sch, lib, expose=True):
     L(J3, "Pin_4", "+3V3", dx=2.54)
 
     # ---------------- JP1: COM1 UART RX source select ----------------
-    # The MAX3241 R1OUT is PUSH-PULL, so the console adapter's TX cannot share
+    # The SP3243E R1OUT is PUSH-PULL, so the console adapter's TX cannot share
     # UART_RXD1 with it -- JP1 selects exactly one driver for the 16550's SIN:
-    #   1-2 = DB9 (RS-232, via MAX3241)   2-3 = TTL console (J3)
+    #   1-2 = DB9 (RS-232, via SP3243E)   2-3 = TTL console (J3)
     JP1 = sch.place("Connector_Generic:Conn_01x03", "JP1", at=(322.58, 340.36))
     L(JP1, "Pin_1", "RXD_RS232", dx=2.54)
     L(JP1, "Pin_2", "UART_RXD1", dx=2.54)
     L(JP1, "Pin_3", "CONSOLE_RXI", dx=2.54)
     # SIN idles at mark if JP1 is left open (floating CMOS input otherwise).
-    # COM2 needs no pull-up: its SIN is driven push-pull by its MAX3241.
+    # COM2 needs no pull-up: its SIN is driven push-pull by its SP3243E.
     R3 = sch.place("Device:R", "R3", "10k", at=(335.28, 322.58))
     L(R3, "1", "+3V3", dx=0, dy=-2.54); L(R3, "2", "UART_RXD1", dx=0, dy=2.54)
 
     # ---------------- rail bulk ----------------
-    cap("C17", "10uF", (386.08, 340.36), "+3V3", "GND")   # MAX3241 pair bulk
+    cap("C17", "10uF", (386.08, 340.36), "+3V3", "GND")   # SP3243E pair bulk
     cap("C18", "10uF", (401.32, 340.36), "+3V3", "GND")   # UART pair bulk
 
     sch.text("Chip selects, IRQ mapping (COM1=IRQ4, COM2=IRQ3) and the disable "

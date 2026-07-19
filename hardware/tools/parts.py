@@ -67,9 +67,10 @@ NOT available at JLC (flagged, no LCSC number):
     socketed -- still a soldered SMD reflow part, just not JLC-supplied)
   * VGA HD15 (DE15) connector             -> other distributor (THT)
 
-Thin stock (check before ordering): MAX3241EEAI+T (0 on 2026-07-15!),
-74LVC574AT20-13 (~88), 74LVC161PW,118 (~100). (The TPS563200 buck was
-swapped to the 90k-deep TPS563201 sibling 2026-07-19 -- no longer a risk.)
+Thin stock (check before ordering): 74LVC574AT20-13 (~88),
+74LVC161PW,118 (~100). (Two former risks resolved 2026-07-19: the
+TPS563200 buck -> 90k-deep TPS563201 sibling; the MAX3241 RS-232
+transceivers -> 6.7k-deep pin-compatible SP3243EUEA.)
 
 Known part/footprint caveats (all deliberate, resolve at layout):
   * C2897411 female headers are 2x10 strips: right for the Core2350B's
@@ -196,8 +197,13 @@ PART_MAP = {
     ("mini-xt:74LVC245A", "74LVC245A"): E("C6082", "74LVC245APW,118", "TSSOP-20", TSSOP20),
     ("74xx:74HC595", "74HC595"):      E("C5947", "74HC595D,118", "SOIC-16", SOIC16),
     # ---- ICs ----
-    ("mini-xt:MAX3241", "MAX3241"):   E("C406859", "MAX3241EEAI+T", "SSOP-28",
-                                        "Package_SO:SSOP-28_5.3x10.2mm_P0.65mm"),
+    ("mini-xt:MAX3241", "SP3243E"):   E("C916165", "SP3243EUEA-L/TR", "SSOP-28",
+                                        "Package_SO:SSOP-28_5.3x10.2mm_P0.65mm",
+                                        "swapped from MAX3241EEAI+T C406859 2026-07-19 (kept "
+                                        "going to zero at JLC; C916165 ~6.7k deep, 1/3 the "
+                                        "price). Pinout verified vs EasyEDA C916165: identical "
+                                        "to the MAX3241 as com_port wires it (straps included); "
+                                        "the Maxim part stays the drop-in alternate"),
     ("MCU_RaspberryPi:RP2040", "RP2040"): E("C2040", "RP2040", "LQFN-56",
         "Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm"),
     ("Memory_Flash:W25Q128JVS", "W25Q128JVS"): E("C97521", "W25Q128JVSIQ", "SOIC-8",

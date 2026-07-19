@@ -222,8 +222,18 @@ supervisor I2C pair + RUN, and singletons.
   series as the DE9. Footprint corrected to the DSUB-25 **_Socket_**
   (female) variant — the old binding used _Pins_ (male), which mirrors the
   pin positions on a female shell.
-- MAX3241EEAI+T (C406859): **0 stock as of 2026-07-15** — needs an alt or a
-  wait; price also halved to ~$1.47 when it restocks.
+- MAX3241EEAI+T (C406859) → **swapped to SP3243EUEA-L/TR (C916165) 2026-07-19**
+  (hit 0 stock 2026-07-15, restocked to only ~645 by 07-19 — chronically thin;
+  the SP3243E sits at ~6.7k and $1.17 vs $3.33). MaxLinear's 3243 is the
+  multi-source 3T/5R pinout; EasyEDA pin tables compared pin-for-pin: 1–20 and
+  24–28 identical, and the control straps land right — pin 22 SHUTDOWN# (=
+  SHDN#) to +3V3, pin 23 ONLINE# to GND = forced always-on (auto-powerdown
+  bypassed), pins 20/21 R2OUT#/STATUS# unused outputs, NC. Same SSOP-28-208mil
+  footprint, same 4×100nF cap set at 3.3V. Sheet change is the value override
+  only; the MAX3241 remains a drop-in alternate. (TI's MAX3243 is NOT a
+  strap-compatible drop-in: its pin 23 is active-HIGH FORCEON, so our GND
+  strap would leave it in auto-powerdown mode, which can eat the first byte
+  after 30 s idle — it would need the strap moved to +3V3.)
 - TPS563200DDCR (C97253) → **swapped to TPS563201DDCR (C116592) 2026-07-19**.
   The '3200 kept dipping to unorderable levels (4 pcs on 2026-07-11; it later
   restocked to ~2.5k, but the '3201 sits at ~90k and ~$0.07). Verified against
