@@ -43,9 +43,9 @@ counter), so a rebuild from unchanged sources is byte-identical — a large
 
 ## Commands
 
-Requires KiCad 9 or 10. The tools find `kicad-cli` via `$KICAD_CLI`, then
-PATH, then the snap install (`mxsch.kicad_cli()`); symbol libraries via
-`$KICAD_SYMBOL_DIR`, then snap, then `~/.local/share/kicad/<ver>/symbols`
+Requires KiCad 10 (KiCad 9 libraries also still load). The tools find
+`kicad-cli` via `$KICAD_CLI`, then PATH (`mxsch.kicad_cli()`); symbol
+libraries via `$KICAD_SYMBOL_DIR`, then `~/.local/share/kicad/<ver>/symbols`
 (where the KiCad 10 AppImage setup keeps them), then the system install
 (`mxsch.kicad_symdir()`). Both monolithic `<Lib>.kicad_sym` files (KiCad ≤9,
 and the project's own `mini-xt.kicad_sym`) and KiCad 10's sharded

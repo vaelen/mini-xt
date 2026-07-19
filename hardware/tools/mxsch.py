@@ -29,35 +29,20 @@ from shutil import which
 # --------------------------------------------------------------------------
 
 def kicad_cli():
-    """Path to kicad-cli: $KICAD_CLI, then PATH, then the snap install."""
+    """Path to kicad-cli: $KICAD_CLI, then PATH."""
     p = os.environ.get("KICAD_CLI")
     if p:
         return p
-    for cand in ("kicad-cli", "kicad.kicad-cli"):
-        w = which(cand)
-        if w:
-            return w
-    return "/snap/bin/kicad.kicad-cli"
+    return which("kicad-cli") or "kicad-cli"
 
 
 def kicad_symdir():
-    """KiCad symbol-library dir: $KICAD_SYMBOL_DIR, else the snap's `current`
-    revision (never a hardcoded revision number -- those change on refresh),
-    else the newest snap revision, else the newest per-user data dir (where
-    the KiCad 10 AppImage setup keeps its extracted libraries), else the
-    system install."""
+    """KiCad symbol-library dir: $KICAD_SYMBOL_DIR, else the newest non-empty
+    per-user data dir (where the KiCad 10 AppImage setup keeps its extracted
+    libraries), else the system install."""
     p = os.environ.get("KICAD_SYMBOL_DIR")
     if p:
         return p
-    cur = "/snap/kicad/current/usr/share/kicad/symbols"
-    if os.path.isdir(cur):
-        return cur
-    hits = glob.glob("/snap/kicad/*/usr/share/kicad/symbols")
-    if hits:
-        def _rev(h):
-            part = h.split("/")[3]
-            return int(part) if part.isdigit() else -1
-        return max(hits, key=_rev)
     hits = [h for h in glob.glob(os.path.expanduser("~/.local/share/kicad/*/symbols"))
             if os.listdir(h)]
     if hits:

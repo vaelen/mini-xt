@@ -25,8 +25,8 @@ import mxsch
 import mxbus
 from mxsch import SymbolLib, Schematic
 
-SYMDIR = mxsch.kicad_symdir()   # $KICAD_SYMBOL_DIR / snap `current` / system
-CLI = mxsch.kicad_cli()         # $KICAD_CLI / PATH / snap
+SYMDIR = mxsch.kicad_symdir()   # $KICAD_SYMBOL_DIR / user data dir / system
+CLI = mxsch.kicad_cli()         # $KICAD_CLI / PATH
 
 # ERC categories that MUST be zero (everything else is expected interface-
 # fidelity noise, see notes/open-questions.md Q10). These fail the build.
