@@ -29,8 +29,9 @@ Conventions (see CLAUDE.md "Fabrication constraints"):
 
 Substitutions forced by JLC stock (all verified same-pinout):
   * 74HCT374 -> 74HCT574 (no '374 stocked; sheets rewired for the '574)
-  * 74HCT157 -> 74HC157, +3.3 V (speed mux): SPEED_SEL drives the select
-    DIRECTLY off the 3.3 V MCU GPIO now (clears HC Vih 2.31 V), so the old
+  * 74HCT157 -> 74HC157, +3.3 V (speed mux): SPEED_SEL is a 3.3 V level
+    (since 2026-07-20 a local jumper strap, JP1 + 10k pull-down: open =
+    7.16 MHz; before that an MCU GPIO) -- clears HC Vih 2.31 V, so the old
     5 V HCT select-inverter is gone and I0a/I1a are UN-swapped (see cpu_core Q5)
   * TCM809   -> TCM809TENB713 (SOT-23, 3.08 V threshold -- 3.3V-rail grade;
     the -450I/TT (4.375 V) pick was wrong, chosen back when this part
@@ -195,7 +196,6 @@ PART_MAP = {
         "drawing at layout (no exact BS-6 stock footprint)"),
     # ---- 3.3 V logic ----
     ("mini-xt:74LVC245A", "74LVC245A"): E("C6082", "74LVC245APW,118", "TSSOP-20", TSSOP20),
-    ("74xx:74HC595", "74HC595"):      E("C5947", "74HC595D,118", "SOIC-16", SOIC16),
     # ---- ICs ----
     ("mini-xt:MAX3241", "SP3243E"):   E("C916165", "SP3243EUEA-L/TR", "SSOP-28",
                                         "Package_SO:SSOP-28_5.3x10.2mm_P0.65mm",
@@ -368,10 +368,14 @@ PART_MAP = {
     # card_isatest dev card, its only user.)
 }
 
-# Fallbacks by lib_id alone (any value). Headers/jumpers are cut-to-length
-# 2.54 mm breakaway strips; modules get female-header sockets.
+# Fallbacks by lib_id alone (any value). Headers are cut-to-length 2.54 mm
+# breakaway strips EXCEPT the 1x02 jumpers (fixed-size part, below); modules
+# get female-header sockets.
 LIBID_MAP = {
-    "Connector_Generic:Conn_01x02": E("C2337", "1x40 2.54mm header (break to 2)", "THT", PH % "1x02"),
+    # 1x02: real fixed-size part, NOT the C2337 breakaway strip (user decision
+    # 2026-07-20 -- covers all 1x2 jumpers: cpu_core JP1 SPEED, video JP1
+    # VID_BASE). XFCN PZ254V-11-02P, extended library (reel fee), ~970k stock.
+    "Connector_Generic:Conn_01x02": E("C492401", "1x2 2.54mm male pin header", "THT", PH % "1x02"),
     "Connector_Generic:Conn_01x03": E("C2337", "1x40 2.54mm header (break to 3)", "THT", PH % "1x03"),
     "Connector_Generic:Conn_01x04": E("C2337", "1x40 2.54mm header (break to 4)", "THT", PH % "1x04"),
     "Connector_Generic:Conn_01x08": E("C2337", "1x40 2.54mm header (break to 8)", "THT", PH % "1x08"),

@@ -36,9 +36,12 @@ XT/ISA backplane as **slave and master**.  It carries:
         '165 directly. 2026-07-14 consolidation: replaced the 3-chip 24-bit
         chain (U12/U19/U20) after EXT_DRQ1-3 were deleted with ISA-card DMA.
   * UART cross-MCU link to the Supervisor (§5.3): LINK_B2S (TX), LINK_S2B (RX).
-  * SPEED_SEL (out) -> clock mux in cpu_core: set before releasing V20 reset
-    (moved here from the Supervisor; Supervisor sends the choice over the link).
-    Address/control transceiver DIR is HLDA-derived externally to free the GPIO.
+  * FULL 10-bit I/O decode (2026-07-20): A8 (GPIO42) and A9 (GPIO46) are
+    sensed directly alongside A0-A7 -- no more 8-bit-alias hazard (0x020 vs
+    the PicoGUS's 0x220; COM3 0x3E8 vs an expansion COM4 0x2E8). GPIO42 was
+    freed by moving SPEED_SEL to a cpu_core jumper strap (JP1 there: open =
+    7.16 MHz default, fitted = 4.77 MHz); GPIO46 by dropping the redundant
+    raw ~{RD} sense (reads always show on the gated ~{MEMR}/~{IOR}).
   * Expansion-port DMA channel (2026-07-14): EXT_DRQ arrives via the '165
     scan (U12 D6, the spare lane); ~{EXT_DACK} is driven from GPIO47 --
     reclaimed from ~{REFRESH}, which was retired with the 50-pin header
@@ -76,7 +79,6 @@ _DIR = {
     "~{DACK}": "output",
     # private V20 <-> Bus MCU
     "HOLD": "output", "HLDA": "input", "~{HLDA}": "input", "READY": "output",
-    "~{RD}": "input",
     "INTR": "output", "~{INTA}": "input", "NMI": "output", "~{CPURESET}": "output",
     "LINK_B2S": "output", "LINK_S2B": "input",
 }
@@ -103,7 +105,10 @@ PINS = (
     # (PRIV_COUNTER dropped from the interface: the 20-bit counter chain lives
     # on this sheet, so CNT_* never leaves it.)
     [pin("LINK_B2S", "output"), pin("LINK_S2B", "input"),
-     pin("SPEED_SEL", "output"), pin("SPKR", "output")] +
+     pin("SPKR", "output")] +
+    # (SPEED_SEL left the interface 2026-07-20: it is a jumper strap on
+    # cpu_core now; GPIO42 senses A8 instead. A8/A9 are already in the
+    # mxbus.ADDR pins above.)
     # expansion-port isolation bank (mxbus.PRIV_EXP): EXP_DDIR drives the sidecar
     # data-xcvr direction (out); ~{EXT_DACK} is the port's DMA acknowledge
     # (out, GPIO47 -- freed by the ~{REFRESH} retirement 2026-07-14); the six
@@ -140,19 +145,25 @@ GPIO_NET.update({
     33: "DRQ", 34: "~{DACK}", 35: "TC",             # internal DMA channel (PicoGUS); TC drive direct (was M_TC via U13)
     36: "CNT_CLK", 37: "CNT_LD0", 38: "CNT_LD1", 39: "CNT_LD2",
     40: "LINK_B2S", 41: "LINK_S2B",                 # UART link to Supervisor
-    42: "SPEED_SEL", 43: "EXP_DDIR",                # SPEED_SEL out; GPIO43 freed by U2 deletion (was DATADIR) -> expansion data-xcvr dir
+    # GPIO42/46 reclaimed 2026-07-20 for FULL 10-bit I/O decode (A0-A9 all
+    # sensed -- kills the 8-bit-alias hazard, e.g. 0x020 vs the PicoGUS's
+    # 0x220, and separates COM3 0x3E8 from an expansion COM4 0x2E8):
+    # GPIO42 was SPEED_SEL (now a jumper strap on cpu_core, open = 7.16 MHz);
+    # GPIO46 was the raw ~{RD} sense (redundant -- every read shows up on the
+    # gated ~{MEMR}/~{IOR}, GPIO18/16; same reclaim as the old ~{WR} drop).
+    42: "A8", 43: "EXP_DDIR",                       # GPIO43 freed by U2 deletion (was DATADIR) -> expansion data-xcvr dir
     44: "READY", 45: "~{CPURESET}",                 # V20 handshake (private)
-    46: "~{RD}",                                    # raw V20 read-strobe sense
+    46: "A9",
     47: "~{EXT_DACK}",    # expansion-port DMA acknowledge (was ~{REFRESH},
 })                        # retired 2026-07-14 -- no DRAM-refresh on the port)
 # net -> hier-label shape, so MCU stubs carry the right cross-sheet direction
 _NET_SHAPE = {"IOCHRDY": "bidirectional", "~{IOCHCK}": "input",
               "HOLD": "output", "HLDA": "input", "INTR": "output",
               "~{INTA}": "input", "NMI": "output", "READY": "output",
-              "~{CPURESET}": "output", "~{RD}": "input",
+              "~{CPURESET}": "output",
               "DRQ": "input", "~{DACK}": "output",
               "LINK_B2S": "output", "LINK_S2B": "input",
-              "SPEED_SEL": "output", "~{EXT_DACK}": "output", "SPKR": "output"}
+              "~{EXT_DACK}": "output", "SPKR": "output"}
 _HIER = set(_NET_SHAPE) | {"IRQ_LOAD", "IRQ_CLK", "IRQ_SER"}  # IRQ_* are internal labels
 
 
@@ -219,9 +230,10 @@ def build(sch, lib):
     #  U3/U4/U5 address+BALE, U13 AEN/TC -- and their DIR logic are DELETED.
     #  Every MCU-side channel now sits on its bus net directly through GPIO_NET
     #  (1:1; see the map above).  D0-7=GPIO0-7, A0-7=GPIO8-15, ~{IOR/IOW/MEMR/
-    #  MEMW}=GPIO16-19, BALE=GPIO20, AEN=GPIO21, TC=GPIO35.  A8-A19 are no longer
-    #  sensed here (they never had a GPIO -- the old U4/U5 upper channels were
-    #  unbonded sense taps).  DATADIR (ex-U2 DIR, GPIO43) is freed -> EXP_DDIR.
+    #  MEMW}=GPIO16-19, BALE=GPIO20, AEN=GPIO21, TC=GPIO35.  A8=GPIO42 and
+    #  A9=GPIO46 joined 2026-07-20 (full 10-bit I/O decode); A10-A19 are not
+    #  sensed (no GPIO -- the old U4/U5 upper channels were unbonded sense
+    #  taps).  DATADIR (ex-U2 DIR, GPIO43) is freed -> EXP_DDIR.
     #  AEN (R1) and TC (R17) get an idle-low park below so cards read them
     #  deasserted during the MCU-Hi-Z (BOOTSEL/reset) window; HLDA parks low (R18).
     # =================================================================

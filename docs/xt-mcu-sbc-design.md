@@ -131,6 +131,33 @@ driver back in its wrapper schematic exactly as it gets the bus edge connector
 (`questions-addr_decode.md`). Video/PicoGUS/Bus-MCU decode in firmware; only their
 disable jumpers moved here.
 
+**Decode chart.** Net-by-net logic of the `addr_decode` chain (U1 '138 windows → U2 '00
+fine term → U3/U4 '32 OR ranks). All nets are active-low; each row shows the A0–A9 state
+that asserts the net (X = don't care). Every row also requires **AEN = 0** (the '138's
+~E0 — decode is suppressed during DMA cycles), and the final `~x_CS` rows additionally
+require the peripheral's **DIS_x jumper level = 0** (enabled, the default).
+
+| Net Name  | Logic                                        | A0 | A1 | A2 | A3 | A4 | A5 | A6 | A7 | A8 | A9 |
+|-----------|----------------------------------------------|----|----|----|----|----|----|----|----|----|----|
+| WIN_COM1  | NOT(AND(A6, A7, A8, A9, NOT(AEN)))           | X  | X  | X  | X  | X  | X  | 1  | 1  | 1  | 1  |
+| WIN_COM2  | NOT(AND(A6, A7, NOT(A8), A9, NOT(AEN)))      | X  | X  | X  | X  | X  | X  | 1  | 1  | 0  | 1  |
+| WIN_LPT   | NOT(AND(A6, NOT(A7), A8, A9, NOT(AEN)))      | X  | X  | X  | X  | X  | X  | 1  | 0  | 1  | 1  |
+| WIN_IDE   | NOT(AND(NOT(A6), NOT(A7), A8, A9, NOT(AEN))) | X  | X  | X  | X  | X  | X  | 0  | 0  | 1  | 1  |
+| Q_N       | NAND(A3, A4, A5)                             | X  | X  | X  | 1  | 1  | 1  | X  | X  | X  | X  |
+| CSP_COM1  | OR(WIN_COM1, Q_N)                            | X  | X  | X  | 1  | 1  | 1  | 1  | 1  | 1  | 1  |
+| CSP_COM2  | OR(WIN_COM2, Q_N)                            | X  | X  | X  | 1  | 1  | 1  | 1  | 1  | 0  | 1  |
+| CSP_LPT   | OR(WIN_LPT, Q_N)                             | X  | X  | X  | 1  | 1  | 1  | 1  | 0  | 1  | 1  |
+| CSP_IDE   | OR(WIN_IDE, A5)                              | X  | X  | X  | X  | X  | 0  | 0  | 0  | 1  | 1  |
+| ~COM1_CS  | OR(CSP_COM1, DIS_COM1)                       | X  | X  | X  | 1  | 1  | 1  | 1  | 1  | 1  | 1  |
+| ~COM2_CS  | OR(CSP_COM2, DIS_COM2)                       | X  | X  | X  | 1  | 1  | 1  | 1  | 1  | 0  | 1  |
+| ~LPT_CS   | OR(CSP_LPT, DIS_LPT)                         | X  | X  | X  | 1  | 1  | 1  | 1  | 0  | 1  | 1  |
+| ~IDE_CS   | OR(CSP_IDE, DIS_IDE)                         | X  | X  | X  | X  | X  | 0  | 0  | 0  | 1  | 1  |
+
+Resulting ranges: ~COM1_CS = 0x3F8–0x3FF, ~COM2_CS = 0x2F8–0x2FF, ~LPT_CS = 0x378–0x37F,
+~IDE_CS = 0x300–0x31F. A0–A2 are never decoded here — they reach the peripherals for
+internal register select (and the IDE window's A3/A4 don't-cares split further on the
+storage sheet).
+
 ### Block diagram
 
 ```
@@ -475,7 +502,7 @@ beyond the 2-wire link (§5.3).
 
 | Group | Signals | Pins | Notes |
 |---|---|---|---|
-| I/O address decode | A0–A9 | 10 | 10-bit ISA decode. A8/A9 **required** to separate 0x3E8 (COM3 mouse) from 0x2E8 (COM4); drop to A0–A7 + an external COM3-region gate to save ~1. |
+| I/O address decode | A0–A9 | 10 | 10-bit ISA decode. A8/A9 **required** to separate 0x3E8 (COM3 mouse) from 0x2E8 (COM4). As built (2026-07-20): A0–A7 on GPIO8–15, **A8/A9 on GPIO42/46** — pins freed by moving SPEED_SEL to a cpu_core jumper and dropping the redundant raw RD̄ sense. |
 | Data bus | D0–D7 | 8 | also carries the INTA vector + counter-load bytes |
 | Command strobes | IOR̄/IOW̄ (bidir), MEMR̄/MEMW̄ (out) | 4 | sense as slave, drive as master |
 | Bus control | ALE (in), AEN (bidir), RESET DRV (out) | 3 | |
@@ -490,9 +517,10 @@ beyond the 2-wire link (§5.3).
 | **Link to Supervisor** | **UART TX/RX** | **2** | §5.3 |
 | **Total** | | **≈ 44–46 / 48** | fits with margin **because** the link is UART (2 pins). SPI (+3) would push to ~47–49 — at/over the edge. **As built: 48/48** — the margin was spent on SPKR (PIT ch2), EXT_DACK̄ (GPIO47, which had briefly been ~{REFRESH} until its 2026-07-14 retirement), and READY; the raw ~WR and IO/M̄ senses and DMA ch2/3 (DRQ/DACK) were dropped. |
 
-Speed-select moves to the Supervisor (a static latch it sets before reset release), and the
-POST display is Supervisor-driven — both off the Bus MCU. The link choice is worth ~3 pins
-and is effectively the difference between comfortable and over-budget (§5.3).
+Speed-select is a **hardware jumper on cpu_core** (JP1 by the '157 mux, 2026-07-20: open =
+7.16 MHz default, fitted = 4.77 MHz — it spent a while as Bus MCU GPIO42, reclaimed for the
+A8 sense), and the POST display is Supervisor-driven — both off the Bus MCU. The link choice
+is worth ~3 pins and is effectively the difference between comfortable and over-budget (§5.3).
 
 ### 5.3 Cross-MCU link — 2-wire full-duplex UART
 
@@ -948,9 +976,10 @@ Xi 8088's CMOS setup the same as before — only the hardware backing it changed
 ---
 
 ## 16. Open decisions / next steps
-- **Bus MCU GPIO pinout** — assignment is now drawn at 48/48 (see §5.2 "as built"); still to
-  confirm: the partial-address-decode (A0–A7 sense only) and single-DMA-channel assumptions,
-  and the core0-PIO (bus) / core1 (DMA+PIC) split under load.
+- **Bus MCU GPIO pinout** — assignment is now drawn at 48/48 (see §5.2 "as built"); the
+  partial-address-decode concern is **resolved** (full A0–A9 sense since 2026-07-20, GPIO42/46);
+  still to confirm: the single-DMA-channel assumption and the core0-PIO (bus) / core1
+  (DMA+PIC) split under load.
 - **Cross-MCU UART protocol** — define the framing (length + CRC) and message set (image push,
   HID event, menu draw, POST code, CMOS-write); pick the baud (hardware UART vs PIO multi-Mbaud)
   and confirm worst-case keystroke latency through USB → Supervisor → UART → KBC.

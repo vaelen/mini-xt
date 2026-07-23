@@ -141,7 +141,8 @@ how-to. `hardware/sheets/cpu_core.py` is the worked reference example. Key rules
   sheets (video, com_port, parallel, storage, sidecar, audio, picogus,
   card_*) should still use *only* ISA signals + power, so they stay
   liftable to a standalone ISA card. Private nets (`PRIV_*` in mxbus: HOLD/HLDA,
-  UART link, counter strobes, SPEED_SEL, Y5) remain motherboard-only by
+  UART link, counter strobes, Y5; SPEED_SEL retired 2026-07-20 — it's a
+  cpu_core-local jumper now, open = 7.16 MHz) remain motherboard-only by
   convention — avoid leaking one into a soft card, but this is a guideline to
   log a question against, not a build-breaking violation. **Standing pattern
   (2026-07-14):** com_port/parallel/storage take `mxbus.PRIV_CS` chip selects

@@ -249,6 +249,45 @@ also ELIMINATES a hazard: a driven header DACK1̄ would have false-triggered
 any card strapped to ch1 during on-board PicoGUS transfers -- now no
 acknowledge can reach a card at all.
 
+## Q7. HOLD/HLDA during V20 reset vs boot-time bus mastering (2026-07-19, found writing docs/bus-mcu-firmware.md)
+- Why: boot sequence steps 2-5 (SRAM clear, menu render, shadow-load) run
+  "with the V20 held in reset", but the 8088/V20 does not grant HOLD while
+  RESET is active (HLDA stays low), and the counter's '244s only enable on
+  HLDA (~OE = ~{HLDA}) -- so the counter can't reach A0-A19 while the V20 is
+  in reset. Meanwhile the '573 latches (OE = HLDA, enabled) drive whatever
+  stale/floating address the resetting V20 presents.
+- Options: (a) firmware releases ~{CPURESET} with HOLD already asserted
+  (GPIO25 low) and relies on the V20 granting HLDA at/before its first fetch
+  boundary (small window where it may fetch garbage from uncleared SRAM --
+  reads only, probably harmless, but unverified); (b) gate the '244 ~OE with
+  ~{HLDA} AND ~{CPURESET}-low so the counter owns the bus during reset (needs
+  the '573s de-gated in the same condition -- hardware change); (c) confirm
+  from the NEC V20 datasheet that HLDA IS granted during reset (8088 lore may
+  not apply).
+- Datasheet check (2026-07-19, uPD70108H/70116H datasheet IC-3552A, §1.2
+  "Pin Status Under Specific Conditions", small-scale mode): **HLDAK is
+  driven LOW for the duration of RESET** -- option (c) is dead; the V20
+  matches 8088 lore and does NOT grant a hold during reset. Also confirmed
+  there: during reset the address pins (A8-A15, AD0-AD7, A16/PS0-A19/PS3)
+  are Hi-Z, ASTB is LOW (so the '573s hold stale latched values, outputs
+  DRIVEN), and RESET "has priority over any other operation". Post-reset
+  request priority is INT < NMI < HLDRQ (HLDRQ highest, sampled with
+  external-sync setup requirements).
+- Pick: **(a), refined into a reset-sandwich**: (1) assert HOLD (GPIO25 low
+  = HLDRQ high) while ~{CPURESET} is still low; (2) release reset; the V20
+  exits reset with the hold request already pending -- HLDRQ outranks
+  everything else, so HLDAK is granted at the first bus-idle opportunity
+  (worst case the CPU completes one harmless garbage FETCH from FFFF0
+  first; it can never WRITE, since executing anything requires bus cycles
+  the hold blocks); (3) do all master work (SRAM clear, shadow-load, menu
+  renders) under this held V20; (4) when done, RE-ASSERT ~{CPURESET}
+  (reset overrides hold, HLDAK drops, V20 re-floats), release HOLD, wait
+  >=4 CLKs, then (5) release reset cleanly -- the V20 now boots from
+  FFFF0 in loaded RAM. No hardware change needed. Residual unknown (low
+  risk, bench-verify): the exact clock on which HLDRQ is first sampled
+  after reset ends -- worst case is the one read-only fetch above.
+  Firmware contract updated in docs/bus-mcu-firmware.md.
+
 ## GPIO47: ~{REFRESH} -> ~{EXT_DACK}; '165 D6 -> EXT_DRQ (2026-07-14, port DMA)
 
 User decision (with the 50-pin sidecar header): ~{REFRESH} is RETIRED -- the
@@ -261,3 +300,23 @@ Internal ch1 renamed DRQ1/~{DACK1} -> DRQ/~{DACK}. The port-61h bit-4
 refresh toggle was always firmware-only and is unaffected. (The alternative
 considered -- reclaiming GPIO46 ~{RD} like the old ~WR reclaim -- was not
 needed.)
+
+## Q8. Full 10-bit I/O decode: GPIO42/46 reclaimed for A8/A9 (2026-07-20, user decision)
+- Why: only A0-A7 were sensed, so the slave engine could not tell 0x020 from
+  0x120/0x220/0x320 (0x220 = PicoGUS SB base -- a blind 8-bit decode would
+  fight a real device on reads) nor COM3 0x3E8 from an expansion COM4 0x2E8.
+  This was the §16 "confirm partial-address-decode" open item; interim ideas
+  (an addr_decode NAND qualifier; '165 capture of A8-A19) are superseded.
+- Pick: sense A8 and A9 DIRECTLY on the two reclaimable GPIOs -- zero added
+  packages, zero capture latency:
+  * GPIO42 (ex-SPEED_SEL) = A8. Speed select is a cpu_core jumper now (JP1
+    there, open = 7.16 MHz -- see questions-cpu_core.md).
+  * GPIO46 (ex-~{RD}) = A9. The raw read-strobe sense was redundant: every
+    read appears on the gated ~{MEMR}/~{IOR} (GPIO18/16), the same reasoning
+    that dropped the raw ~{WR}/IO/~{M} senses; ~{RD} is cpu_core-internal
+    again and left mxbus.PRIV_CPU.
+- A10-A19 remain unsensed: ISA is 10-bit I/O decode by convention (aliasing
+  above 0x3FF is period-correct), and memory cycles are excluded by strobe
+  type, so nothing above A9 is needed for the slave role.
+- Netlist: /A8 = {M201.43 (GPIO42), ...}, /A9 = {M201.47 (GPIO46), ...} --
+  both span cpu_core '573s, the counter '244s, RAM, and addr_decode. ERC 0/0.

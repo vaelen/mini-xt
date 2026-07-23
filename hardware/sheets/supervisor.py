@@ -313,9 +313,9 @@ def build(sch, lib):
     L(SW2, "4", "USB_DM_J", dx=2.54, dy=0)         # position A -> Supervisor
     L(SW2, "6", "PGUS_USB_DM", dx=2.54, dy=0)      # position C -> PicoGUS
 
-    # ---------------- speed-select latch (static, set before reset release) ----------
-    # speed-select moved to the Bus MCU: the Supervisor now sends the chosen
-    # CPU divisor to the Bus MCU over the UART link (no SPEED_SEL pin here).
+    # (speed-select left the MCUs entirely 2026-07-20: it is a jumper strap
+    # on cpu_core -- JP1 there, open = 7.16 MHz -- so there is no SPEED_SEL
+    # pin here and no speed message on the UART link.)
 
     # ---------------- SWD debug header (bring-up aid, local) ----------------
     L(U1, "SWCLK", "SWCLK", dx=2.54)

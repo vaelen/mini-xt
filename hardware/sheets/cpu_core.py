@@ -19,7 +19,9 @@ V20 runs at 5 V, everything past the boundary latches is a 3.3 V bus.
   * 1x IS62WV51216BLL 512Kx16 SRAM used as 1Mx8 via the byte-lane trick -> full
     1 MB less the 0xA0000-0xBFFFF video window.
   * single-oscillator clock tree: 14.318 osc -> /2 (74LVC74A) and /3 (74LVC161
-    preset-to-3, 3.3 V for fmax margin), 74HC157 select (SPEED_SEL direct),
+    preset-to-3, 3.3 V for fmax margin), 74HC157 select (SPEED_SEL jumper JP1:
+    open = 7.16 MHz default, fitted = 4.77 MHz -- was a Bus MCU GPIO until
+    2026-07-20),
     74HCT04 5 V buffer (U13) -> V20 CLK, plus 5 V re-buffering of the V20's
     READY/HOLD handshake inputs (the one gate package that MUST stay 5 V: V20 CLK
     needs Vkh = 4.0 V, unreachable from 3.3 V). U13 drives only private V20 nets.
@@ -51,12 +53,13 @@ PINS = (
      # no consumer remained. OSC_3V3 still clocks the dividers sheet-locally.)
      pin("CLK", "output"),
      pin("RESET_DRV", "output")] +
-    # private V20 <-> Bus MCU  (~{WR} / IO/~{M} are sheet-internal: the Bus MCU
-    # doesn't sense them -- GPIO budget -- so only ~{RD} crosses the boundary)
+    # private V20 <-> Bus MCU  (~{RD} / ~{WR} / IO/~{M} are ALL sheet-internal
+    # since 2026-07-20: the Bus MCU tracks cycles via the gated MEMR/W,IOR/W
+    # strobes; its GPIO46 senses A9 instead of raw ~{RD}. SPEED_SEL left the
+    # interface the same day -- it is a local jumper strap now, JP1 below.)
     [pin("HOLD", "input"), pin("HLDA", "output"), pin("READY", "input"),
-     pin("~{RD}", "output"),
      pin("INTR", "input"), pin("~{INTA}", "output"), pin("NMI", "input"),
-     pin("~{CPURESET}", "input"), pin("SPEED_SEL", "input")]
+     pin("~{CPURESET}", "input")]
 )
 
 
@@ -119,10 +122,10 @@ def build(sch, lib):
     L(U1, "DEN", "DEN")
     L(U1, "DT/~{R}", "DT/~{R}")
     sch.no_connect(U1.pin_xy("~{SSO}"))
-    # raw ~{RD} also exported (Bus MCU senses it on GPIO46); ~{WR} and IO/~{M}
-    # stay sheet-internal (labelled above) -- the MCU tracks writes via the
-    # gated MEMW/IOW strobes instead.
-    P(U1, "~{RD}", "~{RD}", shape="output")
+    # ~{RD} is sheet-internal like ~{WR} / IO/~{M} (2026-07-20 -- the Bus MCU
+    # sense on GPIO46 was reclaimed for A9): it only feeds the U10 strobe
+    # gates below, which is where the MCU-visible MEMR/IOR come from.
+    L(U1, "~{RD}", "~{RD}")
 
     # ---------------- min-mode strobe gating (IO/M + RD/WR -> MEMR/W,IOR/W) ----------------
     # IO/~M low = memory cycle:  ~MEMR = ~RD OR IO/~M    ~MEMW = ~WR OR IO/~M
@@ -277,14 +280,22 @@ def build(sch, lib):
 
     # Speed mux is 74HC157 (no HCT/ACT157 stocked at JLC), now +3V3-powered. Its
     # clock inputs (CLK4/CLK7) are 3.3V from the LVC dividers and its SPEED_SEL
-    # select is a 3.3V MCU GPIO -- all clear HC's Vih (0.7*3.3=2.31V) at 3.3V, so
-    # the select is driven DIRECTLY (no more 5V HCT inverter stage). With S driven
-    # true-sense, I0a/I1a are UN-swapped vs the old inverted-select wiring so the
-    # firmware polarity holds: SPEED_SEL=0 -> S=L -> Za=I0a=CLK7 (7.16 MHz).
+    # select is a 3.3V level -- all clear HC's Vih (0.7*3.3=2.31V) at 3.3V.
+    # SPEED_SEL is a LOCAL JUMPER STRAP since 2026-07-20 (was Bus MCU GPIO42,
+    # reclaimed to sense A8): R1 pulls S low -> Za=I0a=CLK7, so an OPEN jumper
+    # defaults to 7.16 MHz; fitting JP1 ties S to +3V3 -> CLK4 (4.77 MHz).
+    # Same polarity the firmware drive used (SPEED_SEL=0 -> 7.16 MHz).
     mux = sch.place("mini-xt:74HCT157", "U12", "74HC157", at=(116.84, 76.2))
     L(mux, "VCC", "+3V3", dx=0, dy=-2.54); L(mux, "GND", "GND", dx=0, dy=2.54)
     L(mux, "I0a", "CLK7"); L(mux, "I1a", "CLK4")
-    P(mux, "S", "SPEED_SEL", shape="input", dx=-2.54); L(mux, "E", "GND")
+    L(mux, "S", "SPEED_SEL", dx=-2.54); L(mux, "E", "GND")
+    JP1 = sch.place("Connector_Generic:Conn_01x02", "JP1", "SPEED (4.77MHz)",
+                    at=(116.84, 40.64))
+    L(JP1, "Pin_1", "SPEED_SEL", dx=2.54)
+    L(JP1, "Pin_2", "+3V3", dx=2.54)
+    r = sch.place("Device:R", "R1", "10k", at=(137.16, 40.64))
+    sch.net(r, "1", "SPEED_SEL", kind="label", dx=0, dy=-2.54)
+    sch.net(r, "2", "GND", kind="label", dx=0, dy=2.54)
     L(mux, "Za", "CLK_MUX")
     # Unused mux sections: inputs tied (no floating CMOS)
     for p in ("I0b", "I1b", "I0c", "I1c", "I0d", "I1d"):

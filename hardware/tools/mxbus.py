@@ -64,9 +64,10 @@ PRIV_CPU = [
                                # 5V-tolerant inverter, 2026-07-14 -- replaced
                                # a 74LVC04A that existed for this one gate)
     "READY",                   # folded wait input to V20
-    "~{RD}",                   # raw V20 read strobe (Bus MCU sense; ~{WR} and
-                               # IO/~{M} stay cpu_core-internal, gated to
-                               # MEMR/W,IOR/W there -- MCU GPIO budget)
+                               # (~{RD} left this list 2026-07-20: the raw
+                               # V20 strobes ~{RD}/~{WR}/IO/~{M} are ALL
+                               # cpu_core-internal now, gated to MEMR/W,
+                               # IOR/W there -- GPIO46 senses A9 instead)
     "INTR", "~{INTA}", "NMI",  # interrupt delivery V20 <-> Bus MCU
     "~{CPURESET}",             # Bus MCU sequences V20 reset
 ]
@@ -98,8 +99,9 @@ PRIV_IRQREQ = ["IRQ_COM1", "IRQ_COM2", "~{COM1_IRQEN}", "~{COM2_IRQEN}",
 # pre-2026-07-14 on-sheet VID_EN strap). (DIS_NIC left with the RTL8019AS
 # NIC, removed 2026-07-14 -- tag full-board-with-nic has the last version.)
 PRIV_DIS = ["DIS_VID"]
-# speed select (Bus MCU -> clock mux), set while it holds the V20 in reset
-PRIV_SPEED = ["SPEED_SEL"]
+# (PRIV_SPEED retired 2026-07-20: SPEED_SEL is now a jumper strap local to
+# cpu_core -- open = 7.16 MHz, fitted = 4.77 MHz -- freeing Bus MCU GPIO42
+# to sense A8. It never had a consumer in code; sheets named it directly.)
 # PC-speaker PWM: Bus MCU (soft-PIT ch2 / port-61h gate) -> audio sheet
 PRIV_AUDIO = ["SPKR"]
 # CH224K power-good (open-drain, 3V3 pull-up): power sheet -> Supervisor GPIO16

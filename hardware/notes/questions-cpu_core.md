@@ -176,3 +176,22 @@ Format: question / why / options / pick. Appended as decisions are made.
   clear U12 (74HC157 speed-mux) output column at x=130.81 — at the old x, P3's
   READY_MID stub landed exactly on U12's Zd no_connect (no_connect_connected).
 - **All three U13 spare gates are now used** — the old "parked" comment is gone.
+
+## SPEED_SEL: Bus MCU GPIO -> local jumper strap (2026-07-20, user decision)
+- Why: the Bus MCU needed two GPIOs to sense A8/A9 directly (full 10-bit I/O
+  decode -- the 8-bit-alias hazard: 0x020 indistinguishable from the PicoGUS's
+  0x220, COM3 0x3E8 from an expansion COM4 0x2E8). SPEED_SEL was one of only
+  two reclaimable pins, and speed choice is a static, set-before-boot level --
+  a period-appropriate jumper does the job with no firmware in the loop.
+- How: JP1 (Connector_Generic:Conn_01x02, 1x2 male header, C2337 breakaway)
+  next to the U12 '157 speed mux; Pin_1 = SPEED_SEL, Pin_2 = +3V3; R1 10k
+  pull-down to GND. **Open = SPEED_SEL low = CLK7 = 7.16 MHz (the fast
+  default, per user requirement); fitted = high = CLK4 = 4.77 MHz.** Same
+  polarity the old firmware drive used (0 = fast), so the '157 I0a/I1a wiring
+  is untouched. SPEED_SEL and PRIV_SPEED left the cross-sheet interface; the
+  net is cpu_core-local ({JP101.1, R101.1, U112.1} in the netlist).
+- Also: ~{RD} became sheet-internal the same day (its only consumer was the
+  Bus MCU's GPIO46 diagnostic sense, redundant with the gated ~{MEMR}/~{IOR});
+  it still feeds the U10 strobe gates and keeps its RN1 +5V park.
+- Consequence: the Supervisor no longer sends a speed choice over the link,
+  and the setup menu loses the CPU-speed item (it's a physical jumper now).
